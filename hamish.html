@@ -677,7 +677,17 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
                 linkItemContainer.appendChild(folderBtn);
             } else if (link.includes('drive.google.com')) {
                 // Google Drive FILE
-                const fileId = link.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+                const fileIdFromPath = link.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+                let fileIdFromQuery = null;
+
+                try {
+                    const parsedUrl = new URL(link);
+                    fileIdFromQuery = parsedUrl.searchParams.get('id');
+                } catch (e) {
+                    // Ignore invalid URLs and fall back to path-only parsing.
+                }
+
+                const fileId = fileIdFromPath || fileIdFromQuery;
                 if (fileId) {
                     const embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
                     linkItemContainer.innerHTML = `
