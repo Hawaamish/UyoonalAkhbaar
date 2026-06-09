@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>فهرست الاشعار</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+	<style>
+		:root {
+			--bg: #fefaf6;
+			--panel: #fffdf9;
+			--panel-2: #fff8f2;
+			--ink: #2e2a27;
+			--muted: #6b625d;
+			--line: #eadfd6;
+			--accent: #f3b9a6;
+			--accent-2: #c9e4de;
+			--accent-3: #f7d9c4;
+			--accent-4: #d8d7ff;
+			--danger-soft: #ffe7e2;
+			--shadow: 0 10px 24px rgba(80, 64, 55, 0.1);
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family: "Amiri", serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 85% 10%, #fff2de 0, transparent 30%),
+				radial-gradient(circle at 10% 30%, #e8f6f1 0, transparent 28%),
+				linear-gradient(160deg, #fffdf8 0%, #fff6ee 100%);
+			min-height: 100vh;
+			overflow-x: hidden;
+		}
+
+		.shell {
+			max-width: 100%;
+			margin: 0 auto;
+			padding: 12px 8px 20px;
+		}
+
+		.hero {
+			background: linear-gradient(135deg, #fff6ef, #fffdf9 45%, #edf8f5);
+			border: 1px solid var(--line);
+			border-radius: 20px;
+			padding: 18px;
+			box-shadow: var(--shadow);
+			margin-bottom: 14px;
+		}
+
+		.hero h1 {
+			margin: 0 0 8px;
+			font-size: 15pt;
+			font-weight: 800;
+			letter-spacing: 0.2px;
+		}
+
+		.hero p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.95rem;
+		}
+
+		.layout {
+			display: grid;
+			grid-template-columns: 420px 1fr;
+			gap: 10px;
+			align-items: start;
+		}
+
+		.matla-sidebar {
+			background: var(--panel);
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			padding: 10px;
+			height: fit-content;
+			max-height: calc(100vh - 36px);
+			overflow: hidden;
+			position: sticky;
+			top: 10px;
+			width: 100%;
+		}
+
+		.matla-sidebar details {
+			height: 100%;
+		}
+
+		.matla-sidebar summary {
+			cursor: pointer;
+			font-size: 15pt;
+			font-weight: 700;
+			color: #4d423d;
+			padding: 4px 2px 10px;
+			border-bottom: 1px dashed #e4d7cf;
+			margin-bottom: 8px;
+		}
+
+		.matla-list {
+			display: grid;
+			gap: 6px;
+			max-height: calc(100vh - 120px);
+			overflow-y: auto;
+			padding-inline-start: 2px;
+		}
+
+		.matla-item {
+			border: 1px solid #e8dcd4;
+			background: #fff;
+			border-radius: 10px;
+			padding: 8px 10px;
+			font-family: inherit;
+			font-size: 16px;
+			text-align: right;
+			cursor: pointer;
+			line-height: 1.6;
+			white-space: normal;
+			overflow-wrap: anywhere;
+			word-break: break-word;
+		}
+
+		.matla-item:hover {
+			background: #fff4e9;
+			border-color: #efc8af;
+		}
+
+		.matla-item.active {
+			background: #ffe9db;
+			border-color: #efb79f;
+			font-weight: 700;
+		}
+
+		.filters {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: var(--panel);
+			border: 1px solid var(--line);
+			border-radius: 18px;
+			padding: 14px;
+			box-shadow: var(--shadow);
+			width: min(92vw, 680px);
+			max-height: 82vh;
+			overflow-y: auto;
+			z-index: 1001;
+		}
+
+		.filters.is-hidden {
+			display: none;
+		}
+
+		.search-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(30, 22, 17, 0.35);
+			backdrop-filter: blur(2px);
+			z-index: 1000;
+		}
+
+		.search-overlay.is-hidden {
+			display: none;
+		}
+
+		.filters-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 8px;
+		}
+
+		.close-search {
+			border: 1px solid #e7d8cd;
+			background: #fff;
+			border-radius: 10px;
+			padding: 6px 10px;
+			cursor: pointer;
+			font-size: 0.95rem;
+		}
+
+		.filters h2 {
+			margin: 0 0 12px;
+			font-size: 1.05rem;
+		}
+
+		.field {
+			margin-bottom: 10px;
+		}
+
+		.field label {
+			display: block;
+			margin-bottom: 5px;
+			font-weight: 700;
+			font-size: 0.86rem;
+			color: #534943;
+		}
+
+		.field input,
+		.field select,
+		.field button {
+			width: 100%;
+			border: 1px solid #e7d8cd;
+			background: #fff;
+			border-radius: 12px;
+			padding: 9px 10px;
+			font-family: inherit;
+			font-size: 0.92rem;
+			color: var(--ink);
+			outline: none;
+		}
+
+		.field input:focus,
+		.field select:focus {
+			border-color: #d6b9a8;
+			box-shadow: 0 0 0 3px rgba(243, 185, 166, 0.22);
+		}
+
+		.row {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+
+		.btn-row {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 8px;
+			margin-top: 8px;
+		}
+
+		.btn-row .btn {
+			width: min(180px, 46%);
+		}
+
+		.btn {
+			cursor: pointer;
+			font-weight: 700;
+			transition: transform 0.12s ease, box-shadow 0.2s ease;
+		}
+
+		.btn:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 8px 16px rgba(80, 64, 55, 0.12);
+		}
+
+		.btn.primary {
+			background: linear-gradient(135deg, #f5c0af, #f9d7c8);
+			border-color: #efb7a4;
+		}
+
+		.btn.ghost {
+			background: #fff;
+		}
+
+		.btn.ghost.clear-btn {
+			border: 1px solid #e7d8cd;
+		}
+
+		.btn.ghost.search-btn {
+			border: 1px solid #e7d8cd;
+			font-size: 15pt;
+			padding: 8px 14px;
+		}
+
+		.btn.ghost.search-btn.is-active {
+			background: linear-gradient(135deg, #f5c0af, #f9d7c8);
+			border-color: #efb7a4;
+		}
+
+		.content {
+			display: grid;
+			gap: 12px;
+			max-width: 1200px;
+			width: 100%;
+			margin: 0 auto;
+		}
+
+		.toolbar {
+			background: var(--panel);
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			padding: 10px 12px;
+			display: grid;
+			gap: 10px;
+		}
+
+		.toolbar-row {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+
+		.stats {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			justify-content: center;
+			align-items: center;
+			flex: 1;
+		}
+
+		.chip {
+			background: #fff;
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			padding: 7px 14px;
+			font-size: 1.08rem;
+			font-weight: 700;
+			color: #574d47;
+		}
+
+		.cards {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 12px;
+			max-width: 980px;
+			width: 100%;
+			margin: 0 auto;
+		}
+
+		.page-strip {
+			display: flex;
+			gap: 6px;
+			overflow-x: auto;
+			padding-bottom: 2px;
+		}
+
+		.page-chip {
+			border: 1px solid #e6d7cc;
+			border-radius: 999px;
+			background: #fff;
+			padding: 5px 11px;
+			font-family: inherit;
+			font-size: 0.9rem;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+
+		.page-chip.active {
+			background: #f7d9c4;
+			border-color: #efb7a4;
+			font-weight: 700;
+		}
+
+		.card {
+			background: var(--panel-2);
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 18px;
+			box-shadow: var(--shadow);
+			display: grid;
+			gap: 14px;
+			width: 100%;
+			opacity: 0;
+			transform: translateY(8px);
+			animation: fadeUp 0.32s ease forwards;
+		}
+
+		@keyframes fadeUp {
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.card-head {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			justify-content: center;
+			flex-wrap: wrap;
+			text-align: center;
+		}
+
+		.card-head > div {
+			display: flex !important;
+			justify-content: center;
+			align-items: center;
+			gap: 8px;
+			width: 100%;
+		}
+
+		.badge {
+			font-size: 18pt;
+			border-radius: 999px;
+			padding: 8px 14px;
+			border: 1px solid transparent;
+			white-space: nowrap;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+		}
+
+		.badge.page { background: #fff0d8; border-color: #ffd8a1; }
+		.badge.bahr {
+			background: #e3f4ef;
+			border-color: #b8e2d5;
+			font-size: 20pt;
+			padding: 8px 16px;
+			font-weight: 700;
+		}
+		.badge.count { background: #ecebff; border-color: #cfcdfd; }
+		.badge.rawi {
+			background: #f8eefc;
+			border-color: #dcc7e8;
+			font-size: 18pt;
+			font-weight: 700;
+		}
+
+		.poet-box {
+			background: #fff;
+			border: 1px solid #efe1d7;
+			border-radius: 12px;
+			padding: 10px 12px;
+			text-align: center;
+		}
+
+		.poet-label {
+			display: block;
+			font-size: 15pt;
+			font-weight: 700;
+			color: #8a7f77;
+		}
+
+		.poet-value {
+			display: block;
+			font-size: 18pt;
+			font-weight: 700;
+			color: #302925;
+			margin-top: 4px;
+		}
+
+		.metrics-row {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 10px;
+			align-items: stretch;
+		}
+
+		.metrics-row .badge {
+			width: 100%;
+		}
+
+		.matla-box {
+			background: linear-gradient(135deg, #fff7e7, #fffdf9);
+			border: 1px solid #f0dec3;
+			border-radius: 14px;
+			padding: 10px;
+			text-align: center;
+		}
+
+		.matla-title {
+			margin: 0 0 6px;
+			font-size: 15pt;
+			font-weight: 800;
+			color: #8b5e3d;
+			text-align: center;
+		}
+
+		.matla-text {
+			margin: 0;
+			font-family: "Amiri", serif;
+			font-size: 28px;
+			line-height: 1.95;
+			color: #1f1a17;
+			white-space: pre-wrap;
+			text-align: center;
+		}
+
+		.reason-box {
+			background: var(--danger-soft);
+			border: 1px solid #fac9bf;
+			border-radius: 12px;
+			padding: 9px;
+		}
+
+		.reason-title {
+			margin: 0 0 5px;
+			color: #a03f2a;
+			font-size: 15pt;
+			font-weight: 800;
+		}
+
+		.reason-text {
+			margin: 0;
+			line-height: 2;
+			font-size: 18pt;
+			white-space: pre-wrap;
+		}
+
+		.meta-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+		}
+
+		.meta-item {
+			background: #fff;
+			border: 1px solid #efe1d7;
+			border-radius: 10px;
+			padding: 7px;
+		}
+
+		.meta-item .k {
+			display: block;
+			font-size: 15pt;
+			color: #8a7f77;
+			margin-bottom: 2px;
+			font-weight: 700;
+		}
+
+		.meta-item .v {
+			font-size: 18pt;
+			font-weight: 600;
+			color: #302925;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		details.extra {
+			border-top: 1px dashed #e6d9cf;
+			padding-top: 8px;
+		}
+
+		details.extra summary {
+			cursor: pointer;
+			color: #6c615b;
+			font-weight: 700;
+			font-size: 18pt;
+		}
+
+		.extra-grid {
+			margin-top: 8px;
+			display: grid;
+			gap: 7px;
+		}
+
+		.empty {
+			background: var(--panel);
+			border: 1px dashed #dbc9bd;
+			border-radius: 14px;
+			padding: 18px;
+			text-align: center;
+			color: #786d67;
+		}
+
+		.pager {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin-top: 6px;
+		}
+
+		.pager button,
+		.pager select {
+			border: 1px solid #e6d7cc;
+			border-radius: 10px;
+			background: #fff;
+			padding: 8px 10px;
+			font-family: inherit;
+			cursor: pointer;
+		}
+
+		.pager button:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+
+		.error {
+			margin-top: 8px;
+			background: #fff1ef;
+			border: 1px solid #ffcec5;
+			color: #9a3a2c;
+			border-radius: 10px;
+			padding: 8px;
+			font-size: 0.9rem;
+		}
+
+		@media (max-width: 980px) {
+			.layout {
+				grid-template-columns: 1fr;
+			}
+
+			.matla-sidebar {
+				position: static;
+				max-height: none;
+			}
+
+			.matla-list {
+				max-height: 260px;
+			}
+
+			.filters {
+				position: static;
+			}
+		}
+
+		@media (max-width: 720px) {
+			.shell {
+				padding: 8px 6px 14px;
+			}
+
+			.hero {
+				padding: 14px 12px;
+				border-radius: 16px;
+			}
+
+			.hero h1 {
+				font-size: 1.2rem;
+				line-height: 1.55;
+			}
+
+			.hero p {
+				font-size: 0.9rem;
+			}
+
+			.layout {
+				gap: 8px;
+			}
+
+			.matla-sidebar,
+			.filters,
+			.toolbar,
+			.card {
+				border-radius: 14px;
+			}
+
+			.matla-sidebar {
+				padding: 8px;
+				max-height: none;
+			}
+
+			.matla-sidebar summary {
+				font-size: 1rem;
+				padding-bottom: 8px;
+			}
+
+			.matla-list {
+				max-height: 220px;
+				gap: 5px;
+			}
+
+			.matla-item {
+				font-size: 1rem;
+				padding: 7px 9px;
+			}
+
+			.filters {
+				position: fixed;
+				inset: 8px;
+				transform: none;
+				width: auto;
+				max-height: calc(100vh - 16px);
+				padding: 12px;
+			}
+
+			.filters-head {
+				align-items: flex-start;
+			}
+
+			.row,
+			.metrics-row,
+			.meta-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.btn-row {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.btn-row .btn {
+				width: 100%;
+			}
+
+			.toolbar {
+				padding: 9px;
+			}
+
+			.toolbar-row {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.stats {
+				justify-content: flex-start;
+				gap: 6px;
+			}
+
+			.chip {
+				font-size: 0.95rem;
+				padding: 6px 10px;
+			}
+
+			.page-strip {
+				gap: 5px;
+			}
+
+			.page-chip {
+				font-size: 0.82rem;
+				padding: 4px 9px;
+			}
+
+			.cards {
+				gap: 10px;
+			}
+
+			.card {
+				padding: 12px;
+				gap: 10px;
+			}
+
+			.card-head {
+				justify-content: flex-start;
+				text-align: right;
+			}
+
+			.card-head > div {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.badge {
+				font-size: 0.95rem;
+				white-space: normal;
+				padding: 7px 10px;
+				line-height: 1.5;
+			}
+
+			.badge.bahr,
+			.badge.rawi {
+				font-size: 0.95rem;
+			}
+
+			.poet-box,
+			.matla-box,
+			.reason-box,
+			.meta-item {
+				padding: 9px;
+			}
+
+			.poet-label,
+			.matla-title,
+			.reason-title,
+			.meta-item .k {
+				font-size: 0.95rem;
+			}
+
+			.poet-value,
+			.matla-text,
+			.reason-text,
+			.meta-item .v {
+				font-size: 1.02rem;
+				line-height: 1.75;
+			}
+
+			.matla-text {
+				font-size: 1.15rem;
+			}
+
+			.pager {
+				gap: 6px;
+			}
+
+			.pager button,
+			.pager select {
+				padding: 7px 10px;
+				font-size: 0.95rem;
+			}
+		}
+
+		@media (max-width: 480px) {
+			.hero h1 {
+				font-size: 1.05rem;
+			}
+
+			.filters {
+				inset: 6px;
+				max-height: calc(100vh - 12px);
+			}
+
+			.stats {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.chip {
+				text-align: center;
+			}
+
+			.pager {
+				align-items: stretch;
+			}
+
+			.pager button {
+				width: 100%;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<section class="hero">
+			<h1>فهرست الاَشعار الواردة في كتاب عيون الاَخبار - الجزء الثاني</h1>
+		</section>
+
+		<section class="layout">
+			<aside class="matla-sidebar" aria-label="قائمة المطالع">
+				<details id="matlaDetails">
+					<summary>قائمة المطالع</summary>
+					<div id="matlaList" class="matla-list"></div>
+				</details>
+			</aside>
+
+			<aside class="filters" role="dialog" aria-modal="true" aria-label="خيارات البحث">
+				<div class="filters-head">
+					<h2 style="margin:0;">لوحة التصفية والبحث</h2>
+					<button id="closeSearch" class="close-search" type="button">إغلاق</button>
+				</div>
+
+				<div class="field">
+					<label for="searchMatla">بحث في المطلع</label>
+					<input id="searchMatla" type="text" placeholder="اكتب كلمة من المطلع" />
+				</div>
+
+				<div class="field">
+					<label for="searchReason">بحث في سبب التصنيف</label>
+					<input id="searchReason" type="text" placeholder="اكتب كلمة من سبب التصنيف" />
+				</div>
+
+				<div class="field">
+					<label for="pageExact">بحث برقم صفحة (صـ فقط)</label>
+					<input id="pageExact" type="number" min="0" placeholder="مثال: 179" />
+				</div>
+
+				<div class="field">
+					<label for="poetSearch">بحث في الشاعر</label>
+					<select id="poetSearch">
+						<option value="">كل الشعراء</option>
+					</select>
+				</div>
+
+				<div class="field">
+					<label for="bahrSelect">فلترة البحر (قائمة)</label>
+					<select id="bahrSelect">
+						<option value="">كل البحور</option>
+					</select>
+				</div>
+
+				<div class="btn-row">
+					<button class="btn ghost clear-btn" id="clearFilters" type="button">مسح الفلاتر</button>
+					<button class="btn primary" id="applyFilters">تطبيق</button>
+				</div>
+
+				<div id="loadError" class="error" style="display:none;"></div>
+			</aside>
+			<div id="searchOverlay" class="search-overlay is-hidden"></div>
+
+			<main class="content">
+				<div class="toolbar">
+					<div class="toolbar-row">
+						<div class="stats">
+							<span class="chip" id="shownCount">النتائج في الصفحة: 0</span>
+							<span class="chip" id="pageInfo">الصفحة المختارة: -</span>
+						</div>
+						<div>
+							<button class="btn ghost search-btn" id="toggleSearch" type="button" aria-pressed="false">البحث</button>
+						</div>
+					</div>
+
+					<div id="pageStrip" class="page-strip"></div>
+				</div>
+
+				<div id="cards" class="cards"></div>
+
+				<div class="pager">
+					<button id="prevPage">الصفحة السابقة</button>
+					<span id="pagerText">-</span>
+					<button id="nextPage">الصفحة التالية</button>
+				</div>
+			</main>
+		</section>
+	</div>
+
+	<script>
+		const csvPath = "U2 Qasaid_Behr_extracted.csv";
+
+		const keys = {
+			pageA: "صـ",
+			pageB: "سـ",
+			matla: "المطلع",
+			poet: "اسم الشاعر",
+			reason: "سبب التصنيف",
+			verses: "عدد الاَبيات",
+			bahr: "البحر",
+			rawi: "الروي",
+			images: "images"
+		};
+
+		const state = {
+			rows: [],
+			filtered: [],
+			searchMatchedRows: [],
+			pageNumbers: [],
+			selectedBookPage: null,
+			searchVisible: false,
+			selectedMatlaId: null,
+			wheelLockUntil: 0
+		};
+
+		const els = {
+			searchMatla: document.getElementById("searchMatla"),
+			searchReason: document.getElementById("searchReason"),
+			pageExact: document.getElementById("pageExact"),
+			poetSearch: document.getElementById("poetSearch"),
+			bahrSelect: document.getElementById("bahrSelect"),
+			applyFilters: document.getElementById("applyFilters"),
+			clearFilters: document.getElementById("clearFilters"),
+			toggleSearch: document.getElementById("toggleSearch"),
+			closeSearch: document.getElementById("closeSearch"),
+			filtersPanel: document.querySelector(".filters"),
+			searchOverlay: document.getElementById("searchOverlay"),
+			matlaList: document.getElementById("matlaList"),
+			matlaDetails: document.getElementById("matlaDetails"),
+			pageStrip: document.getElementById("pageStrip"),
+			cards: document.getElementById("cards"),
+			shownCount: document.getElementById("shownCount"),
+			pageInfo: document.getElementById("pageInfo"),
+			prevPage: document.getElementById("prevPage"),
+			nextPage: document.getElementById("nextPage"),
+			pagerText: document.getElementById("pagerText"),
+			loadError: document.getElementById("loadError")
+		};
+
+		const normalize = (value) => String(value || "").trim();
+		const normalizeForSearch = (value) =>
+			normalize(value)
+				.toLowerCase()
+				.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, "")
+				.replace(/\u0640/g, "");
+
+		const toInt = (value) => {
+			const n = parseInt(String(value || "").trim(), 10);
+			return Number.isNaN(n) ? null : n;
+		};
+
+		function setError(message) {
+			els.loadError.style.display = "block";
+			els.loadError.textContent = message;
+		}
+
+		function clearError() {
+			els.loadError.style.display = "none";
+			els.loadError.textContent = "";
+		}
+
+		function extractPageNumbers(rows) {
+			const nums = new Set();
+			rows.forEach((row) => {
+				const a = toInt(row[keys.pageA]);
+				if (a !== null) nums.add(a);
+			});
+			return [...nums].sort((x, y) => x - y);
+		}
+
+		function parseCsvText(text) {
+			const parsed = Papa.parse(text, {
+				header: true,
+				skipEmptyLines: true
+			});
+
+			if (parsed.errors && parsed.errors.length) {
+				console.warn("CSV parse warnings", parsed.errors);
+			}
+
+			state.rows = (parsed.data || []).map((row, idx) => {
+				const clean = {};
+				Object.keys(row || {}).forEach((k) => {
+					clean[normalize(k)] = normalize(row[k]);
+				});
+				clean.__id = idx + 1;
+				return clean;
+			});
+
+			state.pageNumbers = extractPageNumbers(state.rows);
+			if (state.pageNumbers.length) {
+				state.selectedBookPage = state.pageNumbers[0];
+			}
+
+			buildBahrOptions();
+			buildPoetOptions();
+			renderMatlaList();
+			applyFilters();
+		}
+
+		function renderMatlaList() {
+			if (!els.matlaList) return;
+			els.matlaList.innerHTML = state.rows
+				.map((row) => {
+					const id = row.__id;
+					const matlaText = normalize(row[keys.matla]) || "-";
+					const isActive = id === state.selectedMatlaId;
+					return `<button class="matla-item ${isActive ? "active" : ""}" type="button" data-id="${id}" title="${escapeHtml(matlaText)}">${escapeHtml(matlaText)}</button>`;
+				})
+				.join("");
+		}
+
+		async function loadCsvFile() {
+			clearError();
+			try {
+				const response = await fetch(csvPath, { cache: "no-store" });
+				if (!response.ok) throw new Error("تعذر تحميل CSV");
+				const text = await response.text();
+				parseCsvText(text);
+			} catch (err) {
+				setError("تعذر تحميل الملف CSV تلقائيًا. تأكد أن الملف موجود بجانب الصفحة بنفس الاسم.");
+			}
+		}
+
+		function buildBahrOptions() {
+			const values = [...new Set(state.rows.map((r) => normalize(r[keys.bahr])).filter(Boolean))];
+			values.sort((a, b) => a.localeCompare(b, "ar"));
+
+			const firstOption = '<option value="">كل البحور</option>';
+			els.bahrSelect.innerHTML = firstOption + values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+		}
+
+		function buildPoetOptions() {
+			const values = [...new Set(state.rows.map((r) => normalize(r[keys.poet])).filter(Boolean))];
+			values.sort((a, b) => a.localeCompare(b, "ar"));
+
+			const firstOption = '<option value="">كل الشعراء</option>';
+			els.poetSearch.innerHTML = firstOption + values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+		}
+
+		function escapeHtml(value) {
+			return String(value)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/\"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		}
+
+		function sanitizeRichText(value) {
+			const blockedTags = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "META", "LINK", "BASE"]);
+			const template = document.createElement("template");
+			template.innerHTML = String(value || "");
+
+			const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null);
+			const toUnwrap = [];
+			while (walker.nextNode()) {
+				const el = walker.currentNode;
+				if (blockedTags.has(el.tagName)) {
+					toUnwrap.push(el);
+					continue;
+				}
+				[...el.attributes].forEach((attr) => {
+					const name = attr.name.toLowerCase();
+					const val = String(attr.value || "").toLowerCase().trim();
+					if (name.startsWith("on")) {
+						el.removeAttribute(attr.name);
+						return;
+					}
+					if ((name === "href" || name === "src") && val.startsWith("javascript:")) {
+						el.removeAttribute(attr.name);
+					}
+				});
+			}
+
+			toUnwrap.forEach((el) => {
+				const parent = el.parentNode;
+				if (!parent) return;
+				while (el.firstChild) {
+					parent.insertBefore(el.firstChild, el);
+				}
+				parent.removeChild(el);
+			});
+
+			return template.innerHTML;
+		}
+
+		function rowPassesFilters(row) {
+			const matlaQuery = normalizeForSearch(els.searchMatla.value);
+			const reasonQuery = normalizeForSearch(els.searchReason.value);
+			const poetQuery = normalizeForSearch(els.poetSearch.value);
+			const selectedBahr = normalizeForSearch(els.bahrSelect.value);
+			const pageExact = toInt(els.pageExact.value);
+
+			const pageA = toInt(row[keys.pageA]);
+
+			const matla = normalizeForSearch(row[keys.matla]);
+			const reason = normalizeForSearch(row[keys.reason]);
+			const bahr = normalizeForSearch(row[keys.bahr]);
+			const poet = normalizeForSearch(row[keys.poet]);
+
+			if (matlaQuery && !matla.includes(matlaQuery)) return false;
+			if (reasonQuery && !reason.includes(reasonQuery)) return false;
+			if (poetQuery && poet !== poetQuery) return false;
+			if (selectedBahr && bahr !== selectedBahr) return false;
+
+			if (pageExact !== null && pageA !== pageExact) return false;
+
+			return true;
+		}
+
+		function hasActiveSearch() {
+			return [
+				els.searchMatla.value,
+				els.searchReason.value,
+				els.pageExact.value,
+				els.poetSearch.value,
+				els.bahrSelect.value
+			].some((v) => normalize(v) !== "");
+		}
+
+		function clearSearchInputs() {
+			els.searchMatla.value = "";
+			els.searchReason.value = "";
+			els.pageExact.value = "";
+			els.poetSearch.value = "";
+			els.bahrSelect.value = "";
+		}
+
+		function rowInSelectedBookPage(row) {
+			if (state.selectedBookPage === null) return true;
+			const pageA = toInt(row[keys.pageA]);
+			return pageA === state.selectedBookPage;
+		}
+
+		function applyFilters() {
+			state.searchMatchedRows = hasActiveSearch()
+				? state.rows.filter((row) => rowPassesFilters(row))
+				: [...state.rows];
+			state.pageNumbers = extractPageNumbers(state.searchMatchedRows);
+
+			if (!state.pageNumbers.length) {
+				state.selectedBookPage = null;
+				state.filtered = [];
+				render();
+				return;
+			}
+
+			if (!state.pageNumbers.includes(state.selectedBookPage)) {
+				state.selectedBookPage = state.pageNumbers[0];
+			}
+
+			state.filtered = state.searchMatchedRows.filter((row) => rowInSelectedBookPage(row));
+			renderMatlaList();
+			render();
+		}
+
+		function renderPageStrip() {
+			if (!state.pageNumbers.length) {
+				els.pageStrip.innerHTML = "";
+				return;
+			}
+
+			els.pageStrip.innerHTML = state.pageNumbers
+				.map((n) => `<button class="page-chip ${n === state.selectedBookPage ? "active" : ""}" data-page="${n}">${n}</button>`)
+				.join("");
+		}
+
+		function scrollSelectedPageChipIntoView() {
+			const activeChip = els.pageStrip.querySelector(".page-chip.active");
+			if (!activeChip) return;
+			activeChip.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+		}
+
+		function render() {
+			renderPageStrip();
+			const total = state.filtered.length;
+			const pageRows = state.filtered;
+
+			const currentIndex = state.pageNumbers.findIndex((n) => n === state.selectedBookPage);
+			const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+			const totalBookPages = state.pageNumbers.length;
+
+			els.shownCount.textContent = `النتائج في الصفحة: ${total}`;
+			els.pageInfo.textContent = `الصفحة المختارة: ${state.selectedBookPage ?? "-"}`;
+			els.pagerText.textContent = totalBookPages ? `${safeIndex + 1} / ${totalBookPages}` : "-";
+			els.prevPage.disabled = !totalBookPages || safeIndex <= 0;
+			els.nextPage.disabled = !totalBookPages || safeIndex >= totalBookPages - 1;
+
+			if (!pageRows.length) {
+				els.cards.innerHTML = '<div class="empty">لا توجد نتائج مطابقة للفلاتر الحالية.</div>';
+				return;
+			}
+
+			els.cards.innerHTML = pageRows.map((row, i) => renderCard(row, i)).join("");
+		}
+
+		function renderCard(row, index) {
+			const pageA = normalize(row[keys.pageA]) || "-";
+			const pageB = normalize(row[keys.pageB]) || "-";
+			const matla = normalize(row[keys.matla]) || "—";
+			const reason = normalize(row[keys.reason]) || "—";
+			const poet = normalize(row[keys.poet]) || "غير مذكور";
+			const bahr = normalize(row[keys.bahr]) || "غير محدد";
+			const verses = normalize(row[keys.verses]) || "-";
+
+			const hiddenKeys = new Set([keys.pageA, keys.pageB, keys.matla, keys.reason, keys.poet, keys.bahr, keys.verses]);
+			const extra = Object.keys(row)
+				.filter((k) => !hiddenKeys.has(k) && !k.startsWith("__") && normalize(row[k]))
+				.map((k) => `<div class="meta-item"><span class="k">${escapeHtml(k)}</span><span class="v">${sanitizeRichText(row[k])}</span></div>`)
+				.join("");
+
+			return `
+				<article class="card" style="animation-delay:${index * 35}ms">
+					<div class="card-head">
+						<div style="display:flex; gap:6px; flex-wrap:wrap;">
+							<span class="badge page">صـ: ${escapeHtml(pageA)} | سـ: ${escapeHtml(pageB)}</span>
+							<span class="badge count">الأبيات: ${escapeHtml(verses)}</span>
+						</div>
+					</div>
+
+					<div class="poet-box">
+						<span class="poet-label">اسم الشاعر</span>
+						<span class="poet-value">${sanitizeRichText(poet)}</span>
+					</div>
+
+					<div class="matla-box">
+						<p class="matla-title">المطلع</p>
+						<p class="matla-text">${sanitizeRichText(matla)}</p>
+					</div>
+
+					<div class="reason-box">
+						<p class="reason-title">سبب التصنيف</p>
+						<p class="reason-text">${sanitizeRichText(reason)}</p>
+					</div>
+
+					<div class="metrics-row">
+						<span class="badge bahr">البحر: ${escapeHtml(bahr)}</span>
+						<span class="badge rawi">الروي: ${sanitizeRichText(normalize(row[keys.rawi]) || "-")}</span>
+					
+				</article>
+			`;
+		}
+
+		function toggleSearchPanel() {
+			state.searchVisible = !state.searchVisible;
+			els.filtersPanel.classList.toggle("is-hidden", !state.searchVisible);
+			els.searchOverlay.classList.toggle("is-hidden", !state.searchVisible);
+			document.body.style.overflow = state.searchVisible ? "hidden" : "";
+			els.toggleSearch.classList.toggle("is-active", state.searchVisible);
+			els.toggleSearch.setAttribute("aria-pressed", state.searchVisible ? "true" : "false");
+		}
+
+		function closeSearchPanel() {
+			state.searchVisible = false;
+			els.filtersPanel.classList.add("is-hidden");
+			els.searchOverlay.classList.add("is-hidden");
+			document.body.style.overflow = "";
+			els.toggleSearch.classList.remove("is-active");
+			els.toggleSearch.setAttribute("aria-pressed", "false");
+		}
+
+		function goToBookPage(step) {
+			const idx = state.pageNumbers.findIndex((n) => n === state.selectedBookPage);
+			if (idx < 0) return;
+			const nextIdx = Math.min(Math.max(0, idx + step), state.pageNumbers.length - 1);
+			state.selectedBookPage = state.pageNumbers[nextIdx];
+			applyFilters();
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+
+		function attachEvents() {
+			const onWheelPageNavigate = (e) => {
+				if (state.searchVisible) return;
+				if (!state.pageNumbers.length) return;
+
+				const delta = e.deltaY;
+				if (Math.abs(delta) < 10) return;
+
+				const now = Date.now();
+				if (now < state.wheelLockUntil) {
+					e.preventDefault();
+					return;
+				}
+
+				e.preventDefault();
+				state.wheelLockUntil = now + 220;
+				goToBookPage(delta > 0 ? 1 : -1);
+				scrollSelectedPageChipIntoView();
+			};
+
+			els.applyFilters.addEventListener("click", () => {
+				applyFilters();
+				closeSearchPanel();
+			});
+			els.clearFilters.addEventListener("click", () => {
+				clearSearchInputs();
+				state.selectedMatlaId = null;
+				applyFilters();
+			});
+			els.toggleSearch.addEventListener("click", toggleSearchPanel);
+			els.closeSearch.addEventListener("click", closeSearchPanel);
+			els.searchOverlay.addEventListener("click", closeSearchPanel);
+
+			document.addEventListener("keydown", (e) => {
+				if (e.key === "Escape" && state.searchVisible) {
+					closeSearchPanel();
+				}
+			});
+
+			[els.searchMatla, els.searchReason, els.pageExact, els.poetSearch].forEach((el) => {
+				el.addEventListener("keydown", (e) => {
+					if (e.key === "Enter") applyFilters();
+				});
+			});
+
+			els.bahrSelect.addEventListener("change", applyFilters);
+
+			els.pageStrip.addEventListener("click", (e) => {
+				const btn = e.target.closest("button[data-page]");
+				if (!btn) return;
+				state.selectedBookPage = parseInt(btn.dataset.page, 10);
+				applyFilters();
+			});
+
+			els.matlaList.addEventListener("click", (e) => {
+				const btn = e.target.closest("button[data-id]");
+				if (!btn) return;
+				const id = parseInt(btn.dataset.id, 10);
+				const row = state.rows.find((r) => r.__id === id);
+				if (!row) return;
+
+				state.selectedMatlaId = id;
+				const targetPage = toInt(row[keys.pageA]);
+				if (targetPage === null) return;
+
+				// Matla selection behaves as a page jump, not as a restrictive search.
+				clearSearchInputs();
+				state.searchMatchedRows = [...state.rows];
+				state.pageNumbers = extractPageNumbers(state.searchMatchedRows);
+				state.selectedBookPage = targetPage;
+				state.filtered = state.searchMatchedRows.filter((r) => rowInSelectedBookPage(r));
+				renderMatlaList();
+				render();
+				scrollSelectedPageChipIntoView();
+				window.scrollTo({ top: 0, behavior: "smooth" });
+			});
+
+			els.prevPage.addEventListener("click", () => {
+				goToBookPage(-1);
+			});
+
+			els.nextPage.addEventListener("click", () => {
+				goToBookPage(1);
+			});
+
+			els.cards.addEventListener("wheel", onWheelPageNavigate, { passive: false });
+			els.pageStrip.addEventListener("wheel", onWheelPageNavigate, { passive: false });
+		}
+
+		els.filtersPanel.classList.add("is-hidden");
+		els.searchOverlay.classList.add("is-hidden");
+		attachEvents();
+		loadCsvFile();
+	</script>
+</body>
+</html>
