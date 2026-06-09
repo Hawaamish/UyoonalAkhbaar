@@ -40,6 +40,16 @@
 			overflow-x: hidden;
 		}
 
+		/* Keep only heading tags at a consistent size */
+		h1,
+		h2,
+		h3,
+		h4,
+		h5,
+		h6 {
+			font-size: 12pt !important;
+		}
+
 		.shell {
 			max-width: 100%;
 			margin: 0 auto;
@@ -278,7 +288,7 @@
 		.content {
 			display: grid;
 			gap: 12px;
-			max-width: 1200px;
+			max-width: 2000px;
 			width: 100%;
 			margin: 0 auto;
 		}
@@ -286,10 +296,11 @@
 		.toolbar {
 			background: var(--panel);
 			border: 1px solid var(--line);
-			border-radius: 16px;
-			padding: 10px 12px;
+			border-radius: 12px;
+			padding: 8px 10px;
+			padding-left: 468px;
 			display: grid;
-			gap: 10px;
+			gap: 6px;
 		}
 
 		.toolbar-row {
@@ -323,16 +334,25 @@
 			display: grid;
 			grid-template-columns: 1fr;
 			gap: 12px;
-			max-width: 980px;
+			max-width: 100%;
 			width: 100%;
 			margin: 0 auto;
+			padding-left: 468px; /* reserves space for the image panels */
 		}
 
 		.page-strip {
 			display: flex;
 			gap: 6px;
 			overflow-x: auto;
+			scroll-padding-inline: 10px;
+			padding-inline: 4px;
 			padding-bottom: 2px;
+		}
+
+		.page-strip::before,
+		.page-strip::after {
+			content: "";
+			flex: 0 0 6px;
 		}
 
 		.page-chip {
@@ -352,18 +372,76 @@
 			font-weight: 700;
 		}
 
+		/* card-row is a normal block so the card fills full available width.
+		   The image panel is pulled into the 468px padding-left reserved by .cards */
+		.card-row {
+			position: relative;
+			width: 100%;
+			opacity: 0;
+			transform: translateY(8px);
+			animation: fadeUp 0.32s ease forwards;
+		}
+
 		.card {
 			background: var(--panel-2);
 			border: 1px solid var(--line);
 			border-radius: 10px;
 			padding: 18px;
 			box-shadow: var(--shadow);
+			width: 100%;
 			display: grid;
 			gap: 14px;
-			width: 100%;
-			opacity: 0;
-			transform: translateY(8px);
-			animation: fadeUp 0.32s ease forwards;
+		}
+
+		.card-content {
+			display: contents;
+		}
+
+		.card-img-panel {
+			position: absolute;
+			left: -468px;
+			top: 0;
+			width: 450px;
+			display: flex;
+			align-items: flex-start;
+			justify-content: center;
+		}
+
+		.card-img-thumb {
+			width: 450px;
+			border-radius: 12px;
+			border: 1px solid #e8dcd4;
+			cursor: pointer;
+			object-fit: contain;
+			transition: transform 0.22s ease, box-shadow 0.22s ease;
+		}
+
+		.card-img-thumb:hover {
+			transform: scale(1.05);
+			box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+		}
+
+		.img-lightbox {
+			display: none;
+			position: fixed;
+			inset: 0;
+			background: rgba(10,8,6,0.85);
+			z-index: 2000;
+			align-items: center;
+			justify-content: center;
+			cursor: zoom-out;
+		}
+
+		.img-lightbox.open {
+			display: flex;
+		}
+
+		.img-lightbox img {
+			max-width: 92vw;
+			max-height: 90vh;
+			border-radius: 12px;
+			box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+			pointer-events: none;
 		}
 
 		@keyframes fadeUp {
@@ -562,6 +640,7 @@
 			gap: 8px;
 			flex-wrap: wrap;
 			margin-top: 6px;
+			padding-left: 468px;
 		}
 
 		.pager button,
@@ -687,7 +766,8 @@
 			}
 
 			.toolbar {
-				padding: 9px;
+				padding: 8px;
+				padding-left: 8px;
 			}
 
 			.toolbar-row {
@@ -716,11 +796,35 @@
 
 			.cards {
 				gap: 10px;
+				padding-left: 0;
+			}
+
+			.card-row {
+				position: static;
 			}
 
 			.card {
 				padding: 12px;
 				gap: 10px;
+			}
+
+			.card-img-panel {
+				position: static;
+				width: 100%;
+				justify-content: center;
+				margin-bottom: 10px;
+			}
+
+			.card-img-thumb {
+				width: 100%;
+				max-width: 100%;
+				display: block;
+				margin: 0 auto;
+			}
+
+			.card-img-thumb:hover {
+				transform: none;
+				box-shadow: none;
 			}
 
 			.card-head {
@@ -773,6 +877,7 @@
 
 			.pager {
 				gap: 6px;
+				padding-left: 0;
 			}
 
 			.pager button,
@@ -917,8 +1022,7 @@
 			pageNumbers: [],
 			selectedBookPage: null,
 			searchVisible: false,
-			selectedMatlaId: null,
-			wheelLockUntil: 0
+			selectedMatlaId: null
 		};
 
 		const els = {
@@ -1218,35 +1322,41 @@
 				.map((k) => `<div class="meta-item"><span class="k">${escapeHtml(k)}</span><span class="v">${sanitizeRichText(row[k])}</span></div>`)
 				.join("");
 
+			const imgPath = `Abyat/${pageA}${pageB}.png`;
+			const imgPanel = `<div class="card-img-panel"><img class="card-img-thumb" src="${imgPath}" loading="lazy" alt="صورة البيت" onerror="this.style.visibility='hidden'" onclick="openImgLightbox(this.src)"></div>`;
+
 			return `
-				<article class="card" style="animation-delay:${index * 35}ms">
-					<div class="card-head">
-						<div style="display:flex; gap:6px; flex-wrap:wrap;">
-							<span class="badge page">صـ: ${escapeHtml(pageA)} | سـ: ${escapeHtml(pageB)}</span>
-							<span class="badge count">الأبيات: ${escapeHtml(verses)}</span>
+				<div class="card-row" style="animation-delay:${index * 35}ms">
+					<article class="card">
+						<div class="card-head">
+							<div style="display:flex; gap:6px; flex-wrap:wrap;">
+								<span class="badge page">صـ: ${escapeHtml(pageA)} | سـ: ${escapeHtml(pageB)}</span>
+								<span class="badge count">الأبيات: ${escapeHtml(verses)}</span>
+							</div>
 						</div>
-					</div>
 
-					<div class="poet-box">
-						<span class="poet-label">اسم الشاعر</span>
-						<span class="poet-value">${sanitizeRichText(poet)}</span>
-					</div>
+						<div class="poet-box">
+							<span class="poet-label">اسم الشاعر</span>
+							<span class="poet-value">${sanitizeRichText(poet)}</span>
+						</div>
 
-					<div class="matla-box">
-						<p class="matla-title">المطلع</p>
-						<p class="matla-text">${sanitizeRichText(matla)}</p>
-					</div>
+						<div class="matla-box">
+							<p class="matla-title">المطلع</p>
+							<p class="matla-text">${sanitizeRichText(matla)}</p>
+						</div>
 
-					<div class="reason-box">
-						<p class="reason-title">سبب التصنيف</p>
-						<p class="reason-text">${sanitizeRichText(reason)}</p>
-					</div>
+						<div class="reason-box">
+							<p class="reason-title">سبب التصنيف</p>
+							<p class="reason-text">${sanitizeRichText(reason)}</p>
+						</div>
 
-					<div class="metrics-row">
-						<span class="badge bahr">البحر: ${escapeHtml(bahr)}</span>
-						<span class="badge rawi">الروي: ${sanitizeRichText(normalize(row[keys.rawi]) || "-")}</span>
-					
-				</article>
+						<div class="metrics-row">
+							<span class="badge bahr">البحر: ${escapeHtml(bahr)}</span>
+							<span class="badge rawi">الروي: ${sanitizeRichText(normalize(row[keys.rawi]) || "-")}</span>
+						</div>
+					</article>
+					${imgPanel}
+				</div>
 			`;
 		}
 
@@ -1278,25 +1388,6 @@
 		}
 
 		function attachEvents() {
-			const onWheelPageNavigate = (e) => {
-				if (state.searchVisible) return;
-				if (!state.pageNumbers.length) return;
-
-				const delta = e.deltaY;
-				if (Math.abs(delta) < 10) return;
-
-				const now = Date.now();
-				if (now < state.wheelLockUntil) {
-					e.preventDefault();
-					return;
-				}
-
-				e.preventDefault();
-				state.wheelLockUntil = now + 220;
-				goToBookPage(delta > 0 ? 1 : -1);
-				scrollSelectedPageChipIntoView();
-			};
-
 			els.applyFilters.addEventListener("click", () => {
 				applyFilters();
 				closeSearchPanel();
@@ -1362,14 +1453,34 @@
 				goToBookPage(1);
 			});
 
-			els.cards.addEventListener("wheel", onWheelPageNavigate, { passive: false });
-			els.pageStrip.addEventListener("wheel", onWheelPageNavigate, { passive: false });
 		}
+
+		function openImgLightbox(src) {
+			const lb = document.getElementById('imgLightbox');
+			document.getElementById('imgLightboxImg').src = src;
+			lb.classList.add('open');
+			document.body.style.overflow = 'hidden';
+		}
+
+		function closeImgLightbox() {
+			const lb = document.getElementById('imgLightbox');
+			lb.classList.remove('open');
+			document.getElementById('imgLightboxImg').src = '';
+			if (!state.searchVisible) document.body.style.overflow = '';
+		}
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') closeImgLightbox();
+		});
 
 		els.filtersPanel.classList.add("is-hidden");
 		els.searchOverlay.classList.add("is-hidden");
 		attachEvents();
 		loadCsvFile();
 	</script>
+
+	<div id="imgLightbox" class="img-lightbox" onclick="closeImgLightbox()">
+		<img id="imgLightboxImg" src="" alt="صورة مكبرة">
+	</div>
 </body>
 </html>
