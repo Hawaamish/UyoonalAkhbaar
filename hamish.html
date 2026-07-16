@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>هوامش كتاب عيون الاخبار - الجزء الثاني</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="styles.css">
     <style>
         :root {
@@ -371,6 +371,17 @@
         let lastSearchTerm = '';
 
         // =============================================
+        // Supabase Configuration
+        // =============================================
+        const SUPABASE_URL = 'https://xbxpcgrwxrlqxxgtdtgp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_TvFKfakJN3BmxVGVA6Kdhw_secO1Mi3';
+        const SUPABASE_TABLE = 'hamish_data';
+
+        // Accept either project URL or copied REST URL and normalize to project URL.
+        const normalizedSupabaseUrl = SUPABASE_URL.replace(/\/rest\/v1(?:\/.*)?$/i, '');
+        const supabaseClient = window.supabase.createClient(normalizedSupabaseUrl, SUPABASE_ANON_KEY);
+
+        // =============================================
         // DOM Elements
         // =============================================
         const menuToggle = document.getElementById('menuToggle');
@@ -436,15 +447,68 @@
         document.getElementById('increaseFont').addEventListener('click', () => adjustFontSize(0.1));
         document.getElementById('resetFont').addEventListener('click', resetFontSize);
 
-        // Load CSV Data
-        Papa.parse("data.csv", {
-            download: true,
-            header: true,
-            complete: function(results) {
-                fullData = results.data.filter(row => row.Word);
+        // Load Data Directly From Supabase
+        loadDataFromSupabase();
+
+        async function loadDataFromSupabase() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from(SUPABASE_TABLE)
+                    .select('*');
+
+                if (error) {
+                    throw error;
+                }
+
+                fullData = (data || [])
+                    .map(normalizeRow)
+                    .filter(row => row.Word)
+                    .sort((a, b) => compareMixed(a.Page, b.Page) || compareMixed(a.Line, b.Line));
+
                 renderPageSidebar(fullData);
+            } catch (err) {
+                console.error('Supabase load failed:', err);
+                const details = err?.message ? `: ${err.message}` : '';
+                const message = `<p class="text-xs text-red-500">فشل تحميل البيانات من قاعدة البيانات${details}</p>`;
+                pageList.innerHTML = message;
+                mobilePageList.innerHTML = '<p class="col-span-4 text-xs text-red-500">فشل تحميل البيانات</p>';
+                wordList.innerHTML = message;
+                mobileWordList.innerHTML = message;
             }
-        });
+        }
+
+        function normalizeRow(row) {
+            const page = row.Page ?? row.page ?? '';
+            const line = row.Line ?? row.line ?? '';
+            const word = row.Word ?? row.word ?? '';
+            const information = row.Information ?? row.information ?? '';
+            const media = row.media ?? row.Media ?? '';
+            const links = row.links ?? row.Links ?? '';
+            const unzur = row.unzur ?? row.Unzur ?? '';
+
+            return {
+                ...row,
+                Page: String(page).trim(),
+                Line: String(line).trim(),
+                Word: String(word).trim(),
+                Information: String(information),
+                media: String(media),
+                links: String(links),
+                unzur: String(unzur)
+            };
+        }
+
+        function compareMixed(a, b) {
+            const aNum = Number(a);
+            const bNum = Number(b);
+            const aIsNum = Number.isFinite(aNum);
+            const bIsNum = Number.isFinite(bNum);
+
+            if (aIsNum && bIsNum) return aNum - bNum;
+            if (aIsNum) return -1;
+            if (bIsNum) return 1;
+            return String(a).localeCompare(String(b), 'ar');
+        }
 
         // =============================================
         // Mobile Menu Functions
@@ -612,12 +676,132 @@
         mobilePageBtn.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
     
-    const processedInfo = info.replace(/\*\*\*/g, '<hr class="my-4 border-t-2 border-gray-300">');
+    const processedInfo = enhanceInfoHtml(info);
     const highlightedInfo = lastSearchTerm ? highlightMatch(processedInfo, lastSearchTerm) : processedInfo;
     document.getElementById('displayInfo').innerHTML = highlightedInfo;
 
     const mediaContainer = document.getElementById('mediaContainer');
     const mediaContent = document.getElementById('mediaContent');
+
+    function getDriveFileId(value) {
+        if (!value) return null;
+        const trimmed = cleanToken(value);
+
+        // Allow plain Drive file IDs directly in the media column.
+        if (/^[a-zA-Z0-9_-]{20,}$/.test(trimmed) && !trimmed.includes('/')) {
+            return trimmed;
+        }
+
+        const pathId = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+        if (pathId) return pathId;
+
+        try {
+            const parsed = new URL(trimmed);
+            return parsed.searchParams.get('id');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getFileExt(value) {
+        const cleaned = cleanToken(value).split('?')[0].split('#')[0];
+        const lastDot = cleaned.lastIndexOf('.');
+        if (lastDot === -1) return '';
+        return cleaned.substring(lastDot + 1).toLowerCase();
+    }
+
+    function isHttpUrl(value) {
+        return /^https?:\/\//i.test(cleanToken(value));
+    }
+
+    function isDriveUcLink(value) {
+        return /drive\.google\.com\/uc\?/i.test(String(value || ''));
+    }
+
+    function normalizeDriveUcImageUrl(value) {
+        try {
+            const parsed = new URL(cleanToken(value));
+            const id = parsed.searchParams.get('id');
+            if (!id) return cleanToken(value);
+            return `https://drive.google.com/uc?export=view&id=${id}`;
+        } catch (e) {
+            return cleanToken(value);
+        }
+    }
+
+    function decodeHtmlEntities(value) {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = String(value || '');
+        return txt.value;
+    }
+
+    function cleanToken(value) {
+        let v = decodeHtmlEntities(value).trim();
+        v = v.replace(/^['"]|['"]$/g, '');
+        return v;
+    }
+
+    function getDriveImageSources(fileId, rawValue) {
+        const sources = [];
+        const cleaned = cleanToken(rawValue);
+        const ucFromInput = isDriveUcLink(cleaned) ? normalizeDriveUcImageUrl(cleaned) : '';
+
+        if (ucFromInput) sources.push(ucFromInput);
+        if (fileId) {
+            sources.push(`https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`);
+            sources.push(`https://drive.google.com/uc?export=view&id=${fileId}`);
+            sources.push(`https://lh3.googleusercontent.com/d/${fileId}=w2000`);
+        }
+
+        return [...new Set(sources.filter(Boolean))];
+    }
+
+    function handleDriveImageFallback(img) {
+        const remaining = (img.dataset.driveFallbacks || '').split('|').filter(Boolean);
+        if (remaining.length > 0) {
+            const nextSrc = remaining.shift();
+            img.dataset.driveFallbacks = remaining.join('|');
+            img.src = nextSrc;
+            return;
+        }
+
+        img.style.display = 'none';
+        const frame = img.nextElementSibling;
+        if (frame && frame.tagName === 'IFRAME') {
+            frame.classList.remove('hidden');
+        }
+    }
+
+    // onerror attributes execute in global scope, so expose this helper.
+    window.handleDriveImageFallback = handleDriveImageFallback;
+
+    function enhanceInfoHtml(rawHtml) {
+        const decoded = decodeHtmlEntities(rawHtml || '');
+        const withSeparators = decoded.replace(/\*\*\*/g, '<hr class="my-4 border-t-2 border-gray-300">');
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = withSeparators;
+
+        // Support Google Drive images that are embedded directly in Information HTML.
+        wrapper.querySelectorAll('img').forEach(img => {
+            const rawSrc = cleanToken(img.getAttribute('src') || '');
+            const driveFileId = getDriveFileId(rawSrc);
+            if (!driveFileId) return;
+
+            const imageSources = getDriveImageSources(driveFileId, rawSrc);
+            const firstImageSource = imageSources[0] || `https://drive.google.com/uc?export=view&id=${driveFileId}`;
+            const remainingImageSources = imageSources.slice(1).join('|');
+
+            img.setAttribute('src', firstImageSource);
+            img.setAttribute('data-drive-fallbacks', remainingImageSources);
+            img.setAttribute('onerror', 'handleDriveImageFallback(this)');
+
+            if (!img.classList.contains('max-w-full')) {
+                img.classList.add('max-w-full', 'h-auto', 'rounded-lg', 'shadow-md', 'mx-auto');
+            }
+        });
+
+        return wrapper.innerHTML;
+    }
     
     mediaContent.innerHTML = "";
     mediaContainer.classList.add('hidden');
@@ -626,13 +810,31 @@
     // --- STEP 1: Process Local Media (Column 5) ---
 if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
     mediaContainer.classList.remove('hidden');
-    const mediaFiles = mediaFile.split(',').map(item => item.trim()).filter(item => item !== "");
+    const mediaFiles = mediaFile.split(',').map(item => cleanToken(item)).filter(item => item !== "");
     
-    mediaFiles.forEach((file) => {
+    mediaFiles.forEach((fileValue) => {
         const mediaItemContainer = document.createElement('div');
         mediaItemContainer.classList.add('mb-6');
-        const fileExt = file.split('.').pop().toLowerCase();
-        const filePath = `assets/${file}`;
+        const driveFileId = getDriveFileId(fileValue);
+        const fileExt = getFileExt(fileValue);
+        const filePath = isHttpUrl(fileValue) ? cleanToken(fileValue) : `assets/${cleanToken(fileValue)}`;
+
+        if (driveFileId) {
+            const imageSources = getDriveImageSources(driveFileId, fileValue);
+            const firstImageSource = imageSources[0] || `https://drive.google.com/uc?export=view&id=${driveFileId}`;
+            const remainingImageSources = imageSources.slice(1).join('|');
+            const previewUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
+
+            // Try direct image first for media-column Drive images; fallback to preview iframe.
+            mediaItemContainer.innerHTML = `
+                <img src="${firstImageSource}" 
+                     data-drive-fallbacks="${remainingImageSources}"
+                     onerror="handleDriveImageFallback(this)"
+                     class="max-w-full h-auto rounded-lg shadow-md mx-auto">
+                <iframe src="${previewUrl}" class="hidden w-full h-64 sm:h-96 md:h-[500px] rounded border shadow-md" allowfullscreen loading="lazy"></iframe>`;
+            mediaContent.appendChild(mediaItemContainer);
+            return;
+        }
 
         if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
             // Added onerror="this.style.display='none'" to hide broken bitmaps
@@ -654,7 +856,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
     // --- STEP 2: Process External Links / Drive (Column 6) ---
     if (links && links.trim() !== "" && links !== "undefined") {
         mediaContainer.classList.remove('hidden');
-        const linkList = links.split(',').map(l => l.trim()).filter(l => l !== "");
+        const linkList = links.split(',').map(l => cleanToken(l)).filter(l => l !== "");
         linkList.forEach((link) => {
             const linkItemContainer = document.createElement('div');
             linkItemContainer.classList.add('mt-4', 'border-t', 'pt-4');
