@@ -1,3 +1,5 @@
 git add .
 git commit -m "Describe your updates here"
 git push
+
+git push origin main
