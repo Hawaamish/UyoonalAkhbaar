@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>خريطة - كتاب عيون الاَخبار</title>
+
+<!-- ============================================================
+     LIBRARIES
+     OpenLayers v8 (map engine) + PapaParse (CSV parser), both CDN.
+     ============================================================ -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<!-- Font: Amiri for all UI and map labels -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   A soft pastel "card UI" palette: lavender / mint / blush,
+   sitting on top of a dark satellite basemap for contrast.
+   ============================================================ */
+:root{
+  --lavender:      #E7E1B1;
+  --lavender-deep: #618764;
+  --mint:          #86a582;
+  --mint-deep:     #607456;
+  --blush:         #9CB080;
+  --blush-deep:    #306D29;
+  --cream:         #E7E1B1;
+  --ink:           #020e0e;
+  --ink-soft:      #607456;
+  --panel-bg:      rgba(231, 225, 177, 0.94);
+  --radius-lg:     22px;
+  --radius-md:     14px;
+  --radius-sm:     10px;
+  --shadow-soft:   0 12px 32px rgba(43, 87, 72, 0.22);
+  --font-display:  'Amiri', serif;
+  --font-body:     'Amiri', serif;
+  --glass-bg:      rgba(231, 225, 177, 0.78);
+  --glass-border:  rgba(156, 176, 128, 0.58);
+  --toolbar-shadow: 0 20px 44px rgba(43, 87, 72, 0.24);
+  --accent-teal:   #306D29;
+  --accent-gold:   #618764;
+}
+
+*{ box-sizing: border-box; }
+
+html, body{
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-body);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+body::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top left, rgba(156,176,128,0.26), transparent 36%),
+    radial-gradient(circle at top right, rgba(96,116,86,0.22), transparent 34%),
+    linear-gradient(180deg, rgba(231,225,177,0.1), transparent 30%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+#map{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #2B5748;
+}
+
+/* Cursor states driven by JS: default vs pointer-over-feature */
+#map.feature-hover{ cursor: pointer; }
+
+/* ============================================================
+   LOADING OVERLAY (shown while CSV is fetched / parsed)
+   ============================================================ */
+#loading-overlay{
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  color: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--font-display);
+  z-index: 50;
+  transition: opacity 0.4s ease;
+}
+#loading-overlay.hidden{ opacity: 0; pointer-events: none; }
+.spinner{
+  width: 34px; height: 34px;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: var(--lavender);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* ============================================================
+   TOP TOOLBAR
+   ============================================================ */
+#top-toolbar{
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.toolbar-cluster{
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--toolbar-shadow);
+}
+
+.toolbar-brand{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toolbar-brand .eyebrow{
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(43, 87, 72, 0.66);
+}
+
+.toolbar-brand .title{
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.toolbar-actions{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbar-btn{
+  border: none;
+  border-radius: 16px;
+  padding: 11px 16px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  direction: rtl;
+  text-align: right;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, color 0.22s ease;
+}
+
+.toolbar-btn .btn-icon{
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toolbar-btn .btn-icon svg{
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-btn:hover{
+  transform: translateY(-1px);
+}
+
+#measure-toggle-btn{
+  background: linear-gradient(135deg, rgba(231,225,177,0.96), rgba(156,176,128,0.94));
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(96,116,86,0.25);
+  min-height: 44px;
+}
+
+#measure-toggle-btn.is-active{
+  background: linear-gradient(135deg, rgba(48,109,41,0.96), rgba(43,87,72,0.92));
+  color: #E7E1B1;
+}
+
+.measure-tooltip{
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(231, 225, 177, 0.96);
+  color: var(--ink);
+  box-shadow: 0 10px 22px rgba(43, 87, 72, 0.22);
+  border: 1px solid rgba(156,176,128,0.56);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  direction: ltr;
+  white-space: normal;
+  line-height: 1.3;
+  backdrop-filter: blur(14px);
+}
+
+.measure-tooltip-line{
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.measure-tooltip-line + .measure-tooltip-line{
+  margin-top: 2px;
+}
+
+.measure-tooltip-label{
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.measure-tooltip-values{
+  text-align: left;
+  direction: ltr;
+}
+
+/* ============================================================
+   LAYER CONTROL PANEL — floating, top-right
+   ============================================================ */
+#layer-panel{
+  position: absolute;
+  left: 20px;
+  bottom: 86px;
+  width: 300px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  background: rgba(234, 233, 226, 0.94);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(156,176,128,0.58);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 42px rgba(43, 87, 72, 0.24);
+  padding: 18px 18px 14px;
+  z-index: 20;
+  font-family: var(--font-body);
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+#layer-panel h3{
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#layer-panel h3::before{
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--lavender-deep);
+  display: inline-block;
+}
+.layer-row{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13.5px;
+}
+.layer-group + .layer-group{ margin-top: 4px; }
+.layer-row.parent{
+  font-weight: 600;
+  border-top: 1px solid rgba(96,116,86,0.22);
+  margin-top: 6px;
+  padding-top: 10px;
+}
+.layer-row.child{
+  padding-left: 22px;
+  color: var(--ink-soft);
+}
+.layer-row.has-children label{ flex: 1; }
+.group-collapse-btn{
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.group-collapse-btn:hover{ background: rgba(96,116,86,0.2); color: var(--ink); }
+.layer-group-children{ overflow: hidden; }
+.layer-group.collapsed .layer-group-children{ display: none; }
+.layer-row input[type="checkbox"]{
+  accent-color: var(--lavender-deep);
+  width: 16px; height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.layer-row .swatch{
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(43,87,72,0.28);
+}
+.layer-row label{ cursor: pointer; user-select: none; }
+
+/* ============================================================
+   RIGHT DIALOGUE BOX — sliding "card UI" popup
+   ============================================================ */
+#feature-popup{
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  bottom: 24px;
+  width: min(460px, 34vw);
+  transform: translateX(calc(100% + 32px));
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 30;
+  pointer-events: none;
+}
+#feature-popup.open{
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.popup-shell{
+  background: var(--cream);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 48px rgba(43, 87, 72, 0.28);
+  padding: 18px 18px 16px;
+  position: relative;
+  direction: rtl;
+  text-align: right;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(156,176,128,0.56);
+}
+
+.popup-close{
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--mint);
+  color: var(--blush-deep);
+  font-size: 15px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.popup-close:hover{ transform: scale(1.1); background: var(--blush-deep); color: #E7E1B1; }
+
+/* Small SubLayer chip card (color set from selected layer) */
+.popup-sublayer-card{
+  display: none;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(37, 20, 100, 0.18);
+}
+
+.popup-sublayer-card .popup-sublayer{
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+  color: inherit;
+  align-self: center;
+}
+
+/* Header card: Name (prominent) */
+.popup-header{
+  background: var(--mint);
+  border-radius: var(--radius-md);
+  padding: 14px 46px 16px 16px;
+  margin-bottom: 14px;
+  border-left: 6px solid var(--lavender-deep);
+}
+.popup-header .popup-name{
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ink);
+  margin: 0 0 2px;
+  line-height: 1.2;
+  text-align: center;
+}
+.popup-header .popup-sublayer{
+  display: none;
+}
+
+/* Middle row: 3 equal mini-cards */
+.popup-minirow{
+  display: none;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.mini-card{
+  flex: 1 1 50%;
+  background: var(--mint);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.mini-card:nth-child(2){ background: var(--lavender); }
+.mini-card .mini-label{
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+}
+.mini-card .mini-value{
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  overflow-wrap: break-word;
+  font-family: var(--font-body);
+}
+
+/* Bottom row: wide Information card */
+.popup-info-card{
+  background: rgba(244, 243, 241, 0.78);
+  border: 1px solid rgba(96,116,86,0.28);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.popup-info-card .mini-label{
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+}
+.popup-info-card p{
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--ink);
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+/* Scrollbar polish for panel & popup */
+#layer-panel::-webkit-scrollbar, .popup-info-card p::-webkit-scrollbar{ width: 6px; }
+#layer-panel::-webkit-scrollbar-thumb, .popup-info-card p::-webkit-scrollbar-thumb{
+  background: var(--mint-deep); border-radius: 4px;
+}
+
+/* Layers toggle button (desktop text, mobile hamburger) */
+#layers-toggle-btn{
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  z-index: 25;
+  border: none;
+  border-radius: 16px;
+  background: rgba(231, 225, 177, 0.96);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 14px;
+  box-shadow: 0 12px 26px rgba(43, 87, 72, 0.24);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 132px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#layers-toggle-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(43, 87, 72, 0.3);
+}
+
+#layers-toggle-btn .hamburger{
+  display: none;
+  width: 16px;
+  height: 12px;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+#layers-toggle-btn .hamburger span{
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+  display: block;
+}
+
+/* Climate boundaries toggle inside toolbar */
+#boundaries-toggle-btn{
+  position: static;
+  z-index: auto;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(231,225,177,0.95), rgba(156,176,128,0.94));
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(96,116,86,0.24);
+  min-height: 44px;
+}
+
+#boundaries-toggle-btn::before{
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-teal);
+  box-shadow: 0 0 0 0 rgba(97,135,100,0.45);
+  transition: background 0.25s ease, box-shadow 0.4s ease;
+}
+
+#boundaries-toggle-btn:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(43, 87, 72, 0.26);
+}
+
+#boundaries-toggle-btn.is-active{
+  background: linear-gradient(135deg, rgba(48,109,41,0.96), rgba(43,87,72,0.92));
+  color: #E7E1B1;
+}
+
+#boundaries-toggle-btn.is-active::before{
+  background: #ffffff;
+  box-shadow: 0 0 0 8px rgba(255,255,255,0.2);
+}
+
+body.layers-hidden #layer-panel{
+  transform: translateY(16px) scale(0.98);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 640px){
+  .popup-minirow{ flex-direction: column; }
+}
+
+@media (max-width: 768px){
+  #top-toolbar{
+    top: 14px;
+    left: 12px;
+    right: 12px;
+    align-items: stretch;
+  }
+
+  .toolbar-cluster{
+    width: 100%;
+    justify-content: space-between;
+    padding: 10px;
+  }
+
+  .toolbar-brand .eyebrow{ display: none; }
+  .toolbar-brand .title{ font-size: 17px; }
+
+  .toolbar-actions{
+    flex-shrink: 0;
+  }
+
+  #feature-popup{
+    top: 78px;
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+    transform: translateX(calc(100% + 18px));
+  }
+
+  #feature-popup.open{ transform: translateX(0); }
+
+  #layer-panel{
+    left: 12px;
+    bottom: 74px;
+    width: min(296px, calc(100vw - 24px));
+    max-height: calc(100vh - 170px);
+    padding: 14px;
+    transform: translateY(16px) scale(0.98);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  body.layers-mobile-open #layer-panel{
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #layers-toggle-btn{
+    left: 12px;
+    bottom: 12px;
+    min-width: 52px;
+    height: 52px;
+    padding: 0 14px;
+    border-radius: 12px;
+  }
+
+  #layers-toggle-btn .toggle-text{ display: none; }
+  #layers-toggle-btn .hamburger{ display: flex; }
+
+  #boundaries-toggle-btn{
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div>الخريطة في التجهيز</div>
+</div>
+
+<div id="top-toolbar">
+  <div class="toolbar-cluster">
+    <div class="toolbar-brand">
+      <span class="eyebrow"></span>
+      <span class="title"></span>
+    </div>
+
+    <div class="toolbar-actions">
+      <button class="toolbar-btn" id="measure-toggle-btn" type="button" aria-pressed="false" title="تشغيل القياس">
+        <span class="btn-text">القياس</span>
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="presentation">
+            <path d="M4 16.5 16.5 4a2.12 2.12 0 0 1 3 0l.5.5a2.12 2.12 0 0 1 0 3L7.5 20a2.12 2.12 0 0 1-3 0l-.5-.5a2.12 2.12 0 0 1 0-3Z"></path>
+            <path d="m9 7 8 8"></path>
+            <path d="m11.5 4.5 2 2"></path>
+            <path d="m6.5 9.5 2 2"></path>
+            <path d="m4.5 14.5 2 2"></path>
+          </svg>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<button id="layers-toggle-btn" type="button" aria-controls="layer-panel" aria-expanded="true" title="Toggle layers panel">
+  <span class="toggle-text">إظهار الطبقات</span>
+  <span class="hamburger" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+  </span>
+</button>
+
+<!-- LAYER CONTROL PANEL (populated dynamically once CSV is parsed) -->
+<div id="layer-panel">
+  <h3>Map Layers</h3>
+  <div id="layer-tree"><!-- checkboxes injected by JS --></div>
+</div>
+
+<!-- BOTTOM DIALOGUE BOX / CARD POPUP -->
+<div id="feature-popup">
+  <div class="popup-shell">
+    <button class="popup-close" id="popup-close-btn" title="Close">✕</button>
+
+    <div class="popup-header">
+      <p class="popup-name" id="popup-name">—</p>
+    </div>
+
+    <div class="popup-info-card">
+      <p class="mini-label" id="popup-info-label">Information</p>
+      <p id="popup-info">—</p>
+    </div>
+  </div>
+</div>
+
+<script src="graticules.js"></script>
+<script src="measure(removewithbrackets).js"></script>
+<script src="esri-shaded-relief(removewithbrakcs).js"></script>
+<script src="app.js"></script>
+</body>
+</html>
