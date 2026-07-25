@@ -660,9 +660,11 @@ function buildSearchBar(rows){
     if (option) {
       e.stopPropagation();
       console.log('Option clicked:', option.textContent);
+      const lat = parseFloat(option.dataset.lat);
+      const lon = parseFloat(option.dataset.lon);
       searchInput.value = option.textContent;
       searchDropdown.classList.remove('show');
-      searchInput.focus();
+      flyToLocation(lat, lon);
     }
   });
 
