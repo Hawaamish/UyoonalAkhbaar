@@ -24,27 +24,27 @@
    sitting on top of a dark satellite basemap for contrast.
    ============================================================ */
 :root{
-  --lavender:      #E7E1B1;
-  --lavender-deep: #618764;
-  --mint:          #86a582;
-  --mint-deep:     #607456;
-  --blush:         #9CB080;
-  --blush-deep:    #306D29;
-  --cream:         #E7E1B1;
-  --ink:           #020e0e;
-  --ink-soft:      #607456;
-  --panel-bg:      rgba(231, 225, 177, 0.94);
+  --lavender:      #A8D5BA;
+  --lavender-deep: #1B4D3E;
+  --mint:          #2D8659;
+  --mint-deep:     #1B4D3E;
+  --blush:         #6B9E7F;
+  --blush-deep:    #0F3428;
+  --cream:         #F5F4F2;
+  --ink:           #1a1a1a;
+  --ink-soft:      #4A6B61;
+  --panel-bg:      rgba(245, 244, 242, 0.95);
   --radius-lg:     22px;
   --radius-md:     14px;
   --radius-sm:     10px;
-  --shadow-soft:   0 12px 32px rgba(43, 87, 72, 0.22);
+  --shadow-soft:   0 12px 32px rgba(27, 77, 62, 0.18);
   --font-display:  'Amiri', serif;
   --font-body:     'Amiri', serif;
-  --glass-bg:      rgba(231, 225, 177, 0.78);
-  --glass-border:  rgba(156, 176, 128, 0.58);
-  --toolbar-shadow: 0 20px 44px rgba(43, 87, 72, 0.24);
-  --accent-teal:   #306D29;
-  --accent-gold:   #618764;
+  --glass-bg:      rgba(245, 244, 242, 0.92);
+  --glass-border:  rgba(45, 134, 89, 0.35);
+  --toolbar-shadow: 0 20px 44px rgba(27, 77, 62, 0.20);
+  --accent-teal:   #2D8659;
+  --accent-gold:   #6B9E7F;
 }
 
 *{ box-sizing: border-box; }
@@ -64,9 +64,9 @@ body::before{
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top left, rgba(156,176,128,0.26), transparent 36%),
-    radial-gradient(circle at top right, rgba(96,116,86,0.22), transparent 34%),
-    linear-gradient(180deg, rgba(231,225,177,0.1), transparent 30%);
+    radial-gradient(circle at top left, rgba(107,158,127,0.15), transparent 36%),
+    radial-gradient(circle at top right, rgba(45,134,89,0.12), transparent 34%),
+    linear-gradient(180deg, rgba(27,77,62,0.06), transparent 30%);
   pointer-events: none;
   z-index: 1;
 }
@@ -76,7 +76,7 @@ body::before{
   inset: 0;
   width: 100%;
   height: 100%;
-  background: #2B5748;
+  background: #1B4D3E;
 }
 
 /* Cursor states driven by JS: default vs pointer-over-feature */
@@ -206,24 +206,24 @@ body::before{
 }
 
 #measure-toggle-btn{
-  background: linear-gradient(135deg, rgba(231,225,177,0.96), rgba(156,176,128,0.94));
+  background: linear-gradient(135deg, rgba(245,244,242,0.96), rgba(107,158,127,0.94));
   color: var(--ink);
-  box-shadow: inset 0 0 0 1px rgba(96,116,86,0.25);
+  box-shadow: inset 0 0 0 1px rgba(45,134,89,0.25);
   min-height: 44px;
 }
 
 #measure-toggle-btn.is-active{
-  background: linear-gradient(135deg, rgba(48,109,41,0.96), rgba(43,87,72,0.92));
-  color: #E7E1B1;
+  background: linear-gradient(135deg, rgba(45,134,89,0.96), rgba(27,77,62,0.92));
+  color: #F5F4F2;
 }
 
 .measure-tooltip{
   padding: 7px 10px;
   border-radius: 10px;
-  background: rgba(231, 225, 177, 0.96);
+  background: rgba(245, 244, 242, 0.96);
   color: var(--ink);
-  box-shadow: 0 10px 22px rgba(43, 87, 72, 0.22);
-  border: 1px solid rgba(156,176,128,0.56);
+  box-shadow: 0 10px 22px rgba(27, 77, 62, 0.18);
+  border: 1px solid rgba(107,158,127,0.56);
   font-family: var(--font-body);
   font-size: 12px;
   font-weight: 700;
@@ -264,11 +264,11 @@ body::before{
   width: 300px;
   max-height: calc(100vh - 180px);
   overflow-y: auto;
-  background: rgba(234, 233, 226, 0.94);
+  background: rgba(245, 244, 242, 0.95);
   backdrop-filter: blur(18px);
-  border: 1px solid rgba(156,176,128,0.58);
+  border: 1px solid rgba(107,158,127,0.40);
   border-radius: var(--radius-lg);
-  box-shadow: 0 18px 42px rgba(43, 87, 72, 0.24);
+  box-shadow: 0 18px 42px rgba(27, 77, 62, 0.15);
   padding: 18px 18px 14px;
   z-index: 20;
   font-family: var(--font-body);
@@ -302,7 +302,7 @@ body::before{
 .layer-group + .layer-group{ margin-top: 4px; }
 .layer-row.parent{
   font-weight: 600;
-  border-top: 1px solid rgba(96,116,86,0.22);
+  border-top: 1px solid rgba(45,134,89,0.18);
   margin-top: 6px;
   padding-top: 10px;
 }
@@ -325,7 +325,7 @@ body::before{
   justify-content: center;
   cursor: pointer;
 }
-.group-collapse-btn:hover{ background: rgba(96,116,86,0.2); color: var(--ink); }
+.group-collapse-btn:hover{ background: rgba(45,134,89,0.15); color: var(--ink); }
 .layer-group-children{ overflow: hidden; }
 .layer-group.collapsed .layer-group-children{ display: none; }
 .layer-row input[type="checkbox"]{
@@ -338,7 +338,7 @@ body::before{
   width: 10px; height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 1px solid rgba(43,87,72,0.28);
+  border: 1px solid rgba(27,77,62,0.35);
 }
 .layer-row label{ cursor: pointer; user-select: none; }
 
@@ -362,9 +362,9 @@ body::before{
 }
 
 .popup-shell{
-  background: var(--cream);
+  background: rgba(9, 42, 2, 0.96);
   border-radius: var(--radius-lg);
-  box-shadow: 0 24px 48px rgba(43, 87, 72, 0.28);
+  box-shadow: 0 24px 48px rgba(27, 77, 62, 0.15);
   padding: 18px 18px 16px;
   position: relative;
   direction: rtl;
@@ -372,7 +372,8 @@ body::before{
   height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(156,176,128,0.56);
+  border: 1px solid rgba(107,158,127,0.35);
+  gap: 0;
 }
 
 .popup-close{
@@ -392,7 +393,7 @@ body::before{
   justify-content: center;
   transition: transform 0.15s ease, background 0.15s ease;
 }
-.popup-close:hover{ transform: scale(1.1); background: var(--blush-deep); color: #E7E1B1; }
+.popup-close:hover{ transform: scale(1.1); background: var(--blush-deep); color: #F5F4F2; }
 
 /* Small SubLayer chip card (color set from selected layer) */
 .popup-sublayer-card{
@@ -418,7 +419,7 @@ body::before{
 
 /* Header card: Name (prominent) */
 .popup-header{
-  background: var(--mint);
+  background: #F9E8A2;
   border-radius: var(--radius-md);
   padding: 14px 46px 16px 16px;
   margin-bottom: 14px;
@@ -470,13 +471,16 @@ body::before{
 
 /* Bottom row: wide Information card */
 .popup-info-card{
-  background: rgba(244, 243, 241, 0.78);
-  border: 1px solid rgba(96,116,86,0.28);
+  background: rgba(245, 244, 242, 0.90);
+  border: 1px solid rgba(107,158,127,0.25);
   border-radius: var(--radius-md);
   padding: 16px 18px;
-  flex: 1 1 auto;
+  flex: 0 1 85%;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+  margin-bottom: 10px;
 }
 .popup-info-card .mini-label{
   font-size: 10.5px;
@@ -485,8 +489,37 @@ body::before{
   font-weight: 600;
   color: var(--ink-soft);
   margin: 0 0 6px;
+  flex-shrink: 0;
 }
 .popup-info-card p{
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.65;
+  color: var(--ink);
+  overflow-y: auto;
+}
+
+/* Fehrist card */
+.popup-fehrist-card{
+  background: rgba(245, 244, 242, 0.90);
+  border: 1px solid rgba(107,158,127,0.25);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  flex: 0 1 15%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.popup-fehrist-card .mini-label{
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+  flex-shrink: 0;
+}
+.popup-fehrist-card p{
   margin: 0;
   font-size: 20px;
   line-height: 1.65;
@@ -497,9 +530,12 @@ body::before{
 }
 
 /* Scrollbar polish for panel & popup */
-#layer-panel::-webkit-scrollbar, .popup-info-card p::-webkit-scrollbar{ width: 6px; }
-#layer-panel::-webkit-scrollbar-thumb, .popup-info-card p::-webkit-scrollbar-thumb{
+#layer-panel::-webkit-scrollbar, .popup-info-card p::-webkit-scrollbar, .popup-fehrist-card p::-webkit-scrollbar{ width: 6px; }
+#layer-panel::-webkit-scrollbar-thumb, .popup-info-card p::-webkit-scrollbar-thumb, .popup-fehrist-card p::-webkit-scrollbar-thumb{
   background: var(--mint-deep); border-radius: 4px;
+}
+#layer-panel::-webkit-scrollbar-track, .popup-info-card p::-webkit-scrollbar-track, .popup-fehrist-card p::-webkit-scrollbar-track{
+  background: rgba(107, 158, 127, 0.1); border-radius: 4px;
 }
 
 /* Layers toggle button (desktop text, mobile hamburger) */
@@ -510,13 +546,13 @@ body::before{
   z-index: 25;
   border: none;
   border-radius: 16px;
-  background: rgba(231, 225, 177, 0.96);
+  background: rgba(245, 244, 242, 0.96);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 700;
   padding: 12px 14px;
-  box-shadow: 0 12px 26px rgba(43, 87, 72, 0.24);
+  box-shadow: 0 12px 26px rgba(27, 77, 62, 0.18);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -528,7 +564,7 @@ body::before{
 
 #layers-toggle-btn:hover{
   transform: translateY(-1px);
-  box-shadow: 0 16px 30px rgba(43, 87, 72, 0.3);
+  box-shadow: 0 16px 30px rgba(27, 77, 62, 0.20);
 }
 
 #layers-toggle-btn .hamburger{
@@ -547,15 +583,79 @@ body::before{
   display: block;
 }
 
-/* Climate boundaries toggle inside toolbar */
-#boundaries-toggle-btn{
+/* ============================================================
+   ZOOM CATEGORIES TOOLBAR — upper left
+   ============================================================ */
+#zoom-toolbar{
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 24;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.zoom-category-btn{
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  background: rgba(245, 244, 242, 0.92);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(107,158,127,0.40);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(27, 77, 62, 0.15);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.22s ease;
+  text-align: center;
+  direction: rtl;
+  min-width: 140px;
+}
+
+.zoom-category-btn:hover{
+  background: rgba(245, 244, 242, 0.98);
+  box-shadow: 0 12px 32px rgba(27, 77, 62, 0.22);
+  transform: translateY(-2px);
+  border-color: rgba(45, 134, 89, 0.60);
+}
+
+.zoom-category-btn.active{
+  background: linear-gradient(135deg, rgba(45,134,89,0.96), rgba(27,77,62,0.92));
+  color: #F5F4F2;
+  border-color: rgba(107,158,127,0.60);
+  box-shadow: 0 12px 32px rgba(27, 77, 62, 0.28);
+}
+
+#zoom-toolbar::-webkit-scrollbar{
+  width: 5px;
+}
+
+#zoom-toolbar::-webkit-scrollbar-thumb{
+  background: var(--mint-deep);
+  border-radius: 3px;
+}
+
+#zoom-toolbar::-webkit-scrollbar-track{
+  background: rgba(107, 158, 127, 0.1);
+  border-radius: 3px;
+}
   position: static;
   z-index: auto;
   border: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(231,225,177,0.95), rgba(156,176,128,0.94));
+  background: linear-gradient(135deg, rgba(245,244,242,0.95), rgba(107,158,127,0.94));
   color: var(--ink);
-  box-shadow: inset 0 0 0 1px rgba(96,116,86,0.24);
+  box-shadow: inset 0 0 0 1px rgba(45,134,89,0.24);
   min-height: 44px;
 }
 
@@ -565,18 +665,18 @@ body::before{
   height: 9px;
   border-radius: 50%;
   background: var(--accent-teal);
-  box-shadow: 0 0 0 0 rgba(97,135,100,0.45);
+  box-shadow: 0 0 0 0 rgba(45,134,89,0.35);
   transition: background 0.25s ease, box-shadow 0.4s ease;
 }
 
 #boundaries-toggle-btn:hover{
   transform: translateY(-2px);
-  box-shadow: 0 16px 36px rgba(43, 87, 72, 0.26);
+  box-shadow: 0 16px 36px rgba(27, 77, 62, 0.16);
 }
 
 #boundaries-toggle-btn.is-active{
-  background: linear-gradient(135deg, rgba(48,109,41,0.96), rgba(43,87,72,0.92));
-  color: #E7E1B1;
+  background: linear-gradient(135deg, rgba(45,134,89,0.96), rgba(27,77,62,0.92));
+  color: #F5F4F2;
 }
 
 #boundaries-toggle-btn.is-active::before{
@@ -659,6 +759,24 @@ body.layers-hidden #layer-panel{
     padding: 10px 12px;
     font-size: 12px;
   }
+
+  #zoom-toolbar{
+    top: 14px;
+    left: 12px;
+    flex-direction: column;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 140px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: 8px;
+  }
+
+  .zoom-category-btn{
+    min-width: 100px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
 }
 </style>
 </head>
@@ -670,6 +788,9 @@ body.layers-hidden #layer-panel{
   <div class="spinner"></div>
   <div>الخريطة في التجهيز</div>
 </div>
+
+<!-- ZOOM CATEGORIES TOOLBAR -->
+<div id="zoom-toolbar"></div>
 
 <!--div id="top-toolbar">
   <div class="toolbar-cluster">
@@ -722,6 +843,11 @@ body.layers-hidden #layer-panel{
     <div class="popup-info-card">
       <p class="mini-label" id="popup-info-label">Information</p>
       <p id="popup-info">—</p>
+    </div>
+
+    <div class="popup-fehrist-card">
+      <p class="mini-label">الفهرست</p>
+      <p id="popup-fehrist">—</p>
     </div>
   </div>
 </div>

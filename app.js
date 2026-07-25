@@ -418,6 +418,7 @@ function buildLayersFromRows(rows){
       LongORG: row.LongORG,
       SubLayer: sub,
       Information: row.Information,
+      Fehrist: row.Fehrist,
       Pincolor: normalizeColor(row.Pincolor, row.color),
       color: row.color,
       fontSize,
@@ -452,6 +453,7 @@ function buildLayersFromRows(rows){
   }
 
   buildLayerPanel();
+  buildZoomToolbar(rows);
 
   // Fit the view to all loaded points with extra breathing room.
   if (sourceExtentFeatures.length){
@@ -460,6 +462,92 @@ function buildLayersFromRows(rows){
     );
     map.getView().fit(extent, { padding: [90, 90, 260, 90], maxZoom: 4, duration: 500 });
   }
+}
+
+/* ================================================================
+   ZOOM TOOLBAR — category buttons for quick navigation
+   ================================================================ */
+function buildZoomToolbar(rows){
+  const toolbar = document.getElementById('zoom-toolbar');
+  if (!toolbar) return;
+
+  // Extract unique categories from the "notes" column
+  const categories = new Set();
+  const categoryFeatures = {}; // category -> array of features
+
+  rows.forEach(row => {
+    const lat = parseFloat(row.Latitude);
+    const lon = parseFloat(row.Longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lon)) return;
+
+    const category = (row.notes && row.notes.trim()) || null;
+    
+    if (category){
+      categories.add(category);
+      if (!categoryFeatures[category]){
+        categoryFeatures[category] = [];
+      }
+      categoryFeatures[category].push({
+        lat,
+        lon,
+        name: row.Name
+      });
+    }
+  });
+
+  // If no categories found, hide toolbar
+  if (categories.size === 0){
+    toolbar.style.display = 'none';
+    return;
+  }
+
+  // Create a button for each category
+  Array.from(categories).sort().forEach(category => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'zoom-category-btn';
+    btn.textContent = category;
+    btn.title = `Zoom to ${category}`;
+
+    btn.addEventListener('click', () => {
+      zoomToCategory(category, categoryFeatures[category]);
+      
+      // Update active state
+      document.querySelectorAll('.zoom-category-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+
+    toolbar.appendChild(btn);
+  });
+}
+
+function zoomToCategory(categoryName, features){
+  if (!features || features.length === 0) return;
+
+  // Calculate bounding box of all features in this category
+  let minLat = features[0].lat;
+  let maxLat = features[0].lat;
+  let minLon = features[0].lon;
+  let maxLon = features[0].lon;
+
+  features.forEach(f => {
+    minLat = Math.min(minLat, f.lat);
+    maxLat = Math.max(maxLat, f.lat);
+    minLon = Math.min(minLon, f.lon);
+    maxLon = Math.max(maxLon, f.lon);
+  });
+
+  // Convert to OpenLayers extent
+  const topLeft = ol.proj.fromLonLat([minLon, maxLat]);
+  const bottomRight = ol.proj.fromLonLat([maxLon, minLat]);
+  const extent = [topLeft[0], bottomRight[1], bottomRight[0], topLeft[1]];
+
+  // Fit view to extent with padding
+  map.getView().fit(extent, {
+    padding: [80, 80, 200, 80],
+    duration: 600,
+    maxZoom: 8
+  });
 }
 
 /* ================================================================
@@ -523,7 +611,7 @@ function buildLayerPanel(){
   // --- Parent: RisalaCoordinates (toggles the whole group) ---
   const childControllers = [];
   const risalaGroup = makeCollapsibleLayerGroup({
-    label: 'RisalaCoordinates',
+    label: 'الاماكن الواردة في الكتاب',
     checked: subLayerGroup.getVisible(),
     onToggle: (checked) => {
       subLayerGroup.setVisible(checked);
@@ -723,11 +811,19 @@ map.on('pointermove', (evt) => {
 
   if (hit !== hoveredFeature){
     if (hoveredFeature) setAnimTarget(hoveredFeature, 1);      // reset old
-    if (hit) setAnimTarget(hit, HOVER_SCALE);                  // grow new
+    if (hit) {
+      // Check if feature has Information data
+      const hasData = hit.get('Information') && String(hit.get('Information')).trim();
+      if (hasData) {
+        setAnimTarget(hit, HOVER_SCALE);                  // grow new
+      }
+    }
     hoveredFeature = hit || null;
   }
 
-  mapTargetEl.classList.toggle('feature-hover', !!hit);
+  // Only show pointer cursor if feature has Information data
+  const hasData = hit && hit.get('Information') && String(hit.get('Information')).trim();
+  mapTargetEl.classList.toggle('feature-hover', !!hasData);
 });
 
 /* ================================================================
@@ -761,12 +857,20 @@ map.on('singleclick', (evt) => {
 });
 
 function openPopup(feature){
+  // Only open if Information data exists
+  const informationData = feature.get('Information');
+  if (!informationData || !String(informationData).trim()) {
+    return;
+  }
+
   const layerColor = normalizeColor(feature.get('Pincolor'), feature.get('color'));
 
   document.getElementById('popup-name').textContent = feature.get('Name') || '—';
 
   document.getElementById('popup-info-label').textContent = LABELS.info;
-  document.getElementById('popup-info').textContent = feature.get('Information') || 'No further information available.';
+  document.getElementById('popup-info').textContent = informationData;
+  
+  document.getElementById('popup-fehrist').textContent = feature.get('Fehrist') || 'No Fehrist data available.';
 
   // Tie the header's accent stripe to this feature's own pin colour.
   const header = document.querySelector('.popup-header');
