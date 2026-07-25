@@ -1174,9 +1174,124 @@ function openPopup(feature){
   document.getElementById('popup-name').textContent = featureName || '—';
 
   document.getElementById('popup-info-label').textContent = LABELS.info;
-  document.getElementById('popup-info').innerHTML = informationData;
+  // Replace *** with horizontal line
+  const formattedInfo = informationData.replace(/\*\*\*/g, '<hr style="margin: 12px 0; border: none; border-top: 2px solid var(--mint); opacity: 0.6;">');
+  document.getElementById('popup-info').innerHTML = formattedInfo;
   
   document.getElementById('popup-fehrist').innerHTML = feature.get('Fehrist') || 'No Fehrist data available.';
+
+  // Auto-detect language and set text direction
+  const detectLanguageDirection = (text) => {
+    // Clean up whitespace and find first meaningful character
+    const cleanText = text.trim();
+    
+    // Arabic character ranges: U+0600–U+06FF, U+0750–U+077F, U+08A0–U+08FF
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+    const englishRegex = /[a-zA-Z]/;
+    
+    // Check each character from start until we find Arabic or English
+    for (let char of cleanText) {
+      if (arabicRegex.test(char)) {
+        return 'rtl';
+      }
+      if (englishRegex.test(char)) {
+        return 'ltr';
+      }
+    }
+    
+    // Default to ltr if no Arabic or English found
+    return 'ltr';
+  };
+  
+  // Function to wrap text nodes with appropriate dir attribute
+  const applyDirectionToTextNodes = (container) => {
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    const nodesToReplace = [];
+    let node;
+    
+    while (node = walker.nextNode()) {
+      const text = node.textContent.trim();
+      if (text.length > 0) {
+        nodesToReplace.push(node);
+      }
+    }
+    
+    // Replace text nodes with wrapped versions
+    nodesToReplace.forEach(textNode => {
+      const text = textNode.textContent;
+      const dir = detectLanguageDirection(text);
+      
+      // Create a span wrapper with the appropriate direction
+      const span = document.createElement('span');
+      span.setAttribute('dir', dir);
+      span.textContent = text;
+      
+      // Replace the text node with the span
+      textNode.parentNode.replaceChild(span, textNode);
+    });
+  };
+  
+  // Apply to info box
+  const infoBox = document.getElementById('popup-info');
+  applyDirectionToTextNodes(infoBox);
+  
+  // Apply to fehrist box
+  const fehristBox = document.getElementById('popup-fehrist');
+  applyDirectionToTextNodes(fehristBox);
+
+  // Process images to ensure they load properly
+  const images = infoBox.querySelectorAll('img');
+  images.forEach((img, idx) => {
+    let originalSrc = img.src;
+    
+    // Handle Google Drive images specially
+    if (img.src.includes('drive.google.com')) {
+      // Convert to direct view URL
+      if (img.src.includes('uc?id=')) {
+        // Extract ID and create proper URL
+        const match = img.src.match(/id=([a-zA-Z0-9-_]+)/);
+        if (match) {
+          img.src = `https://drive.google.com/uc?id=${match[1]}&export=view`;
+        }
+      } else if (!img.src.includes('export')) {
+        img.src = img.src + (img.src.includes('?') ? '&export=view' : '?export=view');
+      }
+    }
+    
+    // Add attributes to ensure images load
+    img.setAttribute('loading', 'eager');
+    img.setAttribute('alt', 'Embedded image');
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.margin = '10px 0';
+    img.style.borderRadius = '8px';
+    
+    // Handle image load errors
+    img.addEventListener('error', function() {
+      console.error('Image failed to load:', originalSrc);
+      this.style.display = 'none';
+      // Try alternate URL for Google Drive
+      if (originalSrc.includes('drive.google.com')) {
+        const match = originalSrc.match(/id=([a-zA-Z0-9-_]+)/);
+        if (match) {
+          const altSrc = `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+          this.src = altSrc;
+          this.style.display = 'block';
+        }
+      }
+    });
+    
+    img.addEventListener('load', function() {
+      console.log('Image loaded successfully:', this.src);
+    });
+  });
 
   // Tie the header's accent stripe to this feature's own pin colour.
   const header = document.querySelector('.popup-header');

@@ -497,7 +497,85 @@ body::before{
   font-size: 20px;
   line-height: 1.65;
   color: var(--ink);
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.popup-fehrist-card p{
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.65;
+  color: var(--ink);
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+#popup-info,
+#popup-fehrist{
+  display: block;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+  font-size: 20px;
+  line-height: 1.65;
+  color: var(--ink);
   overflow-y: auto;
+  margin: 0;
+}
+
+.popup-info-card img,
+.popup-fehrist-card img{
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  border-radius: var(--radius-sm);
+  margin: 10px 0 !important;
+  object-fit: contain;
+}
+
+.popup-info-card .img-fluid,
+.popup-fehrist-card .img-fluid{
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 10px 0 !important;
+}
+
+.popup-info-card img[src*="drive.google.com"],
+.popup-fehrist-card img[src*="drive.google.com"]{
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.popup-info-card [dir="rtl"],
+.popup-fehrist-card [dir="rtl"]{
+  direction: rtl;
+  text-align: right;
+}
+
+.popup-info-card [dir="ltr"],
+.popup-fehrist-card [dir="ltr"]{
+  direction: ltr;
+  text-align: left;
+}
+
+/* Ensure all content elements display properly */
+.popup-info-card *,
+.popup-fehrist-card *{
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.popup-info-card a,
+.popup-fehrist-card a{
+  color: var(--accent-teal);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.popup-info-card a:hover,
+.popup-fehrist-card a:hover{
+  color: var(--mint-deep);
 }
 
 /* Fehrist card */
@@ -531,11 +609,11 @@ body::before{
 }
 
 /* Scrollbar polish for panel & popup */
-#layer-panel::-webkit-scrollbar, .popup-info-card p::-webkit-scrollbar, .popup-fehrist-card p::-webkit-scrollbar{ width: 6px; }
-#layer-panel::-webkit-scrollbar-thumb, .popup-info-card p::-webkit-scrollbar-thumb, .popup-fehrist-card p::-webkit-scrollbar-thumb{
+#layer-panel::-webkit-scrollbar, #popup-info::-webkit-scrollbar, #popup-fehrist::-webkit-scrollbar{ width: 6px; }
+#layer-panel::-webkit-scrollbar-thumb, #popup-info::-webkit-scrollbar-thumb, #popup-fehrist::-webkit-scrollbar-thumb{
   background: var(--mint-deep); border-radius: 4px;
 }
-#layer-panel::-webkit-scrollbar-track, .popup-info-card p::-webkit-scrollbar-track, .popup-fehrist-card p::-webkit-scrollbar-track{
+#layer-panel::-webkit-scrollbar-track, #popup-info::-webkit-scrollbar-track, #popup-fehrist::-webkit-scrollbar-track{
   background: rgba(107, 158, 127, 0.1); border-radius: 4px;
 }
 
@@ -1024,12 +1102,12 @@ body.layers-hidden #layer-panel{
 
     <div class="popup-info-card">
       <p class="mini-label" id="popup-info-label">Information</p>
-      <p id="popup-info">—</p>
+      <div id="popup-info">—</div>
     </div>
 
     <div class="popup-fehrist-card">
       <p class="mini-label">الفهرست</p>
-      <p id="popup-fehrist">—</p>
+      <div id="popup-fehrist">—</div>
     </div>
   </div>
 </div>
