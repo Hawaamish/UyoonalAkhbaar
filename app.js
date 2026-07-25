@@ -7,6 +7,68 @@
 // Path to the local CSV data source (columns documented in README).
 const CSV_URL = 'Uyun2Map_Data.csv';
 
+// Supabase Configuration
+const SUPABASE_URL = 'https://xbxpcgrwxrlqxxgtdtgp.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_TvFKfakJN3BmxVGVA6Kdhw_secO1Mi3';
+const SUPABASE_TABLE = 'hamish_data';
+
+let supabaseClient = null;
+let supabaseDataCache = {}; // Cache for word -> information mapping
+
+// Initialize Supabase
+async function initSupabase(){
+  if (window.supabase){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    await loadSupabaseData();
+  }
+}
+
+// Load all data from Supabase table and cache it
+async function loadSupabaseData(){
+  if (!supabaseClient) return;
+  
+  try {
+    const { data, error } = await supabaseClient
+      .from(SUPABASE_TABLE)
+      .select('word, information');
+    
+    if (error) throw error;
+    
+    // Build cache: word -> information
+    if (data){
+      data.forEach(row => {
+        if (row.word && row.information){
+          supabaseDataCache[row.word.toLowerCase()] = row.information;
+        }
+      });
+      console.log('Supabase data loaded:', Object.keys(supabaseDataCache).length, 'records');
+    }
+  } catch (err) {
+    console.error('Failed to load Supabase data:', err);
+  }
+}
+
+// Check if a feature has information data (from CSV or Supabase)
+function hasFeatureData(feature){
+  const featureName = feature.get('Name');
+  
+  // Check CSV data
+  const csvData = feature.get('Information');
+  if (csvData && String(csvData).trim()) return true;
+  
+  // Check Supabase data
+  const supabaseData = getSupabaseInformation(featureName);
+  if (supabaseData) return true;
+  
+  return false;
+}
+
+// Get information from Supabase by word/name
+function getSupabaseInformation(name){
+  if (!name) return null;
+  return supabaseDataCache[name.toLowerCase()] || null;
+}
+
 // Display labels for the popup card — rename here to change vocabulary
 // anywhere in the UI without touching the rendering logic below.
 const LABELS = {
@@ -402,6 +464,9 @@ if (typeof window.initMapMeasure === 'function'){
 }
 
 const sourceExtentFeatures = []; // used to fit the view once loaded
+
+// Initialize Supabase connection
+initSupabase();
 
 Papa.parse(CSV_URL, {
   download: true,
@@ -1045,17 +1110,16 @@ map.on('pointermove', (evt) => {
   if (hit !== hoveredFeature){
     if (hoveredFeature) setAnimTarget(hoveredFeature, 1);      // reset old
     if (hit) {
-      // Check if feature has Information data
-      const hasData = hit.get('Information') && String(hit.get('Information')).trim();
-      if (hasData) {
+      // Check if feature has Information data (from CSV or Supabase)
+      if (hasFeatureData(hit)) {
         setAnimTarget(hit, HOVER_SCALE);                  // grow new
       }
     }
     hoveredFeature = hit || null;
   }
 
-  // Only show pointer cursor if feature has Information data
-  const hasData = hit && hit.get('Information') && String(hit.get('Information')).trim();
+  // Only show pointer cursor if feature has Information data (from CSV or Supabase)
+  const hasData = hit && hasFeatureData(hit);
   mapTargetEl.classList.toggle('feature-hover', !!hasData);
 });
 
@@ -1090,20 +1154,29 @@ map.on('singleclick', (evt) => {
 });
 
 function openPopup(feature){
+  const featureName = feature.get('Name');
+  
+  // Try to get information from Supabase first, then fall back to CSV
+  let informationData = getSupabaseInformation(featureName);
+  
+  // If not in Supabase, use CSV data
+  if (!informationData){
+    informationData = feature.get('Information');
+  }
+  
   // Only open if Information data exists
-  const informationData = feature.get('Information');
   if (!informationData || !String(informationData).trim()) {
     return;
   }
 
   const layerColor = normalizeColor(feature.get('Pincolor'), feature.get('color'));
 
-  document.getElementById('popup-name').textContent = feature.get('Name') || '—';
+  document.getElementById('popup-name').textContent = featureName || '—';
 
   document.getElementById('popup-info-label').textContent = LABELS.info;
-  document.getElementById('popup-info').textContent = informationData;
+  document.getElementById('popup-info').innerHTML = informationData;
   
-  document.getElementById('popup-fehrist').textContent = feature.get('Fehrist') || 'No Fehrist data available.';
+  document.getElementById('popup-fehrist').innerHTML = feature.get('Fehrist') || 'No Fehrist data available.';
 
   // Tie the header's accent stripe to this feature's own pin colour.
   const header = document.querySelector('.popup-header');
