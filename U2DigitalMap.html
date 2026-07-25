@@ -649,6 +649,150 @@ body::before{
   background: rgba(107, 158, 127, 0.1);
   border-radius: 3px;
 }
+
+/* ============================================================
+   SEARCH BAR — top center
+   ============================================================ */
+#search-container{
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 24;
+  width: min(420px, calc(100vw - 40px));
+  pointer-events: none;
+}
+
+#search-wrapper{
+  pointer-events: auto;
+  background: rgba(245, 244, 242, 0.95);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(107,158,127,0.40);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(27, 77, 62, 0.18);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+#search-input{
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  direction: rtl;
+  text-align: right;
+  padding: 0;
+}
+
+#search-input::placeholder{
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+#search-input:focus{
+  outline: none;
+}
+
+.search-icon{
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+}
+
+#search-btn{
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+#search-btn:hover{
+  color: var(--accent-teal);
+  transform: scale(1.1);
+}
+
+#search-btn:active{
+  transform: scale(0.95);
+}
+
+.search-btn-icon{
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+#search-dropdown{
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: rgba(245, 244, 242, 0.98);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(107,158,127,0.40);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(27, 77, 62, 0.22);
+  max-height: 300px;
+  overflow-y: auto;
+  display: none;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+#search-dropdown:hover,
+#search-dropdown.show{
+  display: block;
+  outline: 2px solid rgba(45, 134, 89, 0.3);
+}
+
+.search-option{
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(107,158,127,0.15);
+  transition: background 0.15s ease;
+  direction: rtl;
+  text-align: right;
+}
+
+.search-option:last-child{
+  border-bottom: none;
+}
+
+.search-option:hover,
+.search-option.active{
+  background: rgba(45, 134, 89, 0.12);
+}
+
+#search-dropdown::-webkit-scrollbar{
+  width: 5px;
+}
+
+#search-dropdown::-webkit-scrollbar-thumb{
+  background: var(--mint-deep);
+  border-radius: 3px;
+}
+
+#search-dropdown::-webkit-scrollbar-track{
+  background: rgba(107, 158, 127, 0.1);
+  border-radius: 3px;
+}
+
+#boundaries-toggle-btn{
   position: static;
   z-index: auto;
   border: none;
@@ -777,6 +921,24 @@ body.layers-hidden #layer-panel{
     padding: 10px 12px;
     font-size: 12px;
   }
+
+  #search-container{
+    top: 14px;
+    width: min(calc(100vw - 28px), 400px);
+  }
+
+  #search-input{
+    font-size: 13px;
+  }
+
+  #search-dropdown{
+    max-height: 250px;
+  }
+
+  .search-option{
+    padding: 10px 14px;
+    font-size: 13px;
+  }
 }
 </style>
 </head>
@@ -791,6 +953,25 @@ body.layers-hidden #layer-panel{
 
 <!-- ZOOM CATEGORIES TOOLBAR -->
 <div id="zoom-toolbar"></div>
+
+<!-- SEARCH BAR -->
+<div id="search-container">
+  <div id="search-wrapper">
+    <input 
+      type="text" 
+      id="search-input" 
+      placeholder="ابحث عن موقع..."
+      autocomplete="off"
+    />
+    <button id="search-btn" type="button" title="بحث">
+      <svg class="search-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+    </button>
+  </div>
+  <div id="search-dropdown"></div>
+</div>
 
 <!--div id="top-toolbar">
   <div class="toolbar-cluster">

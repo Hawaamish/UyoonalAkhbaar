@@ -32,7 +32,7 @@ const HOVER_SCALE = 1.45;       // scale multiplier applied on hover
 const ANIM_EASE = 0.22;         // 0-1, higher = snappier hover animation
 const ZOOM_REF_MIN = 2;         // map zoom considered "fully zoomed out"
 const ZOOM_REF_MAX = 16;        // map zoom considered "fully zoomed in"
-const ZOOM_SCALE_MIN = 0.2;    // tiny symbols/labels at far zoom-out
+const ZOOM_SCALE_MIN = .20;    // tiny symbols/labels at far zoom-out
 const ZOOM_SCALE_MAX = 3;     // enlarged symbols/labels when zoomed in
 const MIN_RENDERED_FONT = 4;    // keep text drawable at very small sizes
 
@@ -237,6 +237,38 @@ function resolveFeatureZoomLevel(row){
   return parsed;
 }
 
+function resolveFeatureZoomHide(row){
+  const raw = row && (row.Zoomhide ?? row.zoomhide ?? row.ZoomHide);
+  if (raw == null || raw === '') return null;
+
+  const value = String(raw).trim();
+  const scaleMatch = /^1\s*:\s*([\d.,]+)$/.exec(value);
+
+  if (scaleMatch){
+    const scaleDenominator = Number.parseFloat(scaleMatch[1].replace(/,/g, ''));
+    if (!Number.isFinite(scaleDenominator) || scaleDenominator <= 0) return null;
+
+    const projection = map.getView().getProjection();
+    const metersPerUnit = projection && projection.getMetersPerUnit ? (projection.getMetersPerUnit() || 1) : 1;
+    const resolution = (scaleDenominator * 0.00028) / metersPerUnit;
+    const zoom = map.getView().getZoomForResolution(resolution);
+    return Number.isFinite(zoom) ? zoom : null;
+  }
+
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) return null;
+
+  if (parsed > 30){
+    const projection = map.getView().getProjection();
+    const metersPerUnit = projection && projection.getMetersPerUnit ? (projection.getMetersPerUnit() || 1) : 1;
+    const resolution = (parsed * 0.00028) / metersPerUnit;
+    const zoom = map.getView().getZoomForResolution(resolution);
+    return Number.isFinite(zoom) ? zoom : null;
+  }
+
+  return parsed;
+}
+
 /* ================================================================
    HOVER ANIMATION ENGINE
    Each feature carries an 'anim_scale' property (default 1). On
@@ -280,8 +312,17 @@ function featureStyle(feature, resolution){
   const animScale = feature.get('anim_scale') ?? 1;
   const currentZoom = map.getView().getZoomForResolution(resolution);
   const minZoom = feature.get('zoomLevel');
+  const maxZoom = feature.get('zoomHide');
 
+  // Hide if zoom is below minimum required (ZoomLevel feature)
   if (Number.isFinite(minZoom) && Number.isFinite(currentZoom) && currentZoom < minZoom){
+    return null;
+  }
+
+  // Hide if zoom reaches or exceeds the zoomHide level (Zoomhide feature - opposite of ZoomLevel)
+  // Point is visible below this scale, hidden at this scale and beyond
+  if (Number.isFinite(maxZoom) && Number.isFinite(currentZoom) && currentZoom >= maxZoom){
+    console.log(`Hiding ${feature.get('Name')}: currentZoom=${currentZoom}, zoomHide=${maxZoom}`);
     return null;
   }
 
@@ -411,6 +452,8 @@ function buildLayersFromRows(rows){
     const fontSize = resolveFeatureFontSize(row);
     const pinSize = resolveFeaturePinSize(row);
     const zoomLevel = resolveFeatureZoomLevel(row);
+    const zoomHide = resolveFeatureZoomHide(row);
+    
     feature.setProperties({
       Name: row.Name,
       Latitude: row.Latitude,
@@ -424,6 +467,7 @@ function buildLayersFromRows(rows){
       fontSize,
       pinSize,
       zoomLevel,
+      zoomHide,
       adjust: row.adjust,
       anim_scale: 1
     });
@@ -454,6 +498,7 @@ function buildLayersFromRows(rows){
 
   buildLayerPanel();
   buildZoomToolbar(rows);
+  buildSearchBar(rows);
 
   // Fit the view to all loaded points with extra breathing room.
   if (sourceExtentFeatures.length){
@@ -529,12 +574,17 @@ function zoomToCategory(categoryName, features){
   let maxLat = features[0].lat;
   let minLon = features[0].lon;
   let maxLon = features[0].lon;
+  let maxZoomLevel = features[0].zoomLevel || 8;
 
   features.forEach(f => {
     minLat = Math.min(minLat, f.lat);
     maxLat = Math.max(maxLat, f.lat);
     minLon = Math.min(minLon, f.lon);
     maxLon = Math.max(maxLon, f.lon);
+    // Use the highest zoom level from features in this category
+    if (f.zoomLevel) {
+      maxZoomLevel = Math.max(maxZoomLevel, f.zoomLevel);
+    }
   });
 
   // Convert to OpenLayers extent
@@ -542,11 +592,192 @@ function zoomToCategory(categoryName, features){
   const bottomRight = ol.proj.fromLonLat([maxLon, minLat]);
   const extent = [topLeft[0], bottomRight[1], bottomRight[0], topLeft[1]];
 
-  // Fit view to extent with padding
+  // Fit view to extent with padding, using the category's max ZoomLevel
   map.getView().fit(extent, {
     padding: [80, 80, 200, 80],
     duration: 600,
-    maxZoom: 8
+    maxZoom: maxZoomLevel
+  });
+}
+
+/* ================================================================
+   SEARCH BAR — name search with autocomplete and fly-to
+   ================================================================ */
+let searchDatabase = []; // array of { name, lat, lon }
+
+function buildSearchBar(rows){
+  // Extract all places with names
+  searchDatabase = rows
+    .filter(row => row.Name && parseFloat(row.Latitude) && parseFloat(row.Longitude))
+    .map(row => ({
+      name: row.Name,
+      lat: parseFloat(row.Latitude),
+      lon: parseFloat(row.Longitude)
+    }));
+
+  const searchInput = document.getElementById('search-input');
+  const searchBtn = document.getElementById('search-btn');
+  const searchDropdown = document.getElementById('search-dropdown');
+  let selectedIndex = -1;
+
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    selectedIndex = -1;
+
+    if (query.length === 0){
+      searchDropdown.classList.remove('show');
+      return;
+    }
+
+    // Filter matching names (case-insensitive)
+    const matches = searchDatabase.filter(place =>
+      place.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    if (matches.length === 0){
+      searchDropdown.classList.remove('show');
+      return;
+    }
+
+    // Show dropdown with matches
+    searchDropdown.innerHTML = '';
+    matches.forEach((place, idx) => {
+      const option = document.createElement('div');
+      option.className = 'search-option';
+      option.textContent = place.name;
+      option.dataset.index = idx;
+      option.dataset.lat = place.lat;
+      option.dataset.lon = place.lon;
+      searchDropdown.appendChild(option);
+    });
+
+    searchDropdown.classList.add('show');
+  });
+
+  // Handle dropdown option clicks with event delegation
+  searchDropdown.addEventListener('click', (e) => {
+    const option = e.target.closest('.search-option');
+    if (option) {
+      e.stopPropagation();
+      console.log('Option clicked:', option.textContent);
+      searchInput.value = option.textContent;
+      searchDropdown.classList.remove('show');
+      searchInput.focus();
+    }
+  });
+
+  // Prevent map zoom when scrolling in dropdown
+  searchDropdown.addEventListener('wheel', (e) => {
+    e.stopPropagation();
+  });
+
+  // Prevent default scroll behavior from affecting map
+  searchDropdown.addEventListener('mouseenter', () => {
+    map.getView().getInteractions().forEach(interaction => {
+      if (interaction instanceof ol.interaction.MouseWheelZoom) {
+        interaction.setActive(false);
+      }
+    });
+  });
+
+  searchDropdown.addEventListener('mouseleave', () => {
+    map.getView().getInteractions().forEach(interaction => {
+      if (interaction instanceof ol.interaction.MouseWheelZoom) {
+        interaction.setActive(true);
+      }
+    });
+  });
+
+  // Handle hover state for options
+  searchDropdown.addEventListener('mouseover', (e) => {
+    const option = e.target.closest('.search-option');
+    if (option) {
+      document.querySelectorAll('.search-option').forEach(o => o.classList.remove('active'));
+      option.classList.add('active');
+    }
+  });
+
+  // Keyboard navigation
+  searchInput.addEventListener('keydown', (e) => {
+    const options = searchDropdown.querySelectorAll('.search-option');
+    
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if (options.length === 0) return;
+      
+      if (e.key === 'ArrowDown'){
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
+        updateActiveOption(options);
+      } else if (e.key === 'ArrowUp'){
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, -1);
+        updateActiveOption(options);
+      }
+    } else if (e.key === 'Enter'){
+      e.preventDefault();
+      // If dropdown is showing and option is selected, search for it
+      if (options.length > 0 && selectedIndex >= 0 && selectedIndex < options.length){
+        const option = options[selectedIndex];
+        performSearch(option.textContent);
+      } else if (searchInput.value.trim()){
+        // Otherwise, search for the input value and fly
+        performSearch(searchInput.value.trim());
+      }
+    } else if (e.key === 'Escape'){
+      searchDropdown.classList.remove('show');
+    }
+  });
+
+  // Search button click
+  searchBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const query = searchInput.value.trim();
+    if (query){
+      performSearch(query);
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('search-container').contains(e.target)){
+      searchDropdown.classList.remove('show');
+    }
+  });
+
+  function updateActiveOption(options){
+    options.forEach((opt, idx) => {
+      opt.classList.toggle('active', idx === selectedIndex);
+    });
+    if (selectedIndex >= 0) options[selectedIndex].scrollIntoView({ block: 'nearest' });
+  }
+
+  function performSearch(query){
+    // Find exact match in database
+    const result = searchDatabase.find(place => 
+      place.name.toLowerCase() === query.toLowerCase()
+    );
+
+    if (result){
+      searchInput.value = result.name;
+      searchDropdown.classList.remove('show');
+      flyToLocation(result.lat, result.lon);
+    }
+  }
+}
+
+function flyToLocation(lat, lon){
+  // Fly to location
+  const center = ol.proj.fromLonLat([lon, lat]);
+  map.getView().animate({
+    center: center,
+    zoom: 10,
+    duration: 1000
+  });
+
+  // Fit view around the location
+  const view = map.getView();
+  view.fit([center[0] - 50000, center[1] - 50000, center[0] + 50000, center[1] + 50000], {
+    duration: 600
   });
 }
 
