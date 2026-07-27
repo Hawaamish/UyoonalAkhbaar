@@ -55,12 +55,10 @@ body {
 
 /* Container */
 .container {
-    background: #E8F5E9;
     max-width: 1000px;
     margin: 50px auto;
-    padding: 100px 100px;
+    padding: 0 20px;
     border-radius: 50px;
-    border: 5px solid rgba(13, 8, 8, 0.5);
 
 
 }
