@@ -50,14 +50,14 @@ async function loadSupabaseData(){
 
 // Check if a feature has information data (from CSV or Supabase)
 function hasFeatureData(feature){
-  const featureName = feature.get('Name');
+  const featureSource = feature.get('Source');
   
   // Check CSV data
   const csvData = feature.get('Information');
   if (csvData && String(csvData).trim()) return true;
   
   // Check Supabase data
-  const supabaseData = getSupabaseInformation(featureName);
+  const supabaseData = getSupabaseInformation(featureSource);
   if (supabaseData) return true;
   
   return false;
@@ -521,6 +521,7 @@ function buildLayersFromRows(rows){
     
     feature.setProperties({
       Name: row.Name,
+      Source: row.Source || row.source,
       Latitude: row.Latitude,
       Longitude: row.Longitude,
       LongORG: row.LongORG,
@@ -1155,9 +1156,10 @@ map.on('singleclick', (evt) => {
 
 function openPopup(feature){
   const featureName = feature.get('Name');
+  const featureSource = feature.get('Source');
   
-  // Try to get information from Supabase first, then fall back to CSV
-  let informationData = getSupabaseInformation(featureName);
+  // Try to get information from Supabase by Source, then fall back to CSV
+  let informationData = getSupabaseInformation(featureSource);
   
   // If not in Supabase, use CSV data
   if (!informationData){
