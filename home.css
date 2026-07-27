@@ -8,6 +8,8 @@
 }
 
 body {
+    background: url('Uyoon1_FP.jpg') repeat center center fixed;
+    background-size: cover;
     background-color: #fcf8f2;
     color: #4a4a4a;
     line-height: 1.6; /* Amiri looks better with a bit more line height */
@@ -16,23 +18,24 @@ body {
 /* Hero Banner */
 .hero-banner {
     width: 100%;
-    height: 350px;
-    background-image: url('uyoonfront.jpeg');
-    background-size: cover;
+    height: 250px;
+    background-size: 100% auto;
     background-position: center;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    box-shadow: 2px 5px 15px rgba(0,0,0,0.1);
 }
 
 .banner-overlay {
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.9);
     padding: 20px 40px;
     border-radius: 10px;
     backdrop-filter: blur(5px);
     border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 2px 5px 2px rgba(0,0,0,0.1);
+
 }
 
 .banner-overlay h1 {
@@ -52,9 +55,14 @@ body {
 
 /* Container */
 .container {
+    background: #E8F5E9;
     max-width: 1000px;
     margin: 50px auto;
-    padding: 0 20px;
+    padding: 100px 100px;
+    border-radius: 50px;
+    border: 5px solid rgba(13, 8, 8, 0.5);
+
+
 }
 
 /* Responsive Grid */
