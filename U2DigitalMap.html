@@ -663,18 +663,23 @@ body::before{
 }
 
 /* ============================================================
-   ZOOM CATEGORIES TOOLBAR — upper left
+   ZOOM CATEGORIES TOOLBAR — horizontal row below search bar
    ============================================================ */
 #zoom-toolbar{
   position: absolute;
-  top: 20px;
+  top: 78px;
   left: 20px;
+  right: 20px;
   z-index: 24;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 10px;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
   pointer-events: none;
 }
 
@@ -698,7 +703,7 @@ body::before{
   transition: all 0.22s ease;
   text-align: center;
   direction: rtl;
-  min-width: 140px;
+  min-width: auto;
 }
 
 .zoom-category-btn:hover{
@@ -717,6 +722,7 @@ body::before{
 
 #zoom-toolbar::-webkit-scrollbar{
   width: 5px;
+  height: 5px;
 }
 
 #zoom-toolbar::-webkit-scrollbar-thumb{
@@ -984,19 +990,19 @@ body.layers-hidden #layer-panel{
   }
 
   #zoom-toolbar{
-    top: 14px;
+    top: 72px;
     left: 12px;
-    flex-direction: column;
-    width: auto;
-    max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 140px);
-    overflow-x: hidden;
-    overflow-y: auto;
+    right: 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
     gap: 8px;
   }
 
   .zoom-category-btn{
-    min-width: 100px;
+    min-width: auto;
     padding: 10px 12px;
     font-size: 12px;
   }
