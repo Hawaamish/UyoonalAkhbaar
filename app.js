@@ -1392,3 +1392,37 @@ if (isMobileViewport()){
 }
 
 syncLayersPanelState();
+
+/* ================================================================
+   MOBILE / TOUCH — prevent page scroll & overscroll bounce
+   Allow scrolling only inside designated UI panels.
+   ================================================================ */
+const SCROLLABLE_UI_SELECTORS = [
+  '#popup-info',
+  '#popup-fehrist',
+  '#layer-panel',
+  '#search-dropdown',
+  '#zoom-toolbar'
+];
+
+function isInsideScrollableUI(target){
+  if (!target || !target.closest) return false;
+  return SCROLLABLE_UI_SELECTORS.some(selector => target.closest(selector));
+}
+
+function shouldAllowTouchMove(target){
+  if (isInsideScrollableUI(target)) return true;
+  if (target.closest && target.closest('#map')) return true;
+  return false;
+}
+
+function isTouchDevice(){
+  return window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+}
+
+if (isTouchDevice()){
+  document.addEventListener('touchmove', (e) => {
+    if (shouldAllowTouchMove(e.target)) return;
+    e.preventDefault();
+  }, { passive: false });
+}
