@@ -2,6 +2,7 @@
 function handleCredentialResponse(response) {
     const data = parseJwt(response.credential);
     const email = data.email;
+    const name = data.name || email; // fallback to email if Google doesn't return a name
 
     const messageBox = document.getElementById("message");
 
@@ -9,6 +10,7 @@ function handleCredentialResponse(response) {
 
         // ✅ Save user session
         localStorage.setItem("user", email);
+        localStorage.setItem("userName", name);
 
         messageBox.style.color = "green";
         messageBox.innerText = "Access Granted: " + email;
