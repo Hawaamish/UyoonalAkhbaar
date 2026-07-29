@@ -559,16 +559,11 @@ body::before{
   height: auto !important;
 }
 
-.popup-info-card [dir="rtl"],
-.popup-fehrist-card [dir="rtl"]{
-  direction: rtl;
-  text-align: right;
-}
-
-.popup-info-card [dir="ltr"],
-.popup-fehrist-card [dir="ltr"]{
-  direction: ltr;
-  text-align: left;
+.popup-info-card,
+.popup-fehrist-card{
+  text-align: justify;
+  text-align-last: center;
+  direction: inherit;
 }
 
 /* Ensure all content elements display properly */
@@ -576,6 +571,9 @@ body::before{
 .popup-fehrist-card *{
   max-width: 100%;
   word-wrap: break-word;
+  text-align: justify;
+  text-align-last: center;
+  direction: inherit;
 }
 
 .popup-info-card a,

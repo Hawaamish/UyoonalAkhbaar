@@ -1251,73 +1251,51 @@ function openPopup(feature){
   
   document.getElementById('popup-fehrist').innerHTML = feature.get('Fehrist') || 'No Fehrist data available.';
 
-  // Auto-detect language and set text direction
-  const detectLanguageDirection = (text) => {
-    // Clean up whitespace and find first meaningful character
-    const cleanText = text.trim();
-    
-    // Arabic character ranges: U+0600–U+06FF, U+0750–U+077F, U+08A0–U+08FF
-    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
-    const englishRegex = /[a-zA-Z]/;
-    
-    // Check each character from start until we find Arabic or English
-    for (let char of cleanText) {
-      if (arabicRegex.test(char)) {
-        return 'rtl';
-      }
-      if (englishRegex.test(char)) {
-        return 'ltr';
-      }
+  const detectPopupDirection = (text) => {
+    const cleanText = String(text || '').trim();
+    if (!cleanText) return 'rtl';
+
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g;
+    const latinRegex = /[a-zA-Z]/g;
+
+    const arabicCount = (cleanText.match(arabicRegex) || []).length;
+    const latinCount = (cleanText.match(latinRegex) || []).length;
+
+    if (arabicCount && arabicCount >= latinCount) {
+      return 'rtl';
     }
-    
-    // Default to ltr if no Arabic or English found
-    return 'ltr';
+    if (latinCount) {
+      return 'ltr';
+    }
+    return 'rtl';
   };
-  
-  // Function to wrap text nodes with appropriate dir attribute
-  const applyDirectionToTextNodes = (container) => {
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      null,
-      false
-    );
-    
-    const nodesToReplace = [];
-    let node;
-    
-    while (node = walker.nextNode()) {
-      const text = node.textContent.trim();
-      if (text.length > 0) {
-        nodesToReplace.push(node);
-      }
-    }
-    
-    // Replace text nodes with wrapped versions
-    nodesToReplace.forEach(textNode => {
-      const text = textNode.textContent;
-      const dir = detectLanguageDirection(text);
-      
-      // Create a span wrapper with the appropriate direction
-      const span = document.createElement('span');
-      span.setAttribute('dir', dir);
-      span.textContent = text;
-      
-      // Replace the text node with the span
-      textNode.parentNode.replaceChild(span, textNode);
+
+  const applyPopupTextLayout = (container) => {
+    if (!container) return;
+
+    const text = container.textContent || '';
+    const dir = detectPopupDirection(text);
+
+    container.style.textAlign = 'justify';
+    container.style.textAlignLast = 'center';
+    container.style.direction = dir;
+
+    const textElements = container.querySelectorAll('p, div, span, li, h1, h2, h3, h4, h5, h6, a');
+    textElements.forEach((element) => {
+      element.style.textAlign = 'justify';
+      element.style.textAlignLast = 'center';
+      element.style.direction = dir;
     });
   };
-  
-  // Apply to info box
+
   const infoBox = document.getElementById('popup-info');
-  applyDirectionToTextNodes(infoBox);
-  
-  // Apply to fehrist box
   const fehristBox = document.getElementById('popup-fehrist');
-  applyDirectionToTextNodes(fehristBox);
+
+  applyPopupTextLayout(infoBox);
+  applyPopupTextLayout(fehristBox);
 
   // Process images to ensure they load properly
-  const images = infoBox.querySelectorAll('img');
+  const images = infoBox ? infoBox.querySelectorAll('img') : [];
   images.forEach((img, idx) => {
     let originalSrc = img.src;
     
