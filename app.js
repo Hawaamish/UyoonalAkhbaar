@@ -375,17 +375,23 @@ function featureStyle(feature, resolution){
   const currentZoom = map.getView().getZoomForResolution(resolution);
   const minZoom = feature.get('zoomLevel');
   const maxZoom = feature.get('zoomHide');
+  const featureCategories = feature.get('toolbarCategories') || [];
+  const isSelectedCategoryFeature = activeZoomCategories.some(category => featureCategories.includes(category));
 
-  // Hide if zoom is below minimum required (ZoomLevel feature)
-  if (Number.isFinite(minZoom) && Number.isFinite(currentZoom) && currentZoom < minZoom){
-    return null;
-  }
+  // Keep selected-category places visible at all scales while leaving other
+  // categories subject to their normal zoom-hide rules.
+  if (!isSelectedCategoryFeature){
+    // Hide if zoom is below minimum required (ZoomLevel feature)
+    if (Number.isFinite(minZoom) && Number.isFinite(currentZoom) && currentZoom < minZoom){
+      return null;
+    }
 
-  // Hide if zoom reaches or exceeds the zoomHide level (Zoomhide feature - opposite of ZoomLevel)
-  // Point is visible below this scale, hidden at this scale and beyond
-  if (Number.isFinite(maxZoom) && Number.isFinite(currentZoom) && currentZoom >= maxZoom){
-    console.log(`Hiding ${feature.get('Name')}: currentZoom=${currentZoom}, zoomHide=${maxZoom}`);
-    return null;
+    // Hide if zoom reaches or exceeds the zoomHide level (Zoomhide feature - opposite of ZoomLevel)
+    // Point is visible below this scale, hidden at this scale and beyond
+    if (Number.isFinite(maxZoom) && Number.isFinite(currentZoom) && currentZoom >= maxZoom){
+      console.log(`Hiding ${feature.get('Name')}: currentZoom=${currentZoom}, zoomHide=${maxZoom}`);
+      return null;
+    }
   }
 
   const zoomScale = getZoomResponsiveScale(resolution);
@@ -436,6 +442,8 @@ let arabicLinesController = null;
 let aqsaMaghribCornersController = null;
 let measureController = null;
 let esriShadedReliefController = null;
+let aliasRouteController = null;
+let ayeshaRouteController = null;
 const panelCollapseState = {
   geoPlacesNow: false,
   risalaCoordinates: false
@@ -455,6 +463,14 @@ if (typeof window.initAqsaMaghribCornersLayer === 'function'){
 
 if (typeof window.initEsriShadedReliefLayer === 'function'){
   esriShadedReliefController = window.initEsriShadedReliefLayer({ map });
+}
+
+if (typeof window.initMaseerAliasLineLayer === 'function'){
+  aliasRouteController = window.initMaseerAliasLineLayer({ map });
+}
+
+if (typeof window.initMaseerAyeshaRouteLayer === 'function'){
+  ayeshaRouteController = window.initMaseerAyeshaRouteLayer({ map });
 }
 
 setSatelliteVisibility(satelliteLayer.getVisible());
@@ -519,6 +535,8 @@ function buildLayersFromRows(rows){
     const zoomLevel = resolveFeatureZoomLevel(row);
     const zoomHide = resolveFeatureZoomHide(row);
     
+    const toolbarCategories = parseNotesCategories(row.notes);
+
     feature.setProperties({
       Name: row.Name,
       Source: row.Source || row.source,
@@ -535,6 +553,7 @@ function buildLayersFromRows(rows){
       zoomLevel,
       zoomHide,
       adjust: row.adjust,
+      toolbarCategories,
       anim_scale: 1
     });
     groups[sub].push(feature);
@@ -578,11 +597,30 @@ function buildLayersFromRows(rows){
 /* ================================================================
    ZOOM TOOLBAR — category buttons for quick navigation
    ================================================================ */
+let activeZoomCategories = [];
+
+function parseNotesCategories(rawNotes){
+  return String(rawNotes || '')
+    .split(/[،,]/)
+    .map(value => value.trim())
+    .filter(Boolean);
+}
+
+function refreshFeatureStyles(){
+  subLayerGroup.getLayers().forEach(layer => {
+    if (layer && layer.getSource){
+      layer.changed();
+      layer.getSource().changed();
+    }
+  });
+}
+
 function buildZoomToolbar(rows){
   const toolbar = document.getElementById('zoom-toolbar');
   if (!toolbar) return;
 
-  // Extract unique categories from the "notes" column
+  // Extract unique categories from the "notes" column.
+  // Allow comma-separated values so one row can belong to multiple buttons.
   const categories = new Set();
   const categoryFeatures = {}; // category -> array of features
 
@@ -591,9 +629,11 @@ function buildZoomToolbar(rows){
     const lon = parseFloat(row.Longitude);
     if (Number.isNaN(lat) || Number.isNaN(lon)) return;
 
-    const category = (row.notes && row.notes.trim()) || null;
-    
-    if (category){
+    const rawNotes = String(row.notes || '').trim();
+    if (!rawNotes) return;
+
+    const noteValues = parseNotesCategories(rawNotes);
+    noteValues.forEach(category => {
       categories.add(category);
       if (!categoryFeatures[category]){
         categoryFeatures[category] = [];
@@ -603,14 +643,16 @@ function buildZoomToolbar(rows){
         lon,
         name: row.Name
       });
-    }
+    });
   });
 
-  // If no categories found, hide toolbar
-  if (categories.size === 0){
+  // If no categories found, hide toolbar unless route buttons are present.
+  if (categories.size === 0 && !toolbar.querySelector('button[data-route-button]')){
     toolbar.style.display = 'none';
     return;
   }
+
+  toolbar.style.display = 'flex';
 
   // Create a button for each category
   Array.from(categories).sort().forEach(category => {
@@ -621,11 +663,38 @@ function buildZoomToolbar(rows){
     btn.title = `Zoom to ${category}`;
 
     btn.addEventListener('click', () => {
-      zoomToCategory(category, categoryFeatures[category]);
-      
-      // Update active state
-      document.querySelectorAll('.zoom-category-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      const isActive = activeZoomCategories.includes(category);
+
+      if (isActive){
+        activeZoomCategories = activeZoomCategories.filter(item => item !== category);
+      } else {
+        activeZoomCategories = [...activeZoomCategories, category];
+      }
+
+      const routeControllersByCategory = {
+        'مسير علي عليه السلام': aliasRouteController,
+        'مسير عائشة وطلحة والزبير': ayeshaRouteController
+      };
+      const routeController = routeControllersByCategory[category];
+      if (routeController && typeof routeController.setVisible === 'function'){
+        if (!isActive){
+          if (activeZoomCategories.length > 0){
+            zoomToCategory(category, categoryFeatures[category]);
+          }
+          routeController.setVisible(true, { delayMs: 700 });
+        } else {
+          routeController.setVisible(false);
+        }
+      } else if (activeZoomCategories.length > 0){
+        zoomToCategory(category, categoryFeatures[category]);
+      }
+
+      document.querySelectorAll('.zoom-category-btn').forEach(b => {
+        const buttonCategory = b.textContent.trim();
+        b.classList.toggle('active', activeZoomCategories.includes(buttonCategory));
+      });
+
+      refreshFeatureStyles();
     });
 
     toolbar.appendChild(btn);
