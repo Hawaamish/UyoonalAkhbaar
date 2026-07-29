@@ -10,6 +10,23 @@
 
 <link rel="stylesheet" href="home.css">
     <link rel="stylesheet" href="home.css">
+    <style>
+        #welcomeBadge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.92);
+            color: #424242;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+            font-family: 'Amiri', 'Arial', sans-serif;
+            font-size: 1.1em;
+            font-weight: 700;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
     <script>
 if (!localStorage.getItem("user")) {
     window.location.href = "index.html";
@@ -17,6 +34,8 @@ if (!localStorage.getItem("user")) {
 </script>
 </head>
 <body>
+
+    <div id="welcomeBadge"></div>
 
     <section class="hero-banner">
     <div class="banner-overlay">
@@ -64,8 +83,20 @@ if (!localStorage.getItem("user")) {
 <script>
 function logout() {
     localStorage.removeItem("user");
+    localStorage.removeItem("userName");
     window.location.href = "index.html";
 }
+
+// 👋 Show the welcome greeting with the logged-in user's name
+window.addEventListener("DOMContentLoaded", () => {
+    const userName = localStorage.getItem("userName") || localStorage.getItem("user");
+    const badge = document.getElementById("welcomeBadge");
+
+    if (userName && badge) {
+        badge.textContent = "اهلًا وسهلًا " + userName;
+        badge.style.display = "block";
+    }
+});
 </script>
    
 
