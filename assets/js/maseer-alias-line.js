@@ -203,7 +203,7 @@
   window.initMaseerAliasLineLayer = function({ map }){
     return createPathController({
       map,
-      geojsonUrl: 'MaseerAliasLINE.geojson',
+      geojsonUrl: '../assets/data/MaseerAliasLINE.geojson',
       color: '#7EC151',
       title: 'MaseerAliasLINE'
     });

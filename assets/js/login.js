@@ -18,7 +18,7 @@ function handleCredentialResponse(response) {
 
         // ✅ Redirect to main page
         setTimeout(() => {
-            window.location.href = "mainpage.html";
+            window.location.href = "pages/mainpage.html";
         }, 1000);
 
     } else {
@@ -67,6 +67,6 @@ window.onload = function () {
     const user = localStorage.getItem("user");
 
     if (user) {
-        window.location.href = "mainpage.html";
+        window.location.href = "pages/mainpage.html";
     }
 };

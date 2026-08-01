@@ -5,7 +5,7 @@
    ================================================================ */
 
 // Path to the local CSV data source (columns documented in README).
-const CSV_URL = 'Uyun2Map_Data.csv';
+const CSV_URL = '../assets/data/Uyun2Map_Data.csv';
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://xbxpcgrwxrlqxxgtdtgp.supabase.co';

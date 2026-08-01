@@ -203,7 +203,7 @@
   window.initMaseerAyeshaRouteLayer = function({ map }){
     return createPathController({
       map,
-      geojsonUrl: 'MaseerAyesha.geojson',
+      geojsonUrl: '../assets/data/MaseerAyesha.geojson',
       color: '#FB6C00',
       title: 'MaseerAyesha'
     });

@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="home.css">
-    <link rel="stylesheet" href="home.css">
+<link rel="stylesheet" href="../assets/css/home.css">
+    <link rel="stylesheet" href="../assets/css/home.css">
     <style>
         #welcomeBadge {
             position: fixed;
@@ -29,7 +29,7 @@
     </style>
     <script>
 if (!localStorage.getItem("user")) {
-    window.location.href = "index.html";
+    window.location.href = "../index.html";
 }
 </script>
 </head>
@@ -39,7 +39,7 @@ if (!localStorage.getItem("user")) {
 
     <section class="hero-banner">
     <div class="banner-overlay">
-        <img src="uyoonname.png" alt="Website Logo" class="banner-logo">
+        <img src="../assets/images/uyoonname.png" alt="Website Logo" class="banner-logo">
     </div>
 </section>
 
@@ -47,32 +47,32 @@ if (!localStorage.getItem("user")) {
         <div class="nav-grid">
             
             <a href="hamish.html" class="nav-card card-1">
-                <img src="icons/hamish.png" alt="" class="hover-img">
+                <img src="../assets/images/icons/hamish.png" alt="" class="hover-img">
                 <span class="card-title">الهامش</span>
             </a>
 
             <a href="maps.html" class="nav-card card-2">
-                <img src="icons/map.png" alt="" class="hover-img">
+                <img src="../assets/images/icons/map.png" alt="" class="hover-img">
                 <span class="card-title">الخرائط</span>
             </a>
 
             <a href="paintings.html" class="nav-card card-3">
-                <img src="icons/lawhaat.png" alt="" class="hover-img">
+                <img src="../assets/images/icons/lawhaat.png" alt="" class="hover-img">
                 <span class="card-title">اللوحات</span>
             </a>
 
             <a href="bookindex.html" class="nav-card card-4">
-                <img src="icons/fehrist.png" alt="" class="hover-img">
+                <img src="../assets/images/icons/fehrist.png" alt="" class="hover-img">
                 <span class="card-title">الفهرست</span>
             </a>
 
             <a href="U2Qasaid.html" class="nav-card card-5">
-                <img src="icons/poetry.png" alt="" class="hover-img">
+                <img src="../assets/images/icons/poetry.png" alt="" class="hover-img">
                 <span class="card-title">الأشعار</span>
             </a>
 
             <a href="U2DigitalMap.html" class="nav-card card-6">
-                <img src="icons/digitalMap.png" alt="" class="hover-img">
+                <img src="../assets/images/icons/digitalMap.png" alt="" class="hover-img">
                 <span class="card-title">الخريطة الرقمية</span>
             </a>
 
@@ -84,7 +84,7 @@ if (!localStorage.getItem("user")) {
 function logout() {
     localStorage.removeItem("user");
     localStorage.removeItem("userName");
-    window.location.href = "index.html";
+    window.location.href = "../index.html";
 }
 
 // 👋 Show the welcome greeting with the logged-in user's name

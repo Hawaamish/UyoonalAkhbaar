@@ -1010,7 +1010,7 @@
 	</div>
 
 	<script>
-		const csvPath = "U2 Qasaid_Behr_extracted.csv";
+		const csvPath = "../assets/data/U2 Qasaid_Behr_extracted.csv";
 
 		const keys = {
 			pageA: "صـ",
@@ -1331,7 +1331,7 @@
 				.map((k) => `<div class="meta-item"><span class="k">${escapeHtml(k)}</span><span class="v">${sanitizeRichText(row[k])}</span></div>`)
 				.join("");
 
-			const imgPath = `Abyat/${pageA}${pageB}.png`;
+			const imgPath = `../Abyat/${pageA}${pageB}.png`;
 			const imgPanel = `<div class="card-img-panel"><img class="card-img-thumb" src="${imgPath}" loading="lazy" alt="صورة البيت" onerror="this.style.visibility='hidden'" onclick="openImgLightbox(this.src)"></div>`;
 
 			return `

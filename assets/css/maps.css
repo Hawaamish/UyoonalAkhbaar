@@ -29,7 +29,7 @@ body {
 /* Hero */
 .hero-section {
     height: 350px;
-    background: url(oldmap.jpg) center/cover;
+    background: url('../images/oldmap.jpg') center/cover;
     display: flex;
     align-items: center;
     justify-content: center;
