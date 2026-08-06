@@ -1291,6 +1291,10 @@ function openPopup(feature){
   const infoBox = document.getElementById('popup-info');
   const fehristBox = document.getElementById('popup-fehrist');
 
+  // Always start from top when opening a new place.
+  if (infoBox) infoBox.scrollTop = 0;
+  if (fehristBox) fehristBox.scrollTop = 0;
+
   applyPopupTextLayout(infoBox);
   applyPopupTextLayout(fehristBox);
 

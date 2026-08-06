@@ -1227,7 +1227,14 @@
     
     const processedInfo = enhanceInfoHtml(info);
     const highlightedInfo = lastSearchTerm ? highlightMatch(processedInfo, lastSearchTerm) : processedInfo;
-    document.getElementById('displayInfo').innerHTML = highlightedInfo;
+    const displayInfoEl = document.getElementById('displayInfo');
+    displayInfoEl.innerHTML = highlightedInfo;
+    displayInfoEl.scrollTop = 0;
+
+    const mainScroller = displayInfoEl.closest('main');
+    if (mainScroller) {
+        mainScroller.scrollTo({ top: 0, behavior: 'auto' });
+    }
 
     const mediaContainer = document.getElementById('mediaContainer');
     const mediaContent = document.getElementById('mediaContent');
