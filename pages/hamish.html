@@ -6,11 +6,78 @@
     <title>هوامش كتاب عيون الاخبار - الجزء الثاني</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/styles.css">
     <style>
         :root {
             --page-sidebar-width: 120px;
             --word-sidebar-width: 200px;
+            --zen-bg: #faf8f5;
+            --zen-surface: #fffdf9;
+            --zen-surface-soft: #f4f0e8;
+            --zen-border: #d8d1c5;
+            --zen-text: #3f3a33;
+            --zen-muted: #6f675d;
+            --zen-accent: #7f8f80;
+            --zen-accent-strong: #657463;
+            --zen-warm: #b88a69;
+            --zen-highlight: #f1e3c5;
+            --zen-radius: 12px;
+            --zen-shadow: 0 6px 24px rgba(93, 78, 64, 0.08);
+        }
+
+        body.zen-reading[data-zen-theme="earth"] {
+            --zen-bg: #faf8f5;
+            --zen-surface: #fffdf9;
+            --zen-surface-soft: #f4f0e8;
+            --zen-border: #d8d1c5;
+            --zen-text: #3f3a33;
+            --zen-muted: #6f675d;
+            --zen-accent: #7f8f80;
+            --zen-accent-strong: #657463;
+            --zen-warm: #b88a69;
+            --zen-highlight: #f1e3c5;
+        }
+
+        body.zen-reading[data-zen-theme="sage"] {
+            --zen-bg: #f5f8f3;
+            --zen-surface: #fbfef9;
+            --zen-surface-soft: #edf4ea;
+            --zen-border: #c8d5c8;
+            --zen-text: #2f3a31;
+            --zen-muted: #607063;
+            --zen-accent: #7b9a83;
+            --zen-accent-strong: #5f7866;
+            --zen-warm: #b59a78;
+            --zen-highlight: #e8f0df;
+        }
+
+        body.zen-reading[data-zen-theme="mist"] {
+            --zen-bg: #f4f7f8;
+            --zen-surface: #fcfefe;
+            --zen-surface-soft: #ecf1f2;
+            --zen-border: #c7d1d4;
+            --zen-text: #334044;
+            --zen-muted: #5b6c72;
+            --zen-accent: #78939b;
+            --zen-accent-strong: #5d747b;
+            --zen-warm: #b08d79;
+            --zen-highlight: #dfecef;
+        }
+
+        body.zen-reading[data-zen-theme="rose"] {
+            --zen-bg: #faf5f3;
+            --zen-surface: #fffcfb;
+            --zen-surface-soft: #f5ece8;
+            --zen-border: #ddcac2;
+            --zen-text: #443632;
+            --zen-muted: #745f58;
+            --zen-accent: #9a7f74;
+            --zen-accent-strong: #7b645c;
+            --zen-warm: #b88368;
+            --zen-highlight: #f2ded5;
         }
         
         #pageSidebar {
@@ -22,24 +89,364 @@
         }
 
         mark.search-highlight {
-            background-color: #fff3bf;
-            color: #000;
+            background-color: var(--zen-highlight);
+            color: #2f2a24;
             padding: 0 0.15rem;
             border-radius: 0.2rem;
+        }
+
+        body.zen-reading {
+            background: radial-gradient(circle at top left, #f5f0e7 0%, var(--zen-bg) 55%);
+            color: var(--zen-text);
+            font-family: 'Amiri', serif;
+        }
+
+        body.zen-reading header {
+            background: rgba(255, 253, 249, 0.94) !important;
+            border-bottom: 1px solid var(--zen-border) !important;
+            box-shadow: 0 2px 10px rgba(64, 50, 37, 0.03);
+            backdrop-filter: blur(6px);
+        }
+
+        body.zen-reading h1 {
+            color: var(--zen-accent-strong) !important;
+            letter-spacing: 0.01em;
+        }
+
+        body.zen-reading input,
+        body.zen-reading button,
+        body.zen-reading select,
+        body.zen-reading textarea {
+            font-family: 'Amiri', serif;
+        }
+
+        body.zen-reading input {
+            background: #fffefb !important;
+            border-color: var(--zen-border) !important;
+            color: var(--zen-text) !important;
+            box-shadow: none !important;
+        }
+
+        body.zen-reading input:focus {
+            border-color: var(--zen-accent) !important;
+            box-shadow: 0 0 0 2px rgba(127, 143, 128, 0.18) !important;
+        }
+
+        body.zen-reading .page-button {
+            background: #fffefb;
+            border: 1px solid var(--zen-border);
+            color: var(--zen-muted);
+            border-radius: 10px;
+            transition: all 0.18s ease;
+        }
+
+        body.zen-reading .page-button:hover {
+            background: #f3eee5;
+            border-color: #cbbfae;
+            color: var(--zen-text);
+        }
+
+        body.zen-reading .active-page {
+            background: #e9efe7 !important;
+            border: 1px solid #b8c8b8 !important;
+            color: #4f5f51 !important;
+            font-weight: 700 !important;
+        }
+
+        body.zen-reading .word-button {
+            border-radius: 10px;
+            border: 1px solid transparent;
+            margin-bottom: 0.25rem;
+            color: var(--zen-text);
+            transition: all 0.18s ease;
+        }
+
+        body.zen-reading .word-button:hover {
+            background: #f7f2ea;
+            border-color: #e5dccf;
+        }
+
+        body.zen-reading .active-word {
+            background: #f4ecdf !important;
+            border-right: 4px solid var(--zen-warm) !important;
+            font-weight: 700 !important;
+        }
+
+        body.zen-reading #pageSidebar,
+        body.zen-reading #wordSidebar {
+            background: var(--zen-surface-soft) !important;
+            border-left: 1px solid #e3dacb !important;
+            box-shadow: none !important;
+        }
+
+        body.zen-reading #wordSidebar {
+            background: #fbf8f2 !important;
+        }
+
+        body.zen-reading #mobilePagesBox,
+        body.zen-reading #mobileWordsBox,
+        body.zen-reading #advancedSearchPanel {
+            background: var(--zen-surface) !important;
+            border: 1px solid var(--zen-border) !important;
+            border-radius: var(--zen-radius) !important;
+            box-shadow: 0 3px 12px rgba(92, 76, 59, 0.05);
+        }
+
+        body.zen-reading #mobileAdvancedSearchModal > div {
+            background: var(--zen-surface) !important;
+            border: 1px solid var(--zen-border);
+            box-shadow: var(--zen-shadow);
+        }
+
+        body.zen-reading #selectedPageLabel,
+        body.zen-reading #mobileSelectedPageLabel {
+            background: #c9d8ca !important;
+            color: #344035 !important;
+            border-radius: 10px;
+            box-shadow: none;
+        }
+
+        body.zen-reading #wordsHeader,
+        body.zen-reading #mobileWordsHeader {
+            background: #f2eee6 !important;
+            color: #6c7767 !important;
+            border: 1px solid #dfd3c2;
+            border-radius: 10px;
+        }
+
+        body.zen-reading #welcomeMessage {
+            color: #8a8074 !important;
+        }
+
+        body.zen-reading #detailsArea {
+            max-width: 980px;
+            margin: 0 auto;
+        }
+
+        body.zen-reading #detailsArea > .flex:first-child {
+            border-bottom-color: #ded4c7 !important;
+        }
+
+        body.zen-reading #detailsArea > .flex:nth-child(2) > div:first-child {
+            background: #eee7db !important;
+            color: #6a604f !important;
+            border: 1px solid #ddd0be;
+        }
+
+        body.zen-reading #detailsArea > .flex:nth-child(2) > div:last-child {
+            background: #e4eee2 !important;
+            color: #4d5f4e !important;
+            border: 1px solid #cad8ca;
+        }
+
+        body.zen-reading #detailsArea > .bg-white {
+            background: var(--zen-surface) !important;
+            border: 1px solid var(--zen-border) !important;
+            border-radius: calc(var(--zen-radius) + 2px) !important;
+            box-shadow: var(--zen-shadow) !important;
+        }
+
+        body.zen-reading #displayInfo {
+            font-family: 'Amiri', serif;
+            color: #2f2b26 !important;
+            font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+            line-height: 2.35;
+            letter-spacing: 0.01em;
+            word-spacing: 0.07em;
+            max-width: 72ch;
+            margin-inline: auto;
+            text-wrap: pretty;
+        }
+
+        body.zen-reading #displayInfo p,
+        body.zen-reading #displayInfo li,
+        body.zen-reading #displayInfo div {
+            max-width: 72ch;
+            margin-inline: auto;
+        }
+
+        body.zen-reading #displayInfo hr {
+            border-top-color: #c9bead;
+            opacity: 0.85;
+        }
+
+        body.zen-reading #mediaContainer {
+            border-top-color: #dfd5c8 !important;
+        }
+
+        body.zen-reading #prevWord,
+        body.zen-reading #nextWord,
+        body.zen-reading #decreaseFont,
+        body.zen-reading #resetFont,
+        body.zen-reading #increaseFont,
+        body.zen-reading #decreaseWidth,
+        body.zen-reading #resetWidth,
+        body.zen-reading #increaseWidth,
+        body.zen-reading #advancedSearchToggle,
+        body.zen-reading #advancedSearchClear,
+        body.zen-reading #mobileAdvancedSearchGo,
+        body.zen-reading #mobileAdvancedSearchCancel,
+        body.zen-reading #focusModeToggle {
+            border-radius: 10px !important;
+            min-height: 42px;
+            transition: all 0.18s ease;
+        }
+
+        body.zen-reading #prevWord {
+            background: #f1ece3 !important;
+            color: #4d453d !important;
+            border: 1px solid #ddd1bf;
+        }
+
+        body.zen-reading #prevWord:hover {
+            background: #e7ddd0 !important;
+        }
+
+        body.zen-reading #nextWord,
+        body.zen-reading #mobileAdvancedSearchGo {
+            background: #7f8f80 !important;
+            color: #fffefb !important;
+            border: 1px solid #6a7b69;
+        }
+
+        body.zen-reading #nextWord:hover,
+        body.zen-reading #mobileAdvancedSearchGo:hover {
+            background: #6f7f70 !important;
+        }
+
+        body.zen-reading #advancedSearchToggle,
+        body.zen-reading #advancedSearchClear,
+        body.zen-reading #mobileAdvancedSearchCancel,
+        body.zen-reading #decreaseFont,
+        body.zen-reading #resetFont,
+        body.zen-reading #increaseFont,
+        body.zen-reading #decreaseWidth,
+        body.zen-reading #resetWidth,
+        body.zen-reading #increaseWidth,
+        body.zen-reading #focusModeToggle {
+            background: #fbf7ef !important;
+            color: var(--zen-muted) !important;
+            border: 1px solid var(--zen-border) !important;
+        }
+
+        body.zen-reading #advancedSearchToggle:hover,
+        body.zen-reading #advancedSearchClear:hover,
+        body.zen-reading #mobileAdvancedSearchCancel:hover,
+        body.zen-reading #decreaseFont:hover,
+        body.zen-reading #resetFont:hover,
+        body.zen-reading #increaseFont:hover,
+        body.zen-reading #decreaseWidth:hover,
+        body.zen-reading #resetWidth:hover,
+        body.zen-reading #increaseWidth:hover,
+        body.zen-reading #focusModeToggle:hover {
+            background: #f1eae0 !important;
+            border-color: #cdbfae !important;
+        }
+
+        body.zen-reading #focusModeToggle[aria-pressed="true"] {
+            background: #e9efe7 !important;
+            color: #4a5c4b !important;
+            border-color: #b8c8b8 !important;
+        }
+
+        body.zen-reading #zenThemeSelect {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+
+        body.zen-reading .zen-palette-picker {
+            position: relative;
+        }
+
+        body.zen-reading #zenPaletteButton {
+            width: 74px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #ab9e8e;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 4px rgba(70, 56, 42, 0.2);
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            background-color: #efe8db;
+            background-size: cover;
+        }
+
+        body.zen-reading #zenPaletteButton:hover {
+            transform: translateY(-1px);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 3px 8px rgba(70, 56, 42, 0.25);
+        }
+
+        body.zen-reading #zenPaletteButton:focus-visible {
+            outline: none;
+            border-color: #7d8e8f;
+            box-shadow: 0 0 0 2px rgba(122, 145, 155, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+        }
+
+        body.zen-reading #zenPaletteMenu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            background: #fffcf8;
+            border: 1px solid #cabdae;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(72, 58, 44, 0.18);
+            padding: 6px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            min-width: 116px;
+            z-index: 1200;
+        }
+
+        body.zen-reading #zenPaletteMenu.hidden {
+            display: none;
+        }
+
+        body.zen-reading .zen-swatch {
+            width: 48px;
+            height: 26px;
+            border-radius: 6px;
+            border: 1px solid rgba(57, 45, 35, 0.35);
+            cursor: pointer;
+        }
+
+        body.zen-reading .zen-swatch[data-theme="earth"] {
+            background: linear-gradient(90deg, #f3e7d2 0 33%, #7f8f80 33% 66%, #b67a54 66% 100%);
+        }
+
+        body.zen-reading .zen-swatch[data-theme="sage"] {
+            background: linear-gradient(90deg, #dfe9d7 0 33%, #6f9178 33% 66%, #c59b72 66% 100%);
+        }
+
+        body.zen-reading .zen-swatch[data-theme="mist"] {
+            background: linear-gradient(90deg, #dde7ea 0 33%, #6f8f9a 33% 66%, #9b7b67 66% 100%);
+        }
+
+        body.zen-reading .zen-swatch[data-theme="rose"] {
+            background: linear-gradient(90deg, #f1ddda 0 33%, #96746a 33% 66%, #c07b62 66% 100%);
+        }
+
+        body.zen-reading .zen-swatch.is-active {
+            border-color: #2f2b26;
+            box-shadow: 0 0 0 2px rgba(47, 43, 38, 0.2);
         }
 
         /* Feature Pop-up Styles */
         .feature-popup {
             position: fixed;
             z-index: 1000;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, #ede5d8 0%, #d4ddcf 100%);
+            color: #3f3a33;
             padding: 16px 20px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-radius: var(--zen-radius);
+            border: 1px solid #d4c7b8;
+            box-shadow: 0 10px 28px rgba(84, 67, 50, 0.14);
             max-width: 280px;
             font-size: 14px;
-            animation: float 3s ease-in-out infinite, appearPop 0.6s ease-out;
+            animation: float 4s ease-in-out infinite, appearPop 0.6s ease-out;
             top: 85px;
             left: 15px;
         }
@@ -54,8 +461,8 @@
             height: 0;
             border-left: 10px solid transparent;
             border-right: 10px solid transparent;
-            border-bottom: 12px solid #667eea;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+            border-bottom: 12px solid #e5dccf;
+            filter: drop-shadow(0 2px 4px rgba(77, 62, 46, 0.2));
         }
 
         .feature-popup-content {
@@ -71,9 +478,9 @@
         }
 
         .feature-popup-close {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(101, 116, 99, 0.18);
             border: none;
-            color: white;
+            color: #465245;
             font-size: 20px;
             cursor: pointer;
             padding: 0;
@@ -88,7 +495,7 @@
         }
 
         .feature-popup-close:hover {
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(101, 116, 99, 0.3);
         }
 
         @keyframes float {
@@ -96,7 +503,7 @@
                 transform: translateY(0px);
             }
             50% {
-                transform: translateY(-15px);
+                transform: translateY(-8px);
             }
         }
 
@@ -111,9 +518,39 @@
             }
         }
 
+        body.zen-reading.focus-mode #pageSidebar,
+        body.zen-reading.focus-mode #wordSidebar,
+        body.zen-reading.focus-mode #mobilePagesBox,
+        body.zen-reading.focus-mode #mobileWordsBox,
+        body.zen-reading.focus-mode #menuToggle {
+            display: none !important;
+        }
+
+        body.zen-reading.focus-mode main {
+            max-width: 1080px;
+            margin: 0 auto;
+            width: 100%;
+            padding-inline: clamp(1rem, 4vw, 3rem);
+        }
+
+        body.zen-reading.focus-mode #detailsArea {
+            max-width: 860px;
+        }
+
+        @media (max-width: 767px) {
+            body.zen-reading #displayInfo {
+                font-size: 1.2rem;
+                line-height: 2.2;
+            }
+
+            body.zen-reading #focusModeToggle {
+                flex: 1;
+            }
+        }
+
     </style>
 </head>
-<body class="bg-gray-50 h-screen flex flex-col">
+<body class="zen-reading h-screen flex flex-col">
 
     <!-- Feature Pop-up -->
     <div id="featurePopup" class="feature-popup" style="display: none;">
@@ -125,8 +562,8 @@
     </div>
 
     <!-- Header -->
-    <header class="bg-white border-b p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+    <header class="bg-white border-b p-3 sm:p-4 grid grid-cols-1 md:grid-cols-[minmax(220px,1fr)_minmax(420px,640px)_minmax(220px,1fr)] items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 w-full md:justify-self-start">
             <button id="menuToggle" class="md:hidden p-2 hover:bg-gray-100 rounded-lg" aria-label="Toggle menu">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -134,7 +571,7 @@
             </button>
             <h1 class="text-lg sm:text-xl font-bold text-blue-800 flex-1 sm:flex-none">هوامش كتاب عيون الاخبار - الجزء الثاني</h1>
         </div>
-        <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
+        <div class="w-full md:justify-self-center">
             <div class="flex flex-row items-center gap-2 w-full">
                 <input 
                     type="text" 
@@ -145,11 +582,29 @@
                     🔎
                 </button>
             </div>
-            <div class="hidden md:flex items-center gap-1">
+        </div>
+        <div class="hidden md:flex items-center gap-1 justify-self-end">
+                <div class="zen-palette-picker">
+                    <button id="zenPaletteButton" type="button" aria-label="ألوان القراءة" aria-expanded="false" title="ألوان القراءة"></button>
+                    <div id="zenPaletteMenu" class="hidden" role="menu" aria-label="اختيار لوحة الألوان">
+                        <button type="button" class="zen-swatch" data-theme="earth" title="Earth" role="menuitem"></button>
+                        <button type="button" class="zen-swatch" data-theme="sage" title="Sage" role="menuitem"></button>
+                        <button type="button" class="zen-swatch" data-theme="mist" title="Mist" role="menuitem"></button>
+                        <button type="button" class="zen-swatch" data-theme="rose" title="Rose" role="menuitem"></button>
+                    </div>
+                </div>
+                <select id="zenThemeSelect" class="text-sm" title="ألوان القراءة">
+                    <option value="earth" title="Earth"> </option>
+                    <option value="sage" title="Sage"> </option>
+                    <option value="mist" title="Mist"> </option>
+                    <option value="rose" title="Rose"> </option>
+                </select>
+                <button id="focusModeToggle" class="p-2 rounded-lg text-sm" type="button" aria-pressed="false" title="وضع التركيز">
+                    وضع التركيز
+                </button>
                 <button id="decreaseWidth" class="p-2 hover:bg-gray-100 rounded-lg text-sm" title="تقليل العرض">−</button>
                 <button id="resetWidth" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded" title="إعادة تعيين">إعادة</button>
                 <button id="increaseWidth" class="p-2 hover:bg-gray-100 rounded-lg text-sm" title="زيادة العرض">+</button>
-            </div>
         </div>
     </header>
 
@@ -257,7 +712,7 @@
                         <button id="decreaseFont" class="border border-gray-300 bg-white px-3 py-2 rounded-lg hover:bg-gray-100 transition">−</button>
                         <button id="resetFont" class="border border-gray-300 bg-gray-100 px-3 py-2 rounded-lg hover:bg-gray-200 transition">إعادة</button>
                         <button id="increaseFont" class="border border-gray-300 bg-white px-3 py-2 rounded-lg hover:bg-gray-100 transition">+</button>
-                        <span id="fontSizeLabel" class="text-gray-600">100%</span>
+                        <span id="fontSizeLabel" class="text-gray-600">150%</span>
                     </div>
                 </div>
 
@@ -288,6 +743,8 @@
         const WIDTH_STEP = 20;
         const MAX_SIDEBAR_WIDTH = 400;
         const MIN_SIDEBAR_WIDTH = 80;
+        const DEFAULT_FONT_SIZE = 1.5;
+        const DEFAULT_ZEN_THEME = 'earth';
         
         function loadWidths() {
             const savedPageWidth = localStorage.getItem('pageWidth');
@@ -339,7 +796,8 @@
             if (!isNaN(savedSize) && savedSize >= 0.8 && savedSize <= 4.0) {
                 applyFontSize(savedSize);
             } else {
-                applyFontSize(1.0);
+                applyFontSize(DEFAULT_FONT_SIZE);
+                saveFontSize(DEFAULT_FONT_SIZE);
             }
         }
 
@@ -355,8 +813,62 @@
         }
 
         function resetFontSize() {
-            applyFontSize(1.0);
-            localStorage.removeItem('detailsFontSize');
+            applyFontSize(DEFAULT_FONT_SIZE);
+            saveFontSize(DEFAULT_FONT_SIZE);
+        }
+
+        function updateThemeSwatch(themeName) {
+            if (!zenThemeSelect || !zenPaletteButton) return;
+
+            const swatches = {
+                earth: 'linear-gradient(90deg, #f3e7d2 0 33%, #7f8f80 33% 66%, #b67a54 66% 100%)',
+                sage: 'linear-gradient(90deg, #dfe9d7 0 33%, #6f9178 33% 66%, #c59b72 66% 100%)',
+                mist: 'linear-gradient(90deg, #dde7ea 0 33%, #6f8f9a 33% 66%, #9b7b67 66% 100%)',
+                rose: 'linear-gradient(90deg, #f1ddda 0 33%, #96746a 33% 66%, #c07b62 66% 100%)'
+            };
+
+            zenPaletteButton.style.backgroundImage = swatches[themeName] || swatches.earth;
+            zenPaletteButton.style.backgroundColor = '#efe8db';
+
+            if (zenPaletteMenu) {
+                zenPaletteMenu.querySelectorAll('.zen-swatch').forEach((button) => {
+                    button.classList.toggle('is-active', button.dataset.theme === themeName);
+                });
+            }
+        }
+
+        function applyZenTheme(themeName) {
+            document.body.setAttribute('data-zen-theme', themeName);
+            if (zenThemeSelect) {
+                zenThemeSelect.value = themeName;
+            }
+            updateThemeSwatch(themeName);
+        }
+
+        function loadZenTheme() {
+            const savedTheme = localStorage.getItem('zenTheme');
+            const allowedThemes = ['earth', 'sage', 'mist', 'rose'];
+            const theme = allowedThemes.includes(savedTheme) ? savedTheme : DEFAULT_ZEN_THEME;
+            applyZenTheme(theme);
+            localStorage.setItem('zenTheme', theme);
+        }
+
+        function handleZenThemeChange(e) {
+            const theme = e.target.value;
+            applyZenTheme(theme);
+            localStorage.setItem('zenTheme', theme);
+        }
+
+        function toggleZenPaletteMenu() {
+            if (!zenPaletteMenu || !zenPaletteButton) return;
+            const isHidden = zenPaletteMenu.classList.toggle('hidden');
+            zenPaletteButton.setAttribute('aria-expanded', String(!isHidden));
+        }
+
+        function closeZenPaletteMenu() {
+            if (!zenPaletteMenu || !zenPaletteButton) return;
+            zenPaletteMenu.classList.add('hidden');
+            zenPaletteButton.setAttribute('aria-expanded', 'false');
         }
         
         // Load widths on page load
@@ -409,9 +921,14 @@
         const selectedPageNumber = document.getElementById('selectedPageNumber');
         const mobileSelectedPageLabel = document.getElementById('mobileSelectedPageLabel');
         const mobileSelectedPageNumber = document.getElementById('mobileSelectedPageNumber');
+        const focusModeToggle = document.getElementById('focusModeToggle');
+        const zenThemeSelect = document.getElementById('zenThemeSelect');
+        const zenPaletteButton = document.getElementById('zenPaletteButton');
+        const zenPaletteMenu = document.getElementById('zenPaletteMenu');
 
         // Load saved font size after DOM elements exist
         loadFontSize();
+        loadZenTheme();
 
         // =============================================
         // Event Listeners
@@ -446,6 +963,38 @@
         document.getElementById('decreaseFont').addEventListener('click', () => adjustFontSize(-0.1));
         document.getElementById('increaseFont').addEventListener('click', () => adjustFontSize(0.1));
         document.getElementById('resetFont').addEventListener('click', resetFontSize);
+
+        // Optional distraction-free mode: visual class toggle only.
+        if (focusModeToggle) {
+            focusModeToggle.addEventListener('click', toggleFocusMode);
+        }
+
+        if (zenThemeSelect) {
+            zenThemeSelect.addEventListener('change', handleZenThemeChange);
+        }
+
+        if (zenPaletteButton) {
+            zenPaletteButton.addEventListener('click', toggleZenPaletteMenu);
+        }
+
+        if (zenPaletteMenu) {
+            zenPaletteMenu.querySelectorAll('.zen-swatch').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const theme = button.dataset.theme;
+                    applyZenTheme(theme);
+                    localStorage.setItem('zenTheme', theme);
+                    closeZenPaletteMenu();
+                });
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            const picker = document.querySelector('.zen-palette-picker');
+            if (!picker) return;
+            if (!picker.contains(e.target)) {
+                closeZenPaletteMenu();
+            }
+        });
 
         // Load Data Directly From Supabase
         loadDataFromSupabase();
@@ -1188,6 +1737,15 @@ function navigateWords(direction) {
         
         // Show the details
         showDetails(item.Word, item.Page, item.Information, item.media, item.links);
+    }
+}
+
+function toggleFocusMode() {
+    document.body.classList.toggle('focus-mode');
+    const active = document.body.classList.contains('focus-mode');
+    if (focusModeToggle) {
+        focusModeToggle.setAttribute('aria-pressed', String(active));
+        focusModeToggle.textContent = active ? 'إلغاء التركيز' : 'وضع التركيز';
     }
 }
 
