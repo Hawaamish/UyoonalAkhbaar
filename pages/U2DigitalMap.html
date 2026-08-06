@@ -46,6 +46,17 @@
   --toolbar-shadow: 0 20px 44px rgba(27, 77, 62, 0.20);
   --accent-teal:   #2D8659;
   --accent-gold:   #6B9E7F;
+  --zen-bg:        #f2f7f1;
+  --zen-surface:   #f8fcf7;
+  --zen-surface-soft:#edf5ec;
+  --zen-border:    #c8d8c7;
+  --zen-text:      #314034;
+  --zen-muted:     #5f7463;
+  --zen-accent:    #7ea084;
+  --zen-accent-strong:#5f7e66;
+  --zen-warm:      #7f996a;
+  --zen-highlight: #dfeede;
+  --zen-shadow:    0 16px 38px rgba(56, 86, 62, 0.16);
 }
 
 *{ box-sizing: border-box; }
@@ -359,7 +370,7 @@ body::before{
   top: 24px;
   right: 24px;
   bottom: 24px;
-  width: min(460px, 34vw);
+  width: min(520px, 38vw);
   transform: translateX(calc(100% + 32px));
   transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 30;
@@ -371,9 +382,11 @@ body::before{
 }
 
 .popup-shell{
-  background: rgba(9, 42, 2, 0.96);
+  background:
+    radial-gradient(circle at top left, rgba(126,160,132,0.28), transparent 45%),
+    linear-gradient(180deg, var(--zen-surface) 0%, var(--zen-surface-soft) 100%);
   border-radius: var(--radius-lg);
-  box-shadow: 0 24px 48px rgba(27, 77, 62, 0.15);
+  box-shadow: var(--zen-shadow);
   padding: 18px 18px 16px;
   position: relative;
   direction: rtl;
@@ -381,7 +394,7 @@ body::before{
   height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(107,158,127,0.35);
+  border: 1px solid var(--zen-border);
   gap: 0;
   overflow: hidden;
   overscroll-behavior: contain;
@@ -393,18 +406,18 @@ body::before{
   right: 12px;
   width: 28px; height: 28px;
   border-radius: 50%;
-  border: none;
-  background: var(--mint);
-  color: var(--blush-deep);
+  border: 1px solid #b7c9b8;
+  background: #eef5ed;
+  color: var(--zen-muted);
   font-size: 15px;
   font-family: var(--font-body);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.popup-close:hover{ transform: scale(1.1); background: var(--blush-deep); color: #F5F4F2; }
+.popup-close:hover{ transform: scale(1.08); background: #dde9dc; color: var(--zen-text); }
 
 /* Small SubLayer chip card (color set from selected layer) */
 .popup-sublayer-card{
@@ -430,19 +443,20 @@ body::before{
 
 /* Header card: Name (prominent) */
 .popup-header{
-  background: #F9E8A2;
+  background: linear-gradient(135deg, #e9f2e8 0%, #dbe8da 100%);
   border-radius: var(--radius-md);
   padding: 14px 46px 16px 16px;
   margin-bottom: 14px;
-  border-left: 6px solid var(--lavender-deep);
+  border: 1px solid #c3d4c2;
+  border-right: 5px solid var(--zen-warm);
 }
 .popup-header .popup-name{
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 20px;
-  color: var(--ink);
+  font-size: 24px;
+  color: var(--zen-accent-strong);
   margin: 0 0 2px;
-  line-height: 1.2;
+  line-height: 1.35;
   text-align: center;
 }
 .popup-header .popup-sublayer{
@@ -482,40 +496,41 @@ body::before{
 
 /* Bottom row: wide Information card */
 .popup-info-card{
-  background: rgba(245, 244, 242, 0.90);
-  border: 1px solid rgba(107,158,127,0.25);
+  background: var(--zen-surface);
+  border: 1px solid var(--zen-border);
   border-radius: var(--radius-md);
-  padding: 16px 18px;
+  padding: 16px 14px 16px 18px;
   flex: 0 1 85%;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   overflow: hidden;
   margin-bottom: 10px;
+  box-shadow: 0 6px 20px rgba(93, 78, 64, 0.08);
 }
 .popup-info-card .mini-label{
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--zen-muted);
   margin: 0 0 6px;
   flex-shrink: 0;
 }
 .popup-info-card p{
   margin: 0;
-  font-size: 20px;
-  line-height: 1.65;
-  color: var(--ink);
+  font-size: 22px;
+  line-height: 2.15;
+  color: var(--zen-text);
   word-wrap: break-word;
   white-space: normal;
 }
 
 .popup-fehrist-card p{
   margin: 0;
-  font-size: 20px;
-  line-height: 1.65;
-  color: var(--ink);
+  font-size: 22px;
+  line-height: 2.15;
+  color: var(--zen-text);
   word-wrap: break-word;
   white-space: normal;
 }
@@ -523,15 +538,20 @@ body::before{
 #popup-info,
 #popup-fehrist{
   display: block;
+  direction: ltr;
   word-wrap: break-word;
   white-space: normal;
   overflow-wrap: break-word;
-  font-size: 20px;
-  line-height: 1.65;
-  color: var(--ink);
+  font-size: 22px;
+  line-height: 2.15;
+  color: var(--zen-text);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding-right: 10px;
+  padding-left: 4px;
+  padding-block: 2px;
   margin: 0;
 }
 
@@ -561,8 +581,8 @@ body::before{
 
 .popup-info-card,
 .popup-fehrist-card{
-  text-align: justify;
-  text-align-last: center;
+  text-align: right;
+  text-align-last: auto;
   direction: inherit;
 }
 
@@ -571,48 +591,49 @@ body::before{
 .popup-fehrist-card *{
   max-width: 100%;
   word-wrap: break-word;
-  text-align: justify;
-  text-align-last: center;
-  direction: inherit;
+  direction: rtl;
+  text-align: right;
+  text-align-last: auto;
 }
 
 .popup-info-card a,
 .popup-fehrist-card a{
-  color: var(--accent-teal);
+  color: var(--zen-accent-strong);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .popup-info-card a:hover,
 .popup-fehrist-card a:hover{
-  color: var(--mint-deep);
+  color: var(--zen-warm);
 }
 
 /* Fehrist card */
 .popup-fehrist-card{
-  background: rgba(245, 244, 242, 0.90);
-  border: 1px solid rgba(107,158,127,0.25);
+  background: var(--zen-surface-soft);
+  border: 1px solid var(--zen-border);
   border-radius: var(--radius-md);
-  padding: 16px 18px;
+  padding: 16px 14px 16px 18px;
   flex: 0 1 15%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 6px 16px rgba(93, 78, 64, 0.08);
 }
 .popup-fehrist-card .mini-label{
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--zen-muted);
   margin: 0 0 6px;
   flex-shrink: 0;
 }
 .popup-fehrist-card p{
   margin: 0;
-  font-size: 20px;
-  line-height: 1.65;
-  color: var(--ink);
+  font-size: 22px;
+  line-height: 2.15;
+  color: var(--zen-text);
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
