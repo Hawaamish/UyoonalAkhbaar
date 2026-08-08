@@ -587,7 +587,7 @@ function resolveDriveLink(url){
     if(/^[a-zA-Z0-9_-]{20,}$/.test(url)) id = url;
   }
   if(id){
-    return `https://drive.google.com/thumbnail?id=${id}&sz=w5000`;
+    return `https://drive.google.com/thumbnail?id=${id}&sz=w2000`;
   }
   return url; // fallback: use as-is (e.g. already a direct image URL)
 }
