@@ -220,6 +220,22 @@
   .page-sidebar.collapsed{
     width:56px;
   }
+  .page-sidebar.collapsed::after{
+    content:"اختر الصفحة";
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    color:var(--pastel-sage);
+    font-weight:700;
+    font-size:25px;
+    letter-spacing:.5px;
+    pointer-events:none;
+    user-select:none;
+  }
   .sidebar-head{
     background:var(--bg-panel);
     border-bottom:1px solid var(--line-soft);
@@ -780,6 +796,9 @@
     .page-sidebar.collapsed .page-list,
     .page-sidebar.collapsed .sidebar-title{
       display:none;
+    }
+    .page-sidebar.collapsed::after{
+      content:none;
     }
     .grid{grid-template-columns:repeat(2, 1fr); gap:14px;}
     .toolbar{display:none;}
