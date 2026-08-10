@@ -369,8 +369,8 @@
     z-index:50;
     padding:24px;
   }
-  .overlay.open{display:flex;}
   .overlay.open{
+    display:flex;
     animation:overlayFade .22s ease-out both;
   }
   .modal{
@@ -530,7 +530,7 @@
   }
   .modal-thumb-btn:hover{
     opacity:1;
-    transform:translateY(-1px) scale(1.04);
+    transform:translateY(-3px) scale(1.16);
     filter:saturate(1.08);
   }
   .modal-thumb-btn.active{
@@ -946,6 +946,7 @@ const SAMPLE_DATA = [
 const CSV_PATH = "../Lawhaat/Lawhatdata.csv";
 const FAV_KEY = "lawhaat_favorites";
 const ALL_PAGES_LABEL = "كل الصفحات";
+const DRIVE_REFRESH_MS = 120000;
 
 let allData = [];
 let activeCategory = "الكل";
@@ -955,7 +956,12 @@ let activePage = ALL_PAGES_LABEL;
 let sidebarExpanded = false;
 let currentModalSrno = null;
 let currentModalItems = [];
-let currentModalDirection = 0;
+let driveCacheBuster = Date.now();
+let driveRefreshTimer = null;
+
+function isNarrowScreen(){
+  return window.matchMedia("(max-width:720px)").matches;
+}
 
 /* ============ Google Drive link resolver ============ */
 function resolveDriveLink(url){
@@ -973,9 +979,28 @@ function resolveDriveLink(url){
     if(/^[a-zA-Z0-9_-]{20,}$/.test(url)) id = url;
   }
   if(id){
-    return `https://drive.google.com/thumbnail?id=${id}&sz=w2000`;
+    // Use uc endpoint with a cache-buster so replaced Drive images refresh predictably.
+    return `https://drive.google.com/uc?export=view&id=${id}&cb=${driveCacheBuster}`;
   }
   return url; // fallback: use as-is (e.g. already a direct image URL)
+}
+
+function refreshDriveImages(){
+  if(document.hidden) return;
+  driveCacheBuster = Date.now();
+  render();
+  if(currentModalSrno){
+    const active = getFilteredItems().find(item => item.srno === currentModalSrno);
+    if(active){
+      document.getElementById("modalImg").src = resolveDriveLink(active.linktoimg);
+      renderModalThumbnails();
+    }
+  }
+}
+
+function startDriveAutoRefresh(){
+  if(driveRefreshTimer) clearInterval(driveRefreshTimer);
+  driveRefreshTimer = setInterval(refreshDriveImages, DRIVE_REFRESH_MS);
 }
 
 /* ============ Favorites ============ */
@@ -1040,7 +1065,7 @@ function decodeCsvBuffer(buffer){
 /* ============ Load CSV ============ */
 async function loadData(){
   try{
-    const response = await fetch(CSV_PATH);
+    const response = await fetch(CSV_PATH, { cache:"no-store" });
     if(!response.ok) throw new Error(`CSV load failed: ${response.status}`);
     const buffer = await response.arrayBuffer();
     if(!decodeCsvBuffer(buffer)) useFallback();
@@ -1263,7 +1288,7 @@ function endPan(){
 
 function isMobileFullscreenImage(){
   const imageSide = document.querySelector(".modal-image-side");
-  return window.matchMedia("(max-width:720px)").matches && document.fullscreenElement === imageSide;
+  return isNarrowScreen() && document.fullscreenElement === imageSide;
 }
 
 function escapeHtml(value){
@@ -1422,7 +1447,6 @@ function navigateModal(step){
 function openModal(r, direction = 0){
   currentModalSrno = r.srno;
   currentModalItems = getFilteredItems();
-  currentModalDirection = direction;
   document.getElementById("modalTitle").textContent = r.lawhatname || "";
   document.getElementById("modalIbarat").innerHTML = renderMarkdown(r.ibarat || "");
   document.getElementById("modalPage").textContent = r.page || "-";
@@ -1440,7 +1464,7 @@ function openModal(r, direction = 0){
   panMode = false;
   updatePanMode();
   img.onclick = ()=>{
-    if(window.matchMedia("(max-width:720px)").matches && !document.fullscreenElement){
+    if(isNarrowScreen() && !document.fullscreenElement){
       document.querySelector(".modal-image-side")?.requestFullscreen?.();
     }
   };
@@ -1621,7 +1645,7 @@ document.getElementById("fullscreenToggle").onclick = async ()=>{
   const imageSide = document.querySelector(".modal-image-side");
   if(!document.fullscreenElement){
     await imageSide.requestFullscreen?.();
-    panMode = window.matchMedia("(max-width:720px)").matches;
+    panMode = isNarrowScreen();
     updatePanMode();
   } else {
     await document.exitFullscreen?.();
@@ -1645,7 +1669,7 @@ document.addEventListener("fullscreenchange", ()=>{
     panMode = false;
     updatePanMode();
     pinchState = null;
-  } else if(window.matchMedia("(max-width:720px)").matches){
+  } else if(isNarrowScreen()){
     panMode = true;
     updatePanMode();
   }
@@ -1657,6 +1681,7 @@ document.getElementById("modalImg").addEventListener("load", ()=>{
   frame.classList.add("slide-in");
 });
 
+startDriveAutoRefresh();
 loadData();
 </script>
 </body>
