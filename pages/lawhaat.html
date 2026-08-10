@@ -964,25 +964,63 @@ function isNarrowScreen(){
 }
 
 /* ============ Google Drive link resolver ============ */
-function resolveDriveLink(url){
+function extractDriveFileId(url){
   if(!url) return "";
-  url = url.trim();
+  const normalizedUrl = String(url).trim();
   let id = null;
-  let m = url.match(/\/file\/d\/([^\/?#]+)/);
+  let m = normalizedUrl.match(/\/file\/d\/([^\/?#]+)/);
   if(m) id = m[1];
   if(!id){
-    m = url.match(/[?&]id=([^&#]+)/);
+    m = normalizedUrl.match(/[?&]id=([^&#]+)/);
     if(m) id = m[1];
   }
   if(!id){
     // already a bare file id
-    if(/^[a-zA-Z0-9_-]{20,}$/.test(url)) id = url;
+    if(/^[a-zA-Z0-9_-]{20,}$/.test(normalizedUrl)) id = normalizedUrl;
   }
+  return id || "";
+}
+
+function resolveDriveLink(url){
+  if(!url) return "";
+  const normalizedUrl = String(url).trim();
+  const id = extractDriveFileId(normalizedUrl);
   if(id){
-    // Use uc endpoint with a cache-buster so replaced Drive images refresh predictably.
-    return `https://drive.google.com/uc?export=view&id=${id}&cb=${driveCacheBuster}`;
+    // Keep thumbnail as primary because it is the most reliable endpoint for <img> tags.
+    return `https://drive.google.com/thumbnail?id=${id}&sz=w2000&cb=${driveCacheBuster}`;
   }
-  return url; // fallback: use as-is (e.g. already a direct image URL)
+  return normalizedUrl; // fallback: use as-is (e.g. already a direct image URL)
+}
+
+function getDriveImageCandidates(url){
+  const normalizedUrl = String(url || "").trim();
+  if(!normalizedUrl) return [];
+  const id = extractDriveFileId(normalizedUrl);
+  if(!id) return [normalizedUrl];
+  return [
+    `https://drive.google.com/thumbnail?id=${id}&sz=w2000&cb=${driveCacheBuster}`,
+    `https://drive.google.com/uc?export=view&id=${id}&cb=${driveCacheBuster}`,
+    `https://drive.google.com/uc?id=${id}&export=view&cb=${driveCacheBuster}`,
+    `https://lh3.googleusercontent.com/d/${id}=w2000`
+  ];
+}
+
+function setImageSourceWithFallback(imgEl, rawUrl){
+  const candidates = getDriveImageCandidates(rawUrl);
+  if(!candidates.length){
+    imgEl.removeAttribute("src");
+    return;
+  }
+  let index = 0;
+  imgEl.onerror = ()=>{
+    index += 1;
+    if(index < candidates.length){
+      imgEl.src = candidates[index];
+      return;
+    }
+    imgEl.onerror = null;
+  };
+  imgEl.src = candidates[index];
 }
 
 function refreshDriveImages(){
@@ -992,7 +1030,7 @@ function refreshDriveImages(){
   if(currentModalSrno){
     const active = getFilteredItems().find(item => item.srno === currentModalSrno);
     if(active){
-      document.getElementById("modalImg").src = resolveDriveLink(active.linktoimg);
+      setImageSourceWithFallback(document.getElementById("modalImg"), active.linktoimg);
       renderModalThumbnails();
     }
   }
@@ -1214,7 +1252,7 @@ function render(){
     const thumbWrap = document.createElement("div");
     thumbWrap.className = "thumb-wrap";
     const img = document.createElement("img");
-    img.src = resolveDriveLink(r.linktoimg);
+    setImageSourceWithFallback(img, r.linktoimg);
     img.alt = r.lawhatname || "";
     img.loading = "lazy";
     thumbWrap.appendChild(img);
@@ -1453,13 +1491,12 @@ function openModal(r, direction = 0){
   document.getElementById("modalLine").textContent = r.line || "-";
   const img = document.getElementById("modalImg");
   const frame = document.getElementById("modalImgFrame");
-  const nextSrc = resolveDriveLink(r.linktoimg);
   if(direction !== 0){
     frame.classList.remove("slide-in", "slide-left", "slide-right");
     void frame.offsetWidth;
     frame.classList.add(direction > 0 ? "slide-right" : "slide-left");
   }
-  img.src = nextSrc;
+  setImageSourceWithFallback(img, r.linktoimg);
   resetImageView();
   panMode = false;
   updatePanMode();
@@ -1586,7 +1623,7 @@ function renderModalThumbnails(){
     btn.setAttribute("aria-label", item.lawhatname || "");
     btn.title = item.lawhatname || "";
     const thumb = document.createElement("img");
-    thumb.src = resolveDriveLink(item.linktoimg);
+    setImageSourceWithFallback(thumb, item.linktoimg);
     thumb.alt = item.lawhatname || "";
     btn.appendChild(thumb);
     btn.onclick = ()=>openModalBySrno(item.srno);
