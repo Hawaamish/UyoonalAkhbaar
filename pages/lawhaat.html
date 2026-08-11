@@ -965,7 +965,17 @@ const SAMPLE_DATA = [
 const CSV_PATH = "../Lawhaat/Lawhatdata.csv";
 const FAV_KEY = "lawhaat_favorites";
 const ALL_PAGES_LABEL = "كل الصفحات";
-const DRIVE_REFRESH_MS = 120000;
+// How long a given "fresh" version of the Drive images is considered good for.
+// Raised from 2 minutes to 5: still picks up edits quickly, but stops hammering
+// Drive (and re-downloading every image) every couple of minutes.
+const DRIVE_REFRESH_MS = 300000;
+const DRIVE_CB_KEY = "lawhaat_drive_cb";
+// Grid thumbnails only ever render at ~200px wide, so there is no need to pull
+// the full w2000 image for every card. The modal (with its zoom/pan viewer)
+// still gets a large version.
+const GRID_THUMB_SIZE = "w480";
+const MODAL_THUMB_SIZE = "w200";
+const MODAL_IMG_SIZE = "w1600";
 
 let allData = [];
 let activeCategory = "الكل";
@@ -975,7 +985,19 @@ let activePage = ALL_PAGES_LABEL;
 let sidebarExpanded = false;
 let currentModalSrno = null;
 let currentModalItems = [];
-let driveCacheBuster = Date.now();
+// Reuse the same cache-buster across reloads as long as it is still "fresh"
+// (see DRIVE_REFRESH_MS). This lets the browser's normal HTTP image cache do
+// its job instead of forcing a brand-new download of every image on every
+// single page load/refresh.
+let driveCacheBuster = (function(){
+  try{
+    const stored = Number(localStorage.getItem(DRIVE_CB_KEY));
+    if(stored && (Date.now() - stored) < DRIVE_REFRESH_MS) return stored;
+  } catch(e){ /* localStorage unavailable */ }
+  const fresh = Date.now();
+  try{ localStorage.setItem(DRIVE_CB_KEY, String(fresh)); } catch(e){}
+  return fresh;
+})();
 let driveRefreshTimer = null;
 
 function isNarrowScreen(){
@@ -1000,56 +1022,154 @@ function extractDriveFileId(url){
   return id || "";
 }
 
-function resolveDriveLink(url){
-  if(!url) return "";
-  const normalizedUrl = String(url).trim();
-  const id = extractDriveFileId(normalizedUrl);
-  if(id){
-    // Keep thumbnail as primary because it is the most reliable endpoint for <img> tags.
-    return `https://drive.google.com/thumbnail?id=${id}&sz=w2000&cb=${driveCacheBuster}`;
-  }
-  return normalizedUrl; // fallback: use as-is (e.g. already a direct image URL)
-}
-
-function getDriveImageCandidates(url){
+function getDriveImageCandidates(url, size){
   const normalizedUrl = String(url || "").trim();
   if(!normalizedUrl) return [];
   const id = extractDriveFileId(normalizedUrl);
+  const sz = size || GRID_THUMB_SIZE;
   if(!id) return [normalizedUrl];
   return [
-    `https://drive.google.com/thumbnail?id=${id}&sz=w2000&cb=${driveCacheBuster}`,
+    // Thumbnail endpoint sized to what's actually needed on screen — far
+    // less data to download/decode than always requesting w2000.
+    `https://drive.google.com/thumbnail?id=${id}&sz=${sz}&cb=${driveCacheBuster}`,
+    `https://lh3.googleusercontent.com/d/${id}=${sz}`,
     `https://drive.google.com/uc?export=view&id=${id}&cb=${driveCacheBuster}`,
-    `https://drive.google.com/uc?id=${id}&export=view&cb=${driveCacheBuster}`,
-    `https://lh3.googleusercontent.com/d/${id}=w2000`
+    `https://drive.google.com/uc?id=${id}&export=view&cb=${driveCacheBuster}`
   ];
 }
 
-function setImageSourceWithFallback(imgEl, rawUrl){
-  const candidates = getDriveImageCandidates(rawUrl);
-  if(!candidates.length){
-    imgEl.removeAttribute("src");
-    return;
-  }
-  let index = 0;
-  imgEl.onerror = ()=>{
-    index += 1;
-    if(index < candidates.length){
-      imgEl.src = candidates[index];
-      return;
+/* ============ Cloudinary helpers ============ */
+const CLOUDINARY_CLOUD = "k07tyh2a";
+const CLOUDINARY_BASE = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload`;
+
+function isCloudinaryUrl(url){
+  return String(url || "").includes("res.cloudinary.com");
+}
+
+// Returns the public_id (path after /upload/ with no transformation prefix).
+function extractCloudinaryPublicId(url){
+  const m = String(url || "").match(/\/upload\/(?:[^/]+\/)*?([^/?#]+)$/);
+  return m ? m[1] : "";
+}
+
+// Maps Drive-style size string ("w480") → Cloudinary transformation string.
+function sizeToCloudinaryTransform(sz){
+  const n = String(sz || GRID_THUMB_SIZE).replace(/^w/, "");
+  return `w_${n},c_limit,q_auto,f_auto`;
+}
+
+function getCloudinaryImageCandidates(url, size){
+  // Strip any existing transformation already in the stored URL.
+  const cleanUrl = String(url || "").replace(/\/upload\/[^/]*,.*?\//, "/upload/");
+  const m = cleanUrl.match(/\/upload\/(.+)$/);
+  if(!m) return [url];
+  const publicId = m[1];
+  const t = sizeToCloudinaryTransform(size);
+  return [
+    `${CLOUDINARY_BASE}/${t}/${publicId}`,
+    `${CLOUDINARY_BASE}/${publicId}`
+  ];
+}
+
+// Routes to Cloudinary or Drive candidates based on URL type.
+function getImageCandidates(url, size){
+  if(isCloudinaryUrl(url)) return getCloudinaryImageCandidates(url, size);
+  return getDriveImageCandidates(url, size);
+}
+
+/* ============ IndexedDB image cache ============ */
+const IMG_DB_NAME = "lawhaat_img_cache";
+let imgDb = null;
+
+function openImgDb(){
+  return new Promise((res, rej)=>{
+    const req = indexedDB.open(IMG_DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore("blobs");
+    req.onsuccess = e => { imgDb = e.target.result; res(); };
+    req.onerror = () => rej(req.error);
+  });
+}
+function dbGet(key){
+  return new Promise(res=>{
+    if(!imgDb){ res(null); return; }
+    const req = imgDb.transaction("blobs","readonly").objectStore("blobs").get(key);
+    req.onsuccess = () => res(req.result ?? null);
+    req.onerror = () => res(null);
+  });
+}
+function dbPut(key, blob){
+  if(!imgDb) return;
+  try{ imgDb.transaction("blobs","readwrite").objectStore("blobs").put({blob, ts:Date.now()}, key); } catch(e){}
+}
+
+let _fetchSlots = 4; // max concurrent image fetches
+async function _acquireSlot(){ while(_fetchSlots<=0) await new Promise(r=>setTimeout(r,80)); _fetchSlots--; }
+function _releaseSlot(){ _fetchSlots++; }
+
+// Fetch latest image, update element and save to IndexedDB cache.
+async function fetchAndCache(imgEl, candidates, cacheKey){
+  await _acquireSlot();
+  try{
+    // Cloudinary has proper Cache-Control/ETag; no-cache validates cheaply (304 if unchanged).
+    const cacheMode = candidates[0].includes("cloudinary") ? "no-cache" : "reload";
+    for(const url of candidates){
+      try{
+        const resp = await fetch(url, {cache:cacheMode});
+        if(!resp.ok) continue;
+        const blob = await resp.blob();
+        if(!blob.type.startsWith("image/")) continue;
+        if(imgEl._blobUrl) URL.revokeObjectURL(imgEl._blobUrl);
+        imgEl._blobUrl = URL.createObjectURL(blob);
+        imgEl.onerror = null;
+        imgEl.src = imgEl._blobUrl;
+        if(cacheKey) dbPut(cacheKey, blob);
+        return;
+      } catch(e){ /* try next candidate */ }
     }
-    imgEl.onerror = null;
-  };
-  imgEl.src = candidates[index];
+  } finally{ _releaseSlot(); }
+  if(!imgEl._blobUrl){
+    let fi = 0;
+    imgEl.onerror = ()=>{ if(++fi < candidates.length) imgEl.src = candidates[fi]; else imgEl.onerror = null; };
+    imgEl.src = candidates[0];
+  }
+}
+
+// Stale-while-revalidate: show cached blob instantly, refresh from CDN in background.
+async function setImageSourceWithFallback(imgEl, rawUrl, size){
+  const candidates = getImageCandidates(rawUrl, size);
+  if(!candidates.length){ imgEl.removeAttribute("src"); return; }
+  imgEl.decoding = "async";
+  const cacheId = isCloudinaryUrl(rawUrl)
+    ? extractCloudinaryPublicId(rawUrl)
+    : extractDriveFileId(rawUrl);
+  const cacheKey = cacheId ? `${cacheId}_${size || GRID_THUMB_SIZE}` : null;
+  if(cacheKey){
+    const entry = await dbGet(cacheKey);
+    if(entry){
+      // handle both new {blob,ts} format and legacy raw Blob entries
+      const blob = (entry.blob instanceof Blob) ? entry.blob : entry;
+      const ts   = entry.ts || 0;
+      if(blob instanceof Blob){
+        if(imgEl._blobUrl) URL.revokeObjectURL(imgEl._blobUrl);
+        imgEl._blobUrl = URL.createObjectURL(blob);
+        imgEl.src = imgEl._blobUrl;
+        // Skip network only for Drive (slow); Cloudinary validates cheaply via ETag (304).
+        if(!isCloudinaryUrl(rawUrl) && Date.now() - ts < DRIVE_REFRESH_MS) return;
+      }
+    }
+  }
+  fetchAndCache(imgEl, candidates, cacheKey);
 }
 
 function refreshDriveImages(){
   if(document.hidden) return;
   driveCacheBuster = Date.now();
+  try{ localStorage.setItem(DRIVE_CB_KEY, String(driveCacheBuster)); } catch(e){}
   render();
   if(currentModalSrno){
     const active = getFilteredItems().find(item => item.srno === currentModalSrno);
     if(active){
-      setImageSourceWithFallback(document.getElementById("modalImg"), active.linktoimg);
+      setImageSourceWithFallback(document.getElementById("modalImg"), active.linktoimg, MODAL_IMG_SIZE);
       renderModalThumbnails();
     }
   }
@@ -1271,7 +1391,7 @@ function render(){
     const thumbWrap = document.createElement("div");
     thumbWrap.className = "thumb-wrap";
     const img = document.createElement("img");
-    setImageSourceWithFallback(img, r.linktoimg);
+    setImageSourceWithFallback(img, r.linktoimg, GRID_THUMB_SIZE);
     img.alt = r.lawhatname || "";
     img.loading = "lazy";
     thumbWrap.appendChild(img);
@@ -1515,7 +1635,7 @@ function openModal(r, direction = 0){
     void frame.offsetWidth;
     frame.classList.add(direction > 0 ? "slide-right" : "slide-left");
   }
-  setImageSourceWithFallback(img, r.linktoimg);
+  setImageSourceWithFallback(img, r.linktoimg, MODAL_IMG_SIZE);
   resetImageView();
   panMode = false;
   updatePanMode();
@@ -1642,7 +1762,8 @@ function renderModalThumbnails(){
     btn.setAttribute("aria-label", item.lawhatname || "");
     btn.title = item.lawhatname || "";
     const thumb = document.createElement("img");
-    setImageSourceWithFallback(thumb, item.linktoimg);
+    thumb.loading = "lazy";
+    setImageSourceWithFallback(thumb, item.linktoimg, MODAL_THUMB_SIZE);
     thumb.alt = item.lawhatname || "";
     btn.appendChild(thumb);
     btn.onclick = ()=>openModalBySrno(item.srno);
@@ -1737,6 +1858,7 @@ document.getElementById("modalImg").addEventListener("load", ()=>{
   frame.classList.add("slide-in");
 });
 
+openImgDb().catch(()=>{}); // open IndexedDB early so cache is ready before images render
 startDriveAutoRefresh();
 loadData();
 </script>
