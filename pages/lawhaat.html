@@ -951,16 +951,7 @@
 
 <script>
 /* ============ Sample fallback data (used only if the CSV can't be fetched) ============ */
-const SAMPLE_DATA = [
-  {srno:"1", lawhatname:"اللوحة الأولى", linktoimg:"https://drive.google.com/file/d/FILE_ID_1/view?usp=sharing", ibarat:"هذه عبارة تجريبية للوحة الأولى.", page:"12", line:"4", category:"فئة أ"},
-  {srno:"2", lawhatname:"اللوحة الثانية", linktoimg:"https://drive.google.com/file/d/FILE_ID_2/view?usp=sharing", ibarat:"عبارة تجريبية ثانية.", page:"18", line:"9", category:"فئة ب"},
-  {srno:"3", lawhatname:"اللوحة الثالثة", linktoimg:"https://drive.google.com/file/d/FILE_ID_3/view?usp=sharing", ibarat:"نص عبارة قصير.", page:"5", line:"2", category:"فئة أ"},
-  {srno:"4", lawhatname:"اللوحة الرابعة", linktoimg:"https://drive.google.com/file/d/FILE_ID_4/view?usp=sharing", ibarat:"عبارة أخرى للتجربة.", page:"27", line:"15", category:"فئة ج"},
-  {srno:"5", lawhatname:"اللوحة الخامسة", linktoimg:"https://drive.google.com/file/d/FILE_ID_5/view?usp=sharing", ibarat:"عبارة تجريبية خامسة.", page:"33", line:"1", category:"فئة ب"},
-  {srno:"6", lawhatname:"اللوحة السادسة", linktoimg:"https://drive.google.com/file/d/FILE_ID_6/view?usp=sharing", ibarat:"عبارة تجريبية سادسة.", page:"41", line:"7", category:"فئة ج"},
-  {srno:"7", lawhatname:"اللوحة السابعة", linktoimg:"https://drive.google.com/file/d/FILE_ID_7/view?usp=sharing", ibarat:"عبارة تجريبية سابعة.", page:"9", line:"3", category:"فئة أ"},
-  {srno:"8", lawhatname:"اللوحة الثامنة", linktoimg:"https://drive.google.com/file/d/FILE_ID_8/view?usp=sharing", ibarat:"عبارة تجريبية ثامنة أطول قليلاً لاختبار التفاف النص.", page:"22", line:"11", category:"فئة ب"}
-];
+
 
 const CSV_PATH = "../Lawhaat/Lawhatdata.csv";
 const FAV_KEY = "lawhaat_favorites";
@@ -970,6 +961,13 @@ const ALL_PAGES_LABEL = "كل الصفحات";
 // Drive (and re-downloading every image) every couple of minutes.
 const DRIVE_REFRESH_MS = 300000;
 const DRIVE_CB_KEY = "lawhaat_drive_cb";
+// Cloudinary uploads here overwrite the same public ID (URL never changes),
+// so live revalidation is only needed while images are still being replaced.
+// Once all lawhaat images are final, flip this to false: it stops the
+// background refresh timer and lets every image cache permanently instead of
+// re-fetching on every render.
+const CONSTRUCTION_MODE = true;
+const IMAGE_REVALIDATE_MS = CONSTRUCTION_MODE ? DRIVE_REFRESH_MS : Infinity;
 // Grid thumbnails only ever render at ~200px wide, so there is no need to pull
 // the full w2000 image for every card. The modal (with its zoom/pan viewer)
 // still gets a large version.
@@ -1153,8 +1151,9 @@ async function setImageSourceWithFallback(imgEl, rawUrl, size){
         if(imgEl._blobUrl) URL.revokeObjectURL(imgEl._blobUrl);
         imgEl._blobUrl = URL.createObjectURL(blob);
         imgEl.src = imgEl._blobUrl;
-        // Skip network only for Drive (slow); Cloudinary validates cheaply via ETag (304).
-        if(!isCloudinaryUrl(rawUrl) && Date.now() - ts < DRIVE_REFRESH_MS) return;
+        // Skip network while the cached copy is still within the revalidate window
+        // (applies to Cloudinary too, otherwise every render() re-fetches everything).
+        if(Date.now() - ts < IMAGE_REVALIDATE_MS) return;
       }
     }
   }
@@ -1751,27 +1750,38 @@ function openModal(r, direction = 0){
     frame.classList.add("slide-in");
   });
 }
+let modalThumbStripKey = null;
 function renderModalThumbnails(){
   const strip = document.getElementById("modalThumbStrip");
   if(!strip) return;
-  strip.innerHTML = "";
-  currentModalItems.forEach(item=>{
-    const btn = document.createElement("button");
-    btn.className = "modal-thumb-btn" + (item.srno === currentModalSrno ? " active" : "");
-    btn.type = "button";
-    btn.setAttribute("aria-label", item.lawhatname || "");
-    btn.title = item.lawhatname || "";
-    const thumb = document.createElement("img");
-    thumb.loading = "lazy";
-    setImageSourceWithFallback(thumb, item.linktoimg, MODAL_THUMB_SIZE);
-    thumb.alt = item.lawhatname || "";
-    btn.appendChild(thumb);
-    btn.onclick = ()=>openModalBySrno(item.srno);
-    strip.appendChild(btn);
-    if(item.srno === currentModalSrno){
-      btn.scrollIntoView({behavior:"smooth", inline:"center", block:"nearest"});
-    }
-  });
+  // Only rebuild the thumb buttons (and re-run image loads) when the item set actually
+  // changes; otherwise just move the "active" highlight so its CSS transition can play.
+  const key = currentModalItems.map(item=>item.srno).join(",");
+  if(key !== modalThumbStripKey){
+    modalThumbStripKey = key;
+    strip.innerHTML = "";
+    currentModalItems.forEach(item=>{
+      const btn = document.createElement("button");
+      btn.className = "modal-thumb-btn";
+      btn.type = "button";
+      btn.dataset.srno = item.srno;
+      btn.setAttribute("aria-label", item.lawhatname || "");
+      btn.title = item.lawhatname || "";
+      const thumb = document.createElement("img");
+      thumb.loading = "lazy";
+      setImageSourceWithFallback(thumb, item.linktoimg, MODAL_THUMB_SIZE);
+      thumb.alt = item.lawhatname || "";
+      btn.appendChild(thumb);
+      btn.onclick = ()=>openModalBySrno(item.srno);
+      strip.appendChild(btn);
+    });
+  }
+  strip.querySelectorAll(".modal-thumb-btn.active").forEach(b=>b.classList.remove("active"));
+  const activeBtn = strip.querySelector(`.modal-thumb-btn[data-srno="${CSS.escape(currentModalSrno)}"]`);
+  if(activeBtn){
+    activeBtn.classList.add("active");
+    activeBtn.scrollIntoView({behavior:"smooth", inline:"center", block:"nearest"});
+  }
 }
 document.getElementById("modalClose").onclick = closeModal;
 document.getElementById("modalPrev").onclick = ()=>navigateModal(1);
@@ -1804,6 +1814,7 @@ function closeModal(){
   lastTapY = 0;
   currentModalSrno = null;
   currentModalItems = [];
+  modalThumbStripKey = null;
 }
 document.getElementById("zoomIn").onclick = ()=>{
   setZoom(currentZoom + 10);
@@ -1859,7 +1870,8 @@ document.getElementById("modalImg").addEventListener("load", ()=>{
 });
 
 openImgDb().catch(()=>{}); // open IndexedDB early so cache is ready before images render
-startDriveAutoRefresh();
+// No point polling for changes once the images are locked down (see CONSTRUCTION_MODE above).
+if(CONSTRUCTION_MODE) startDriveAutoRefresh();
 loadData();
 </script>
 </body>
