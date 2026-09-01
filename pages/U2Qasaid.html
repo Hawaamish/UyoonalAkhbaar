@@ -678,28 +678,148 @@
 			font-size: 0.9rem;
 		}
 
-		@media (max-width: 980px) {
+		/* ===== Mobile-only drawer, matla popup (hidden on desktop by default) ===== */
+		.mobile-side-toggle,
+		.mobile-matla-overlay {
+			display: none;
+		}
+
+		@media (max-width: 1024px) {
+			.shell {
+				padding: 8px 6px 14px;
+			}
+
 			.layout {
 				grid-template-columns: 1fr;
 			}
 
+			/* Collapsible right-side drawer, sits above the header */
+			.mobile-side-toggle {
+				display: flex;
+				flex-direction: column;
+				align-items: flex-start;
+				margin: 0 0 8px;
+			}
+
+			.mobile-side-btn {
+				border: 1px solid var(--line);
+				background: var(--panel);
+				border-radius: 12px;
+				padding: 8px 12px;
+				font-family: "Amiri", serif;
+				font-size: 1.05rem;
+				font-weight: 700;
+				cursor: pointer;
+				box-shadow: var(--shadow);
+			}
+
+			.mobile-side-panel {
+				display: none;
+				flex-direction: column;
+				gap: 6px;
+				margin-top: 6px;
+				background: var(--panel);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 8px;
+				width: min(220px, 70vw);
+				box-shadow: var(--shadow);
+			}
+
+			.mobile-side-toggle.open .mobile-side-panel {
+				display: flex;
+			}
+
+			.mobile-side-option {
+				border: 1px solid #e7d8cd;
+				background: #fff;
+				border-radius: 10px;
+				padding: 8px 10px;
+				font-family: "Amiri", serif;
+				font-size: 0.95rem;
+				font-weight: 700;
+				cursor: pointer;
+				text-align: center;
+			}
+
+			.mobile-side-option:hover {
+				background: #fff4e9;
+			}
+
+			/* Hide the original matla box and old search button on mobile only */
 			.matla-sidebar {
-				position: static;
+				display: none;
+			}
+
+			.toolbar-row .search-btn {
+				display: none;
+			}
+
+			/* Matla popup for mobile */
+			.mobile-matla-overlay {
+				display: none;
+				position: fixed;
+				inset: 0;
+				background: rgba(30, 22, 17, 0.35);
+				backdrop-filter: blur(2px);
+				z-index: 1200;
+				align-items: center;
+				justify-content: center;
+				padding: 10px;
+			}
+
+			.mobile-matla-overlay.open {
+				display: flex;
+			}
+
+			.mobile-matla-modal {
+				background: var(--panel);
+				border: 1px solid var(--line);
+				border-radius: 16px;
+				box-shadow: var(--shadow);
+				width: min(96vw, 760px);
+				height: calc(100vh - 20px);
+				height: calc(100dvh - 20px);
+				max-height: calc(100vh - 20px);
+				max-height: calc(100dvh - 20px);
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
+
+			.mobile-matla-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 8px;
+				padding: 12px 12px 8px;
+				border-bottom: 1px dashed #e4d7cf;
+				flex: 0 0 auto;
+			}
+
+			.mobile-matla-head h2 {
+				margin: 0;
+				font-size: 1rem;
+			}
+
+			.mobile-matla-list {
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+				flex: 1 1 auto;
+				min-height: 0;
+				overflow-y: auto;
+				padding: 8px 10px 12px;
 				max-height: none;
 			}
 
-			.matla-list {
-				max-height: 260px;
-			}
-
-			.filters {
-				position: static;
-			}
-		}
-
-		@media (max-width: 720px) {
-			.shell {
-				padding: 8px 6px 14px;
+			.mobile-matla-list .matla-item {
+				width: 100%;
+				display: block;
+				box-sizing: border-box;
+				font-size: 0.85rem;
+				padding: 8px 10px;
+				line-height: 1.5;
 			}
 
 			.hero {
@@ -738,12 +858,12 @@
 				padding-bottom: 8px;
 			}
 
-			.matla-list {
+			.matla-sidebar .matla-list {
 				max-height: 220px;
 				gap: 5px;
 			}
 
-			.matla-item {
+			.matla-sidebar .matla-item {
 				font-size: 1rem;
 				padding: 7px 9px;
 			}
@@ -762,7 +882,6 @@
 			}
 
 			.row,
-			.metrics-row,
 			.meta-grid {
 				grid-template-columns: 1fr;
 			}
@@ -787,13 +906,19 @@
 			}
 
 			.stats {
-				justify-content: flex-start;
+				justify-content: center;
 				gap: 6px;
+			}
+
+			#shownCount,
+			#pageInfo {
+				display: none;
 			}
 
 			.chip {
 				font-size: 0.95rem;
 				padding: 6px 10px;
+				text-align: center;
 			}
 
 			.page-strip {
@@ -839,25 +964,31 @@
 			}
 
 			.card-head {
-				justify-content: flex-start;
-				text-align: right;
+				justify-content: center;
+				text-align: center;
 			}
 
 			.card-head > div {
-				flex-direction: column;
+				display: grid !important;
+				grid-template-columns: 1fr 1fr;
 				align-items: stretch;
+				gap: 6px;
 			}
 
 			.badge {
-				font-size: 0.95rem;
+				font-size: 0.85rem;
 				white-space: normal;
-				padding: 7px 10px;
-				line-height: 1.5;
+				padding: 7px 8px;
+				line-height: 1.4;
 			}
 
 			.badge.bahr,
 			.badge.rawi {
-				font-size: 0.95rem;
+				font-size: 0.85rem;
+			}
+
+			.metrics-row {
+				gap: 6px;
 			}
 
 			.poet-box,
@@ -898,37 +1029,18 @@
 			}
 		}
 
-		@media (max-width: 480px) {
-			.hero h1 {
-				font-size: 1.2rem !important;
-			}
-
-			.filters {
-				inset: 6px;
-				max-height: calc(100vh - 12px);
-			}
-
-			.stats {
-				flex-direction: column;
-				align-items: stretch;
-			}
-
-			.chip {
-				text-align: center;
-			}
-
-			.pager {
-				align-items: stretch;
-			}
-
-			.pager button {
-				width: 100%;
-			}
-		}
 	</style>
 </head>
 <body>
 	<div class="shell">
+		<div class="mobile-side-toggle" id="mobileSideToggle">
+			<button id="mobileSideBtn" class="mobile-side-btn" type="button" aria-expanded="false" aria-controls="mobileSidePanel">☰ القائمة</button>
+			<div id="mobileSidePanel" class="mobile-side-panel">
+				<button id="mobileMatlaBtn" class="mobile-side-option" type="button">قائمة المطالع</button>
+				<button id="mobileSearchBtn" class="mobile-side-option" type="button">البحث</button>
+			</div>
+		</div>
+
 		<section class="hero">
 			<h1>فهرست الاَشعار الواردة في كتاب عيون الاَخبار - الجزء الثاني</h1>
 		</section>
@@ -944,7 +1056,7 @@
 			<aside class="filters" role="dialog" aria-modal="true" aria-label="خيارات البحث">
 				<div class="filters-head">
 					<h2 style="margin:0;">لوحة التصفية والبحث</h2>
-					<button id="closeSearch" class="close-search" type="button">إغلاق</button>
+					<button id="closeSearch" class="close-search" type="button" aria-label="إغلاق">✕</button>
 				</div>
 
 				<div class="field">
@@ -1011,6 +1123,16 @@
 		</section>
 	</div>
 
+	<div id="mobileMatlaOverlay" class="mobile-matla-overlay">
+		<div class="mobile-matla-modal" role="dialog" aria-modal="true" aria-label="قائمة المطالع">
+			<div class="mobile-matla-head">
+				<h2>قائمة المطالع</h2>
+				<button id="closeMobileMatla" class="close-search" type="button">✕</button>
+			</div>
+			<div id="matlaListMobile" class="matla-list mobile-matla-list"></div>
+		</div>
+	</div>
+
 	<script>
 		const csvPath = "../assets/data/U2 Qasaid_Behr_extracted.csv";
 
@@ -1049,7 +1171,14 @@
 			filtersPanel: document.querySelector(".filters"),
 			searchOverlay: document.getElementById("searchOverlay"),
 			matlaList: document.getElementById("matlaList"),
+			matlaListMobile: document.getElementById("matlaListMobile"),
 			matlaDetails: document.getElementById("matlaDetails"),
+			mobileSideToggle: document.getElementById("mobileSideToggle"),
+			mobileSideBtn: document.getElementById("mobileSideBtn"),
+			mobileMatlaBtn: document.getElementById("mobileMatlaBtn"),
+			mobileSearchBtn: document.getElementById("mobileSearchBtn"),
+			mobileMatlaOverlay: document.getElementById("mobileMatlaOverlay"),
+			closeMobileMatla: document.getElementById("closeMobileMatla"),
 			pageStrip: document.getElementById("pageStrip"),
 			cards: document.getElementById("cards"),
 			shownCount: document.getElementById("shownCount"),
@@ -1122,8 +1251,7 @@
 		}
 
 		function renderMatlaList() {
-			if (!els.matlaList) return;
-			els.matlaList.innerHTML = state.rows
+			const html = state.rows
 				.map((row) => {
 					const id = row.__id;
 					const matlaText = normalize(row[keys.matla]) || "-";
@@ -1131,6 +1259,9 @@
 					return `<button class="matla-item ${isActive ? "active" : ""}" type="button" data-id="${id}" title="${escapeHtml(matlaText)}">${escapeHtml(matlaText)}</button>`;
 				})
 				.join("");
+
+			if (els.matlaList) els.matlaList.innerHTML = html;
+			if (els.matlaListMobile) els.matlaListMobile.innerHTML = html;
 		}
 
 		async function loadCsvFile() {
@@ -1373,22 +1504,49 @@
 			`;
 		}
 
-		function toggleSearchPanel() {
-			state.searchVisible = !state.searchVisible;
-			els.filtersPanel.classList.toggle("is-hidden", !state.searchVisible);
-			els.searchOverlay.classList.toggle("is-hidden", !state.searchVisible);
-			document.body.style.overflow = state.searchVisible ? "hidden" : "";
-			els.toggleSearch.classList.toggle("is-active", state.searchVisible);
-			els.toggleSearch.setAttribute("aria-pressed", state.searchVisible ? "true" : "false");
+		let modalOpenedViaHistory = false;
+
+		function pushModalHistory() {
+			if (!modalOpenedViaHistory) {
+				modalOpenedViaHistory = true;
+				history.pushState({ qasaidModal: true }, "");
+			}
 		}
 
-		function closeSearchPanel() {
+		function popModalHistoryIfNeeded() {
+			if (modalOpenedViaHistory) {
+				modalOpenedViaHistory = false;
+				history.back();
+			}
+		}
+
+		function openSearchPanel() {
+			state.searchVisible = true;
+			els.filtersPanel.classList.remove("is-hidden");
+			els.searchOverlay.classList.remove("is-hidden");
+			document.body.style.overflow = "hidden";
+			els.toggleSearch.classList.add("is-active");
+			els.toggleSearch.setAttribute("aria-pressed", "true");
+			pushModalHistory();
+		}
+
+		function toggleSearchPanel() {
+			if (state.searchVisible) {
+				closeSearchPanel();
+			} else {
+				openSearchPanel();
+			}
+		}
+
+		function closeSearchPanel(fromPopstate) {
+			if (!state.searchVisible) return;
 			state.searchVisible = false;
 			els.filtersPanel.classList.add("is-hidden");
 			els.searchOverlay.classList.add("is-hidden");
 			document.body.style.overflow = "";
 			els.toggleSearch.classList.remove("is-active");
 			els.toggleSearch.setAttribute("aria-pressed", "false");
+			if (!fromPopstate) popModalHistoryIfNeeded();
 		}
 
 		function goToBookPage(step) {
@@ -1418,6 +1576,9 @@
 				if (e.key === "Escape" && state.searchVisible) {
 					closeSearchPanel();
 				}
+				if (e.key === "Escape" && els.mobileMatlaOverlay && els.mobileMatlaOverlay.classList.contains("open")) {
+					closeMobileMatlaPopup();
+				}
 			});
 
 			[els.searchMatla, els.searchReason, els.pageExact, els.poetSearch].forEach((el) => {
@@ -1435,10 +1596,7 @@
 				applyFilters();
 			});
 
-			els.matlaList.addEventListener("click", (e) => {
-				const btn = e.target.closest("button[data-id]");
-				if (!btn) return;
-				const id = parseInt(btn.dataset.id, 10);
+			function handleMatlaSelect(id) {
 				const row = state.rows.find((r) => r.__id === id);
 				if (!row) return;
 
@@ -1456,6 +1614,88 @@
 				render();
 				scrollSelectedPageChipIntoView();
 				window.scrollTo({ top: 0, behavior: "smooth" });
+			}
+
+			els.matlaList.addEventListener("click", (e) => {
+				const btn = e.target.closest("button[data-id]");
+				if (!btn) return;
+				handleMatlaSelect(parseInt(btn.dataset.id, 10));
+			});
+
+			if (els.matlaListMobile) {
+				els.matlaListMobile.addEventListener("click", (e) => {
+					const btn = e.target.closest("button[data-id]");
+					if (!btn) return;
+					handleMatlaSelect(parseInt(btn.dataset.id, 10));
+					closeMobileMatlaPopup();
+				});
+			}
+
+			// Mobile right-side drawer
+			if (els.mobileSideBtn) {
+				els.mobileSideBtn.addEventListener("click", () => {
+					const isOpen = els.mobileSideToggle.classList.toggle("open");
+					els.mobileSideBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+				});
+			}
+
+			function closeMobileSidePanel() {
+				if (!els.mobileSideToggle) return;
+				els.mobileSideToggle.classList.remove("open");
+				els.mobileSideBtn.setAttribute("aria-expanded", "false");
+			}
+
+			if (els.mobileMatlaBtn) {
+				els.mobileMatlaBtn.addEventListener("click", () => {
+					closeMobileSidePanel();
+					openMobileMatlaPopup();
+				});
+			}
+
+			if (els.mobileSearchBtn) {
+				els.mobileSearchBtn.addEventListener("click", () => {
+					closeMobileSidePanel();
+					toggleSearchPanel();
+				});
+			}
+
+			function openMobileMatlaPopup() {
+				if (!els.mobileMatlaOverlay) return;
+				els.mobileMatlaOverlay.classList.add("open");
+				document.body.style.overflow = "hidden";
+				pushModalHistory();
+			}
+
+			function closeMobileMatlaPopup(fromPopstate) {
+				if (!els.mobileMatlaOverlay) return;
+				if (!els.mobileMatlaOverlay.classList.contains("open")) return;
+				els.mobileMatlaOverlay.classList.remove("open");
+				if (!state.searchVisible) document.body.style.overflow = "";
+				if (!fromPopstate) popModalHistoryIfNeeded();
+			}
+
+			if (els.closeMobileMatla) {
+				els.closeMobileMatla.addEventListener("click", closeMobileMatlaPopup);
+			}
+
+			if (els.mobileMatlaOverlay) {
+				els.mobileMatlaOverlay.addEventListener("click", (e) => {
+					if (e.target === els.mobileMatlaOverlay) closeMobileMatlaPopup();
+				});
+			}
+
+			document.addEventListener("click", (e) => {
+				if (!els.mobileSideToggle || !els.mobileSideToggle.classList.contains("open")) return;
+				if (!els.mobileSideToggle.contains(e.target)) closeMobileSidePanel();
+			});
+
+			// Make the mobile/back button close an open popup and return to the
+			// main page instead of navigating away from the site.
+			window.addEventListener("popstate", () => {
+				modalOpenedViaHistory = false;
+				if (state.searchVisible) closeSearchPanel(true);
+				closeMobileMatlaPopup(true);
+				closeMobileSidePanel();
 			});
 
 			els.prevPage.addEventListener("click", () => {
