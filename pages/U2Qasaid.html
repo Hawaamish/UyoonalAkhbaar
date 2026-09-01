@@ -147,97 +147,6 @@
 			font-weight: 700;
 		}
 
-		/* Phone-only floating 3-dot sidebar (matla list / search) replacing the desktop sidebar + search button */
-		.mobile-tools-bar {
-			display: none;
-		}
-
-		.mobile-tools-toggle {
-			width: 44px;
-			height: 44px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			background: #fff;
-			border: 1px solid #e7d8cd;
-			border-radius: 50%;
-			padding: 0;
-			font-size: 22px;
-			line-height: 1;
-			font-weight: 700;
-			color: var(--ink);
-			cursor: pointer;
-			box-shadow: var(--shadow);
-			position: relative;
-			z-index: 1005;
-		}
-
-		.mobile-tools-overlay {
-			position: fixed;
-			inset: 0;
-			background: rgba(30, 22, 17, 0.35);
-			backdrop-filter: blur(2px);
-			z-index: 1003;
-			opacity: 0;
-			pointer-events: none;
-			transition: opacity 0.25s ease;
-		}
-
-		.mobile-tools-overlay.is-open {
-			opacity: 1;
-			pointer-events: auto;
-		}
-
-		.mobile-tools-panel {
-			position: fixed;
-			top: 0;
-			right: 0;
-			height: 100vh;
-			width: min(78vw, 300px);
-			display: flex;
-			flex-direction: column;
-			gap: 10px;
-			background: #fff;
-			border-left: 1px solid #e7d8cd;
-			box-shadow: var(--shadow);
-			padding: 70px 16px 16px;
-			z-index: 1004;
-			transform: translateX(100%);
-			transition: transform 0.25s ease;
-		}
-
-		.mobile-tools-panel.is-open {
-			transform: translateX(0);
-		}
-
-		.mobile-tool-btn {
-			border: 1px solid #e7d8cd;
-			background: #fff8f2;
-			border-radius: 10px;
-			padding: 12px 10px;
-			font-family: "Amiri", serif;
-			font-weight: 700;
-			font-size: 0.98rem;
-			color: var(--ink);
-			cursor: pointer;
-		}
-
-		.mobile-overlay {
-			position: fixed;
-			inset: 0;
-			background: rgba(30, 22, 17, 0.35);
-			backdrop-filter: blur(2px);
-			z-index: 1001;
-		}
-
-		.mobile-overlay.is-hidden {
-			display: none;
-		}
-
-		.matla-mobile-close {
-			display: none;
-		}
-
 		.filters {
 			position: fixed;
 			top: 50%;
@@ -790,8 +699,7 @@
 
 		@media (max-width: 720px) {
 			.shell {
-				padding: 52px 6px 14px;
-			}
+				padding: 8px 6px 14px;
 			}
 
 			.hero {
@@ -825,75 +733,19 @@
 				max-height: none;
 			}
 
-			.mobile-tools-bar {
-				display: block;
-				position: fixed;
-				top: 8px;
-				right: 10px;
-				z-index: 1005;
-				width: auto;
-				background: none;
-				border: none;
-				padding: 0;
-				margin-bottom: 0;
-			}
-
-			#toggleSearch {
-				display: none;
-			}
-
-			.matla-mobile-close {
-				display: inline-flex;
-				position: absolute;
-				top: 14px;
-				left: 14px;
-				z-index: 1;
-				width: 36px;
-				height: 36px;
-				align-items: center;
-				justify-content: center;
-				padding: 0;
-				border-radius: 50%;
-			}
-
-			.matla-sidebar {
-				display: none;
-				position: fixed;
-				inset: 0;
-				z-index: 1002;
-				max-height: 100vh;
-				overflow-y: auto;
-				border-radius: 0;
-				padding: 18px;
-			}
-
-			.matla-sidebar.mobile-open {
-				display: block;
-			}
-
-			.matla-sidebar summary {
-				display: none;
-			}
-
-			.matla-sidebar details > #matlaList {
-				display: block !important;
-			}
-
 			.matla-sidebar summary {
 				font-size: 1rem;
 				padding-bottom: 8px;
 			}
 
 			.matla-list {
-				max-height: none;
-				gap: 12px;
-				padding-top: 50px;
+				max-height: 220px;
+				gap: 5px;
 			}
 
 			.matla-item {
-				font-size: 1.05rem;
-				padding: 14px 16px;
-				line-height: 1.9;
+				font-size: 1rem;
+				padding: 7px 9px;
 			}
 
 			.filters {
@@ -910,6 +762,7 @@
 			}
 
 			.row,
+			.metrics-row,
 			.meta-grid {
 				grid-template-columns: 1fr;
 			}
@@ -934,7 +787,7 @@
 			}
 
 			.stats {
-				justify-content: center;
+				justify-content: flex-start;
 				gap: 6px;
 			}
 
@@ -991,13 +844,8 @@
 			}
 
 			.card-head > div {
-				flex-direction: row;
-				flex-wrap: wrap;
+				flex-direction: column;
 				align-items: stretch;
-			}
-
-			.card-head > div .badge {
-				flex: 1 1 calc(50% - 4px);
 			}
 
 			.badge {
@@ -1085,25 +933,13 @@
 			<h1>فهرست الاَشعار الواردة في كتاب عيون الاَخبار - الجزء الثاني</h1>
 		</section>
 
-		<div id="mobileToolsBar" class="mobile-tools-bar">
-			<button id="mobileToolsToggle" class="mobile-tools-toggle" type="button" aria-expanded="false" aria-label="خيارات">⋮</button>
-			<div id="mobileToolsPanel" class="mobile-tools-panel">
-				<button id="mobileOpenMatla" class="mobile-tool-btn" type="button">قائمة المطالع</button>
-				<button id="mobileOpenSearch" class="mobile-tool-btn" type="button">البحث</button>
-			</div>
-		</div>
-		<div id="mobileToolsOverlay" class="mobile-tools-overlay"></div>
-
 		<section class="layout">
 			<aside class="matla-sidebar" aria-label="قائمة المطالع">
-				<button id="mobileMatlaClose" class="close-search matla-mobile-close" type="button" aria-label="إغلاق">✕</button>
-				<h2 class="matla-mobile-title">قائمة المطالع</h2>
 				<details id="matlaDetails">
 					<summary>قائمة المطالع</summary>
 					<div id="matlaList" class="matla-list"></div>
 				</details>
 			</aside>
-			<div id="mobileMatlaOverlay" class="mobile-overlay is-hidden"></div>
 
 			<aside class="filters" role="dialog" aria-modal="true" aria-label="خيارات البحث">
 				<div class="filters-head">
@@ -1221,15 +1057,7 @@
 			prevPage: document.getElementById("prevPage"),
 			nextPage: document.getElementById("nextPage"),
 			pagerText: document.getElementById("pagerText"),
-			loadError: document.getElementById("loadError"),
-			mobileToolsToggle: document.getElementById("mobileToolsToggle"),
-			mobileToolsPanel: document.getElementById("mobileToolsPanel"),
-			mobileToolsOverlay: document.getElementById("mobileToolsOverlay"),
-			mobileOpenMatla: document.getElementById("mobileOpenMatla"),
-			mobileOpenSearch: document.getElementById("mobileOpenSearch"),
-			matlaSidebar: document.querySelector(".matla-sidebar"),
-			mobileMatlaOverlay: document.getElementById("mobileMatlaOverlay"),
-			mobileMatlaClose: document.getElementById("mobileMatlaClose")
+			loadError: document.getElementById("loadError")
 		};
 
 		const normalize = (value) => String(value || "").trim();
@@ -1563,31 +1391,6 @@
 			els.toggleSearch.setAttribute("aria-pressed", "false");
 		}
 
-		function toggleMobileToolsPanel() {
-			const isOpen = els.mobileToolsPanel.classList.toggle("is-open");
-			els.mobileToolsOverlay.classList.toggle("is-open", isOpen);
-			els.mobileToolsToggle.setAttribute("aria-expanded", String(isOpen));
-		}
-
-		function closeMobileToolsPanel() {
-			els.mobileToolsPanel.classList.remove("is-open");
-			els.mobileToolsOverlay.classList.remove("is-open");
-			els.mobileToolsToggle.setAttribute("aria-expanded", "false");
-		}
-
-		function openMobileMatla() {
-			els.matlaSidebar.classList.add("mobile-open");
-			els.mobileMatlaOverlay.classList.remove("is-hidden");
-			if (els.matlaDetails) els.matlaDetails.open = true;
-			document.body.style.overflow = "hidden";
-		}
-
-		function closeMobileMatla() {
-			els.matlaSidebar.classList.remove("mobile-open");
-			els.mobileMatlaOverlay.classList.add("is-hidden");
-			if (!state.searchVisible) document.body.style.overflow = "";
-		}
-
 		function goToBookPage(step) {
 			const idx = state.pageNumbers.findIndex((n) => n === state.selectedBookPage);
 			if (idx < 0) return;
@@ -1615,28 +1418,6 @@
 				if (e.key === "Escape" && state.searchVisible) {
 					closeSearchPanel();
 				}
-				if (e.key === "Escape" && els.matlaSidebar.classList.contains("mobile-open")) {
-					closeMobileMatla();
-				}
-			});
-
-			els.mobileToolsToggle.addEventListener("click", toggleMobileToolsPanel);
-			els.mobileOpenMatla.addEventListener("click", () => {
-				openMobileMatla();
-				closeMobileToolsPanel();
-			});
-			els.mobileOpenSearch.addEventListener("click", () => {
-				toggleSearchPanel();
-				closeMobileToolsPanel();
-			});
-			els.mobileMatlaClose.addEventListener("click", closeMobileMatla);
-			els.mobileMatlaOverlay.addEventListener("click", closeMobileMatla);
-			els.mobileToolsOverlay.addEventListener("click", closeMobileToolsPanel);
-
-			document.addEventListener("click", (e) => {
-				if (!els.mobileToolsPanel.classList.contains("is-open")) return;
-				if (e.target.closest("#mobileToolsBar")) return;
-				closeMobileToolsPanel();
 			});
 
 			[els.searchMatla, els.searchReason, els.pageExact, els.poetSearch].forEach((el) => {
@@ -1675,7 +1456,6 @@
 				render();
 				scrollSelectedPageChipIntoView();
 				window.scrollTo({ top: 0, behavior: "smooth" });
-				closeMobileMatla();
 			});
 
 			els.prevPage.addEventListener("click", () => {
