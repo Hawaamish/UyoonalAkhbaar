@@ -59,7 +59,7 @@ body {
     filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.3));
     
     /* This runs the 'float' animation over 3 seconds, smoothly, forever */
-    animation: float 3s ease-in-out infinite; 
+    
 }
 
 /* Card Titles */
@@ -112,12 +112,12 @@ body {
 }
 
 /* Pastel Colors */
-.card-1 { background-color: #E3F2FD; color: #1E88E5; } /* Pastel Blue */
-.card-2 { background-color: #F1F8E9; color: #558B2F; } /* Pastel Green */
-.card-3 { background-color: #FFF3E0; color: #EF6C00; } /* Pastel Orange */
-.card-4 { background-color: #F3E5F5; color: #8E24AA; } /* Pastel Purple */
-.card-5 { background-color: #E0F2F1; color: #00796B; } /* Pastel Teal */
-.card-6 { background-color: #FFEBEE; color: #C62828; } /* Pastel Red */
+.card-1 { background-color: #dad7cd; color: #344e41; } /* Light Green */
+.card-2 { background-color: #dad7cd; color: #344e41; } /* Pastel Green */
+.card-3 { background-color: #dad7cd; color: #344e41; } /* Teal Green */
+.card-4 { background-color: #dad7cd; color: #344e41; } /* Olive Green */
+.card-5 { background-color: #dad7cd; color: #344e41; } /* Pastel Teal */
+.card-6 { background-color: #dad7cd; color: #344e41; } /* Fresh Green */
 
 /* Hover Image (Hidden by default) */
 .hover-img {
@@ -153,7 +153,9 @@ body {
 @media (max-width: 992px) {
     .nav-grid {
         grid-template-columns: repeat(2, 1fr);
+        
     }
+
 }
 
 /* Mobile View: 2 per row as requested */
@@ -176,4 +178,11 @@ body {
     .card-title {
         font-size: 1.1rem;
     }
+
+    @media (max-width: 600px) {
+    body {
+        background-size: 170% 170%; /* stretches to fill both width and height */
+        background-attachment: scroll; /* fixed backgrounds can behave oddly on mobile */
+    }
+}
 }
