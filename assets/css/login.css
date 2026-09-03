@@ -1,69 +1,144 @@
-body {
-    font-family: 'Arial', sans-serif;
-    background: url('../images/greenbookpage.jpg') repeat center center fixed;
-    background-size: cover;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    color: #424242;
+:root{
+  --forest-deep:#2b362b;
+  --forest:#2d4230;
+  --parchment:#f2e9d4;
+  --parchment-dark:#e6d9b8;
+  --gold:#a9822c;
+  --gold-bright:#c99a3a;
+  --spine-green-bright:#4f8a55;
+  --spine-green:#2d6b3a;
+  --spine-green-dark:#173d21;
+  --ink:#352a1e;
+  --ink-soft:#5c5040;
 }
 
-.login-container {
-    background: #C7D3C0;
-    padding: 40px;
-    border-radius: 15px;
-    box-shadow: 0 8px 32px rgba(120, 108, 3, 0.4);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  padding:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:'Amiri', Georgia, 'Iowan Old Style', serif;
+  color:var(--ink);
+  background:
+    radial-gradient(ellipse at 20% 15%, rgba(255,255,255,0.06), transparent 45%),
+    linear-gradient(160deg, var(--spine-green-dark) 0%, var(--forest-deep) 45%, var(--forest) 100%);
+  background-size: cover;
+  background-attachment: fixed;
+
+  transition: opacity 0.8s ease, transform 0.8s ease;
 }
 
-h1 {
-    margin-bottom: 20px;
-    color: #7e57c2;
-    font-size: 2em;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+body.page-exit{
+  opacity:0;
+  transform:scale(0.98);
 }
 
-p {
-    margin-bottom: 30px;
-    color: #666;
+/* ---- the login card, framed like a book cover ---- */
+.login-container{
+  position:relative;
+  width:100%;
+  max-width:700px;
+  margin:0 24px;
+  padding: 48px 52px 40px 40px; /* extra right padding clears the spine */
+  text-align:center;
+  background: var(--parchment);
+  border-radius: 10px 0 0 10px;
+  box-shadow:
+    -6px 6px 0 -2px var(--parchment-dark),
+    -10px 10px 0 -4px #d8c89a,
+    0 22px 45px rgba(235, 237, 235, 0.45);
+  opacity:0;
+  transform: translateY(18px) rotate(-1.2deg);
+  animation: settle 0.9s cubic-bezier(.2,.8,.2,1) 0.15s forwards;
 }
 
-.g_id_signin {
-    margin: 20px 0;
+@keyframes settle{
+  to{ opacity:1; transform: translateY(0) rotate(0deg); }
 }
 
-#message {
-    margin-top: 20px;
-    padding: 10px;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: all 0.3s ease;
+/* the spine: a green gradient strip along the right edge of the card */
+.login-container::before{
+  content:"";
+  position:absolute;
+  top:0; bottom:0; right:0;
+  width:20px;
+  background: linear-gradient(180deg, var(--spine-green-bright), var(--spine-green) 60%, var(--spine-green-dark));
+  border-radius: 0 6px 6px 0;
+  box-shadow: inset 2px 0 4px rgba(232, 229, 229, 0.25);
 }
 
-#message.success {
-    background: #c8e6c9;
-    color: #2e7d32;
-    border: 1px solid #4caf50;
+/* small leaf ornament above the heading */
+h1{
+  position:relative;
+  margin: 0 0 6px;
+  padding-top:44px;
+  font-family: 'Amiri', Georgia, serif;
+  font-weight:700;
+  font-size: 3em;
+  letter-spacing: 0.3px;
+  color: var(--forest);
 }
 
-#message.error {
-    background: #ffcdd2;
-    color: #c62828;
-    border: 1px solid #f44336;
+h1::before{
+  content:"";
+  position:absolute;
+  top:0; left:50%;
+  transform: translateX(-50%);
+  width:32px;
+  height:32px;
 }
 
-body {
-    transition: opacity 0.8s ease, transform 0.8s ease;
+h1 + p{
+  margin: 0 0 30px;
+  color: var(--ink-soft);
+  font-size: 0.98em;
+  line-height:1.5;
 }
 
-body.page-exit {
-    opacity: 0;
-    transform: scale(0.98);
+/* Google's own button lives inside this div — we can only dress the frame */
+.g_id_signin{
+  margin: 8px 0 4px;
+  display:flex;
+  justify-content:center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.g_id_signin:hover{
+  transform: translateY(-1px);
+  filter: drop-shadow(0 6px 14px rgba(28,42,28,0.25));
+}
+
+#message{
+  font-weight:bold;
+  font-family: 'Amiri', Georgia, serif;
+  font-size:0.88em;
+  border-radius: 6px;
+  opacity:0;
+  max-height:0;
+  padding: 0 14px;
+  overflow:hidden;
+  transition: all 0.35s ease;
+}
+
+#message:not(:empty){
+  opacity:1;
+  max-height:60px;
+  margin-top:22px;
+  padding: 10px 14px;
+}
+
+#message.success{
+  background: #d9e8d3;
+  color: #2e5c2e;
+  border: 1px solid #7fa876;
+}
+
+#message.error{
+  background: #f0d6d2;
+  color: #8a3324;
+  border: 1px solid #c9705c;
 }

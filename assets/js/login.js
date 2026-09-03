@@ -12,7 +12,7 @@ function handleCredentialResponse(response) {
         localStorage.setItem("user", email);
         localStorage.setItem("userName", name);
 
-        messageBox.style.color = "green";
+        messageBox.className = "success";
         messageBox.innerText = "Access Granted: " + email;
         document.body.classList.add("page-exit");
 
@@ -22,7 +22,7 @@ function handleCredentialResponse(response) {
         }, 1000);
 
     } else {
-        messageBox.style.color = "red";
+        messageBox.className = "error";
         messageBox.innerText = "Access Denied";
 
         google.accounts.id.disableAutoSelect();
