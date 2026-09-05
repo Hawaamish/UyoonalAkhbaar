@@ -1241,15 +1241,38 @@
 
         async function loadDataFromSupabase() {
             try {
-                const { data, error } = await supabaseClient
-                    .from(SUPABASE_TABLE)
-                    .select('*');
+                // Supabase/PostgREST caps each request at ~1000 rows by default.
+                // We page through the table in batches until we've fetched everything.
+                const PAGE_SIZE = 1000;
+                let allRows = [];
+                let from = 0;
 
-                if (error) {
-                    throw error;
+                while (true) {
+                    const to = from + PAGE_SIZE - 1;
+                    const { data, error } = await supabaseClient
+                        .from(SUPABASE_TABLE)
+                        .select('*')
+                        .range(from, to);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    if (!data || data.length === 0) {
+                        break;
+                    }
+
+                    allRows = allRows.concat(data);
+
+                    if (data.length < PAGE_SIZE) {
+                        // Last page was partial, so there's nothing more to fetch.
+                        break;
+                    }
+
+                    from += PAGE_SIZE;
                 }
 
-                fullData = (data || [])
+                fullData = allRows
                     .map(normalizeRow)
                     .filter(row => row.Word)
                     .sort((a, b) => compareMixed(a.Page, b.Page) || compareMixed(a.Line, b.Line));
