@@ -10,28 +10,10 @@
 
 <link rel="stylesheet" href="../assets/css/home.css">
     <link rel="stylesheet" href="../assets/css/home.css">
-    <style>
-        #welcomeBadge {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(246, 247, 209, 0.92);
-            color: #424242;
-            padding: 10px 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-            font-family: 'Amiri', 'Arial', sans-serif;
-            font-size: 1.1em;
-            font-weight: 700;
-            z-index: 1000;
-            display: none;
-        }
-    </style>
-    <script>
-if (!localStorage.getItem("user")) {
-    window.location.href = "../index.html";
-}
-</script>
+
+
+    <link rel="stylesheet" href="../styles/mainpage.css">
+    <script src="../scripts/mainpage.js" defer></script>
 </head>
 <body>
 
@@ -45,7 +27,7 @@ if (!localStorage.getItem("user")) {
 
     <div class="container">
         <div class="nav-grid">
-            
+
             <a href="hamish.html" class="nav-card card-1">
                 <img src="../icons/hamish.png" alt="" class="hover-img">
                 <span class="card-title">الهامش</span>
@@ -80,25 +62,8 @@ if (!localStorage.getItem("user")) {
     </div>
 <button hidden="true" onclick="logout()">Logout</button>
 
-<script>
-function logout() {
-    localStorage.removeItem("user");
-    localStorage.removeItem("userName");
-    window.location.href = "../index.html";
-}
 
-// 👋 Show the welcome greeting with the logged-in user's name
-window.addEventListener("DOMContentLoaded", () => {
-    const userName = localStorage.getItem("userName") || localStorage.getItem("user");
-    const badge = document.getElementById("welcomeBadge");
 
-    if (userName && badge) {
-        badge.textContent = "اهلًا وسهلًا " + userName;
-        badge.style.display = "block";
-    }
-});
-</script>
-   
 
 </body>
 </html>

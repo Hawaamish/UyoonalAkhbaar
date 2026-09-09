@@ -1,0 +1,17 @@
+/* Extracted from mainpage.html. Existing section comments describe the page's visual regions. */
+
+#welcomeBadge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(246, 247, 209, 0.92);
+            color: #424242;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+            font-family: 'Amiri', 'Arial', sans-serif;
+            font-size: 1.1em;
+            font-weight: 700;
+            z-index: 1000;
+            display: none;
+        }

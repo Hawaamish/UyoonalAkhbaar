@@ -1,0 +1,224 @@
+/* Extracted from bookindex.html. Existing section comments describe the page's visual regions. */
+
+:root {
+            --bg-color: #f9f9fb;
+            --card-bg: #ffffff;
+            --shadow: 0 10px 25px rgba(0,0,0,0.08);
+            --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        body {
+            font-family: 'Amiri', serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #intro-view {
+            text-align: center;
+            width: 100%;
+            position: relative;
+            z-index: 5;
+        }
+
+        h1 {
+            color: #2d3436;
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* تنسيق القائمة - متجاوب */
+        .pie-wrapper {
+            position: relative;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            width: 100%;
+            z-index: 30; /* Higher than h1 and others */
+            pointer-events: none; /* Allow events through wrapper but items will have pointer-events: auto */
+        }
+
+        /* تحويل القائمة إلى دائرة فقط في الشاشات الكبيرة */
+        @media (min-width: 800px) {
+            .pie-wrapper {
+                display: block;
+                width: 600px;
+                height: 600px;
+            }
+            .pie-item {
+                position: absolute;
+                width: 130px;
+                height: 130px;
+                border-radius: 50% !important;
+                transform: translate(-50%, -50%);
+                z-index: 40;
+            }
+            .pie-item:hover {
+                transform: translate(-50%, -50%) scale(1.2);
+                z-index: 100;
+            }
+        }
+
+        .pie-item {
+            background-color: white;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #444;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            border: 4px solid white;
+            text-align: center;
+            padding: 15px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            pointer-events: auto; /* Enable clicks on items */
+            z-index: 40;
+        }
+
+        .pie-item:active {
+            transform: scale(0.95);
+        }
+
+        /* تنسيق الجدول */
+        #table-view {
+            display: none;
+            width: 100%;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .header-bar {
+            display: grid;
+            grid-template-columns: 100px 1fr 100px;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .back-btn {
+            font-family: 'Amiri', serif;
+            background-color: #f1f2f6;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+            white-space: nowrap;
+        }
+
+        #current-category {
+            margin: 0;
+            color: #2d3436;
+            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            text-align: center;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            overflow-x: auto; /* يسمح بالتمرير يميناً ويساراً في الموبايل */
+            max-height: 70vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: right;
+            table-layout: fixed;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background-color: #f8f9fa;
+            z-index: 10;
+        }
+
+        th { 
+            padding: 15px; 
+            border-bottom: 2px solid #eee; 
+            color: #636e72; 
+            font-size: 1.2rem;
+        }
+
+        td { 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #f1f1f1; 
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .col-text {
+            width: 75%;
+        }
+
+        .col-page {
+            width: 25%;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 600px) {
+            .main-container {
+                padding: 10px;
+            }
+            .header-bar {
+                padding: 10px;
+                grid-template-columns: 80px 1fr 20px;
+            }
+            .back-btn {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+            th {
+                padding: 10px 8px;
+                font-size: 1rem;
+            }
+            td {
+                padding: 8px;
+                font-size: 0.95rem;
+            }
+            table {
+                min-width: 100%; /* Allow it to fit the screen */
+            }
+            .col-text {
+                width: 70%;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            .col-page {
+                width: 30%;
+                padding-left: 2px;
+                padding-right: 2px;
+            }
+        }
