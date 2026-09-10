@@ -181,6 +181,7 @@
         let currentWordIndex = -1; // Tracks the current active word
         let currentPageNum = null; // Tracks the page shown on the mobile words screen
         let lastSearchTerm = '';
+        let advancedSearchActive = false;
 
         // =============================================
         // Supabase Configuration
@@ -188,6 +189,7 @@
         const SUPABASE_URL = 'https://xbxpcgrwxrlqxxgtdtgp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_TvFKfakJN3BmxVGVA6Kdhw_secO1Mi3';
         const SUPABASE_TABLE = 'hamish_data';
+        const SUPABASE_EXTENDED_TABLE = 'SH_data';
 
         // Accept either project URL or copied REST URL and normalize to project URL.
         const normalizedSupabaseUrl = SUPABASE_URL.replace(/\/rest\/v1(?:\/.*)?$/i, '');
@@ -204,7 +206,9 @@
         const wordList = document.getElementById('wordList');
         const mobileWordList = document.getElementById('mobileWordList');
         const searchInput = document.getElementById('searchInput');
+        const clearSearchButton = document.getElementById('clearSearchButton');
         const advancedSearchToggle = document.getElementById('advancedSearchToggle');
+        const advancedSearchHint = document.getElementById('advancedSearchHint');
         const advancedSearchPanel = document.getElementById('advancedSearchPanel');
         const advancedSearchInput = document.getElementById('advancedSearchInput');
         const advancedSearchClear = document.getElementById('advancedSearchClear');
@@ -308,8 +312,42 @@
         mobilePrevPage.addEventListener('click', () => navigateMobilePage(-1));
         mobileNextPage.addEventListener('click', () => navigateMobilePage(1));
         mobileDetailsMenuToggle.addEventListener('click', toggleMobileDetailsMenu);
-        searchInput.addEventListener('input', handleSearch);
-        advancedSearchToggle.addEventListener('click', handleAdvancedSearchToggle);
+        function updateSearchControls() {
+            const hasSearchText = searchInput.value.trim() !== '';
+            clearSearchButton.classList.toggle('hidden', !hasSearchText);
+            advancedSearchHint.classList.toggle('hidden', !hasSearchText);
+            advancedSearchHint.textContent = advancedSearchActive
+                ? 'اضغط هنا للبحث العادي'
+                : 'اضغط هنا للبحث المتقدم';
+            advancedSearchToggle.classList.toggle('search-ready', hasSearchText);
+            advancedSearchToggle.setAttribute('aria-pressed', String(advancedSearchActive));
+        }
+
+        searchInput.addEventListener('input', (event) => {
+            advancedSearchActive = false;
+            handleSearch(event);
+            updateSearchControls();
+        });
+        advancedSearchToggle.addEventListener('click', () => {
+            if (!searchInput.value.trim()) {
+                advancedSearchActive = false;
+                handleSearch({ target: searchInput });
+            } else if (advancedSearchActive) {
+                advancedSearchActive = false;
+                handleSearch({ target: searchInput });
+            } else {
+                advancedSearchActive = true;
+                performAdvancedSearch(searchInput.value);
+            }
+            updateSearchControls();
+        });
+        clearSearchButton.addEventListener('click', () => {
+            searchInput.value = '';
+            advancedSearchActive = false;
+            handleSearch({ target: searchInput });
+            updateSearchControls();
+            searchInput.focus();
+        });
         advancedSearchInput.addEventListener('input', handleAdvancedSearch);
         advancedSearchClear.addEventListener('click', clearAdvancedSearch);
         mobileAdvancedSearchGo.addEventListener('click', () => {
@@ -383,7 +421,7 @@
         });
 
         // Load Data Directly From Supabase
-        const DATA_CACHE_KEY = 'hamishDataCache_v1';
+        const DATA_CACHE_KEY = 'hamishDataCache_v2';
         loadDataFromSupabase();
 
         // Show a cached copy instantly (if we have one) while a fresh copy loads in the background.
@@ -419,45 +457,12 @@
                     throw new Error('Supabase client is unavailable');
                 }
 
-                // Supabase/PostgREST caps each request at ~1000 rows by default.
-                // Find the total row count first, then fetch every page of rows
-                // in parallel instead of waiting for each page one at a time —
-                // this is the main speedup for larger tables.
-                const PAGE_SIZE = 1000;
-                const { count, error: countError } = await supabaseClient
-                    .from(SUPABASE_TABLE)
-                    .select('*', { count: 'exact', head: true });
+                const [hamishRows, extendedRows] = await Promise.all([
+                    loadSupabaseTable(SUPABASE_TABLE, 'hamish_data'),
+                    loadSupabaseTable(SUPABASE_EXTENDED_TABLE, 'SH_data')
+                ]);
 
-                if (countError) {
-                    throw countError;
-                }
-
-                const totalRows = count ?? 0;
-                const pageCount = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
-
-                const pagePromises = Array.from({ length: pageCount }, (_, i) => {
-                    const from = i * PAGE_SIZE;
-                    const to = from + PAGE_SIZE - 1;
-                    return supabaseClient
-                        .from(SUPABASE_TABLE)
-                        .select('*')
-                        .range(from, to);
-                });
-
-                const pageResults = await Promise.all(pagePromises);
-
-                let allRows = [];
-                for (const { data, error } of pageResults) {
-                    if (error) {
-                        throw error;
-                    }
-                    if (data && data.length) {
-                        allRows = allRows.concat(data);
-                    }
-                }
-
-                fullData = allRows
-                    .map(normalizeRow)
+                fullData = hamishRows.concat(extendedRows)
                     .filter(row => row.Word)
                     .sort((a, b) => compareMixed(a.Page, b.Page) || compareMixed(a.Line, b.Line));
 
@@ -477,7 +482,38 @@
             }
         }
 
-        function normalizeRow(row) {
+        async function loadSupabaseTable(tableName, sourceName) {
+            // Supabase/PostgREST caps each request at about 1000 rows, so use the
+            // exact count to fetch every page, including all 3704 SH_data rows.
+            const PAGE_SIZE = 1000;
+            const { count, error: countError } = await supabaseClient
+                .from(tableName)
+                .select('*', { count: 'exact', head: true });
+
+            if (countError) throw countError;
+
+            const pageCount = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
+            const pagePromises = Array.from({ length: pageCount }, (_, i) => {
+                const from = i * PAGE_SIZE;
+                return supabaseClient
+                    .from(tableName)
+                    .select('*')
+                    .range(from, from + PAGE_SIZE - 1);
+            });
+
+            const pageResults = await Promise.all(pagePromises);
+            const rows = [];
+            for (const { data, error } of pageResults) {
+                if (error) throw error;
+                if (data) rows.push(...data);
+            }
+
+            return rows
+                .map(row => normalizeRow(row, sourceName))
+                .filter(row => row.Word);
+        }
+
+        function normalizeRow(row, source = 'hamish_data') {
             const page = row.Page ?? row.page ?? '';
             const line = row.Line ?? row.line ?? '';
             const word = row.Word ?? row.word ?? '';
@@ -494,7 +530,8 @@
                 Information: String(information),
                 media: String(media),
                 links: String(links),
-                unzur: String(unzur)
+                unzur: String(unzur),
+                source
             };
         }
 
@@ -613,11 +650,14 @@
         const index = fullData.indexOf(w);
         const hasLook = w.unzur && w.unzur.includes("انظر");
         const lookIcon = hasLook ? '<span class="text-red-600 mr-1">📎</span> ' : '';
-        const wordStyle = hasLook ? 'text-red-600 font-bold' : '';
+        const wordStyle = [
+            hasLook ? 'text-red-600 font-bold' : '',
+            w.source === 'SH_data' ? 'sh-data-word' : ''
+        ].filter(Boolean).join(' ');
 
         // CLEANED: Only using word-button class
         return `
-            <button class="word-button" data-index="${index}">
+            <button class="word-button${w.source === 'SH_data' ? ' sh-data-button' : ''}" data-index="${index}">
                 <span class="${wordStyle}">${lookIcon}${w.Word}</span> 
                 <span class="text-[10px] opacity-50">[س ${w.Line}]</span>
             </button>
@@ -632,7 +672,7 @@
                 button.addEventListener('click', function() {
                     const index = this.dataset.index;
                     const item = fullData[index];
-                    showDetails(item.Word, item.Page, item.Information, item.media, item.links);
+                    showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
                 });
             });
             
@@ -649,14 +689,14 @@
             }
         }
 
-        function showDetails(word, page, info, mediaFile, links) {
+        function showDetails(word, page, info, mediaFile, links, source = 'hamish_data') {
     document.getElementById('welcomeMessage').classList.add('hidden');
     document.getElementById('detailsArea').classList.remove('hidden');
     document.getElementById('displayPage').innerText = page;
     document.getElementById('displayWord').innerText = word;
     mobileDisplayPage.innerText = page;
     mobileDisplayWord.innerText = word;
-    currentWordIndex = fullData.findIndex(item => item.Word === word && item.Page === page);
+    currentWordIndex = fullData.findIndex(item => item.Word === word && item.Page === page && item.source === source);
     
     // Highlight word
     document.querySelectorAll('.word-button').forEach(btn => btn.classList.remove('active-word'));
@@ -805,6 +845,32 @@
         const withSeparators = decoded.replace(/\*\*\*/g, '<hr class="my-4 border-t-2 border-gray-300">');
         const wrapper = document.createElement('div');
         wrapper.innerHTML = withSeparators;
+
+        const markerPattern = /(^|\s)(رض|ع م|صلع|ص ع|تع|قس)(?=\s|$)/g;
+        const textWalker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT);
+        const textNodes = [];
+        while (textWalker.nextNode()) textNodes.push(textWalker.currentNode);
+
+        textNodes.forEach(node => {
+            if (!markerPattern.test(node.nodeValue)) {
+                markerPattern.lastIndex = 0;
+                return;
+            }
+            markerPattern.lastIndex = 0;
+            const fragment = document.createDocumentFragment();
+            let lastIndex = 0;
+            node.nodeValue.replace(markerPattern, (match, leadingSpace, marker, offset) => {
+                fragment.append(node.nodeValue.slice(lastIndex, offset));
+                if (leadingSpace) fragment.append(leadingSpace);
+                const superscript = document.createElement('sup');
+                superscript.textContent = marker;
+                fragment.append(superscript);
+                lastIndex = offset + match.length;
+                return match;
+            });
+            fragment.append(node.nodeValue.slice(lastIndex));
+            node.replaceWith(fragment);
+        });
 
         // Support Google Drive images that are embedded directly in Information HTML.
         wrapper.querySelectorAll('img').forEach(img => {
@@ -1047,11 +1113,14 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
                 const index = fullData.indexOf(w);
                 const hasLook = w.unzur && w.unzur.includes("انظر");
                 const lookIcon = hasLook ? '<span class="text-red-600 mr-1">📎</span> ' : '';
-                const wordStyle = hasLook ? 'text-red-600 font-bold' : '';
+                const wordStyle = [
+                    hasLook ? 'text-red-600 font-bold' : '',
+                    w.source === 'SH_data' ? 'sh-data-word' : ''
+                ].filter(Boolean).join(' ');
                 const highlightedWord = highlightMatch(w.Word || '', rawTerm);
 
                 return `
-    <button class="word-button" data-index="${index}">
+    <button class="word-button${w.source === 'SH_data' ? ' sh-data-button' : ''}" data-index="${index}">
         <span class="${wordStyle}">${lookIcon}${highlightedWord}</span> 
         <span>[س ${w.Line}]</span>
     </button>
@@ -1065,7 +1134,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
                 button.addEventListener('click', function() {
                     const index = this.dataset.index;
                     const item = fullData[index];
-                    showDetails(item.Word, item.Page, item.Information, item.media, item.links);
+                    showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
                 });
             });
 
@@ -1153,11 +1222,14 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
         const index = fullData.indexOf(w);
         const hasLook = w.unzur && w.unzur.includes("انظر");
         const lookIcon = hasLook ? '<span class="text-red-600 mr-1">📎</span> ' : '';
-        const wordStyle = hasLook ? 'text-red-600 font-bold' : '';
+        const wordStyle = [
+            hasLook ? 'text-red-600 font-bold' : '',
+            w.source === 'SH_data' ? 'sh-data-word' : ''
+        ].filter(Boolean).join(' ');
         const highlightedWord = highlightMatch(w.Word || '', e.target.value.trim());
 
         return `
-    <button class="word-button" data-index="${index}">
+    <button class="word-button${w.source === 'SH_data' ? ' sh-data-button' : ''}" data-index="${index}">
         <span class="${wordStyle}">${lookIcon}${highlightedWord}</span> 
         <span>[س ${w.Line}]</span>
     </button>
@@ -1172,7 +1244,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
         button.addEventListener('click', function() {
             const index = this.dataset.index;
             const item = fullData[index];
-            showDetails(item.Word, item.Page, item.Information, item.media, item.links);
+            showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
         });
     });
 
@@ -1210,7 +1282,7 @@ function navigateWords(direction) {
     
         
         // Show the details
-        showDetails(item.Word, item.Page, item.Information, item.media, item.links);
+        showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
     }
 }
 

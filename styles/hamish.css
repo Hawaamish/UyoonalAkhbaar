@@ -111,6 +111,27 @@
             border-radius: 0.2rem;
         }
 
+        #advancedSearchHint {
+            color: #000 !important;
+        }
+
+        #searchInput {
+            direction: rtl;
+            text-align: right;
+        }
+
+        #advancedSearchToggle.search-ready,
+        #advancedSearchToggle.search-ready:hover {
+            background-color: #fff3a3 !important;
+            border-color: #d6b656 !important;
+            color: #000 !important;
+        }
+
+        #advancedSearchPanel,
+        #mobileAdvancedSearchModal {
+            display: none !important;
+        }
+
         body.zen-reading {
             background: radial-gradient(circle at top left, #f5f0e7 0%, var(--zen-bg) 55%);
             color: var(--zen-text);
@@ -188,6 +209,25 @@
             background: #f4ecdf !important;
             border-right: 4px solid var(--zen-warm) !important;
             font-weight: 700 !important;
+        }
+
+        .sh-data-word {
+            color: #000 !important;
+        }
+
+        .word-button.sh-data-button,
+        .word-button.sh-data-button:hover {
+            background-color: #e2f4e4 !important;
+        }
+
+        .word-button.active-word.sh-data-button {
+            background-color: #2f6f44 !important;
+            border-right-color: #1f4d2e !important;
+            color: #fff !important;
+        }
+
+        .word-button.active-word.sh-data-button .sh-data-word {
+            color: #fff !important;
         }
 
         body.zen-reading #pageSidebar,

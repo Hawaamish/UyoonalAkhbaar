@@ -37,14 +37,18 @@
         </div>
         <div class="w-full md:justify-self-center">
             <div class="flex flex-row items-center gap-2 w-full">
+                <button id="clearSearchButton" type="button" class="hidden border border-gray-300 bg-white px-3 py-2 rounded-lg hover:bg-gray-100 text-sm flex-shrink-0" title="مسح البحث" aria-label="مسح البحث">
+                    ×
+                </button>
                 <input 
                     type="text" 
                     id="searchInput" 
                     placeholder="ابحث عن كلمة..." 
                     class="border rounded-lg px-3 sm:px-4 py-2 flex-1 min-w-0 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                <button id="advancedSearchToggle" class="border border-gray-300 bg-white px-4 py-2 rounded-lg hover:bg-gray-100 text-sm flex-shrink-0" title="بحث متقدم">
+                <button id="advancedSearchToggle" type="button" class="border border-gray-300 bg-white px-4 py-2 rounded-lg hover:bg-gray-100 text-sm flex-shrink-0" title="بحث متقدم" aria-label="بحث متقدم" aria-pressed="false">
                     🔎
                 </button>
+                <span id="advancedSearchHint" class="hidden text-xs text-gray-500 whitespace-nowrap">اضغط هنا للبحث المتقدم</span>
             </div>
         </div>
         <div class="hidden md:flex items-center gap-1 justify-self-end">
