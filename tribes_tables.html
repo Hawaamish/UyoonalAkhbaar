@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>القبائل في وقعة الجمل</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --bgsoft:#ffffff; --card:#ffffff; --ink:#3a332c; --sub:#9b8f80; --line:#eee7db;
+  --green:#5fa872; --greendeep:#3f8a55; --greenbg:#f3faf5; --greenring:#d7efdd;
+  --red:#e08a7c; --reddeep:#d16b5a; --redbg:#fdf4f2; --redring:#f7dcd6;
+  --mixbg:linear-gradient(90deg,#f3faf5,#fdf4f2);
+  --shadow:0 3px 14px rgba(150,120,90,.08);
+  --shadowhover:0 8px 22px rgba(150,120,90,.15);
+  --overlay:rgba(74,64,56,.3);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#221d17; --bgsoft:#2a241c; --card:#2d2720; --ink:#f1e9dd; --sub:#b8a996; --line:#453b30;
+    --green:#7fcf94; --greendeep:#5fa872; --greenbg:#25332a; --greenring:#3a4c3e;
+    --red:#eda598; --reddeep:#e08a7c; --redbg:#382722; --redring:#4d332c;
+    --mixbg:linear-gradient(90deg,#25332a,#382722);
+    --shadow:0 3px 16px rgba(0,0,0,.35);
+    --shadowhover:0 10px 26px rgba(0,0,0,.5);
+    --overlay:rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#221d17; --bgsoft:#2a241c; --card:#2d2720; --ink:#f1e9dd; --sub:#b8a996; --line:#453b30;
+  --green:#7fcf94; --greendeep:#5fa872; --greenbg:#25332a; --greenring:#3a4c3e;
+  --red:#eda598; --reddeep:#e08a7c; --redbg:#382722; --redring:#4d332c;
+  --mixbg:linear-gradient(90deg,#25332a,#382722);
+  --shadow:0 3px 16px rgba(0,0,0,.35);
+  --shadowhover:0 10px 26px rgba(0,0,0,.5);
+  --overlay:rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bgsoft); color:var(--ink); font-family:"Amiri",Georgia,serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  font-size:1rem;
+}
+h1{text-align:center; font-size:1.5rem; padding:6px 12px 2px; padding-top:calc(6px + env(safe-area-inset-top,0px)); margin:0; color:var(--ink)}
+.hint{text-align:center; color:var(--sub); font-size:.8rem; margin:0}
+.wrap{max-width:100%; width:100%; margin:0 auto; padding:4px 20px 8px}
+.maincols{display:flex; gap:16px; align-items:stretch}
+.maincol{flex:1 1 0; min-width:0; border:2px solid var(--line); border-radius:16px; padding:8px 10px; background:var(--card); box-shadow:var(--shadow); display:flex; flex-direction:column}
+.maincol > h2{text-align:center; font-size:1.15rem; margin:0 0 5px; color:var(--ink)}
+.section{
+  border-radius:14px; overflow:hidden; margin:0 0 6px; box-shadow:var(--shadow);
+  opacity:0; transform:translateY(14px); animation:rise .5s ease forwards;
+  display:flex; flex-direction:column;
+}
+.section:last-child{margin-bottom:0}
+.maincol .section:nth-child(2){animation-delay:.05s}
+.maincol .section:nth-child(3){animation-delay:.1s}
+.maincol .section:nth-child(4){animation-delay:.15s}
+@keyframes rise{to{opacity:1; transform:translateY(0)}}
+.section.green{border:2px solid var(--greenring); background:var(--bg)}
+.section.red{border:2px solid var(--redring); background:var(--bg)}
+.section.mix{border:2px solid transparent; border-image:linear-gradient(90deg,var(--greenring),var(--redring)) 1; background:var(--bg)}
+.tribes{flex:1; display:flex; flex-wrap:wrap; align-content:center; align-items:stretch; gap:4px; justify-content:center; padding:6px 6px}
+.foot{
+  text-align:center; font-weight:700; font-size:.65rem; padding:3px 5px; color:#fff; letter-spacing:.2px;
+}
+.foot.green{background:linear-gradient(135deg,var(--green),var(--greendeep))}
+.foot.red{background:linear-gradient(135deg,var(--red),var(--reddeep))}
+.foot.mix{background:linear-gradient(90deg,var(--red),var(--green))}
+.tbtn{
+  font-family:inherit; font-size:.8rem; font-weight:700; border-radius:9px; padding:4px 8px;
+  cursor:pointer; background:var(--card); box-shadow:var(--shadow); border:none;
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+  min-width:70px; max-width:140px; line-height:1.1; text-align:center;
+}
+.tbtn:hover{transform:translateY(-3px) scale(1.04); box-shadow:var(--shadowhover)}
+.tbtn:active{transform:translateY(0) scale(.97)}
+.tbtn.green{color:var(--greendeep); box-shadow:inset 0 0 0 2px var(--greenring), var(--shadow)}
+.tbtn.green:hover{background:var(--greenbg); box-shadow:inset 0 0 0 2px var(--green), var(--shadowhover)}
+.tbtn.red{color:var(--reddeep); box-shadow:inset 0 0 0 2px var(--redring), var(--shadow)}
+.tbtn.red:hover{background:var(--redbg); box-shadow:inset 0 0 0 2px var(--red), var(--shadowhover)}
+.tbtn.mix{color:var(--ink); background:linear-gradient(90deg,var(--greenbg),var(--redbg)); box-shadow:inset 0 0 0 2px var(--greenring), var(--shadow)}
+.tbtn.mix:hover{box-shadow:inset 0 0 0 2px var(--green), var(--shadowhover)}
+@media (max-width:680px){
+  .maincols{flex-direction:column; gap:24px}
+}
+
+.overlay{
+  display:none; position:fixed; inset:0; background:var(--overlay); backdrop-filter:blur(3px); z-index:50;
+  align-items:center; justify-content:center; padding:16px;
+  padding-top:calc(16px + env(safe-area-inset-top,0px));
+}
+.overlay.show{display:flex}
+.modal{
+  background:var(--card); border-radius:20px; max-width:420px; width:100%;
+  max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto;
+  scrollbar-width:none; -ms-overflow-style:none;
+  padding:16px 22px 18px; box-shadow:0 16px 40px rgba(0,0,0,.22); position:relative;
+  transform:scale(.9) translateY(10px); opacity:0; animation:pop .28s cubic-bezier(.2,.9,.3,1.2) forwards;
+}
+.modal::-webkit-scrollbar{display:none}
+@keyframes pop{to{transform:scale(1) translateY(0); opacity:1}}
+.modal h2{margin:0 0 8px; text-align:center; font-size:1.4rem; color:var(--ink)}
+.close{
+  position:absolute; top:8px; left:10px; background:var(--bgsoft); border:none; width:30px; height:30px;
+  border-radius:50%; font-size:1.1rem; cursor:pointer; color:var(--sub); font-family:inherit;
+  transition:background .15s, color .15s, transform .15s;
+}
+.close:hover{background:var(--redbg); color:var(--reddeep); transform:rotate(90deg)}
+.lineage{display:flex; flex-direction:column; align-items:center}
+.node{
+  padding:4px 16px; border:1px solid var(--line); border-radius:9px; background:var(--bgsoft);
+  font-size:1rem; min-width:80px; text-align:center; color:var(--ink);
+  opacity:0; transform:translateY(6px); animation:nodein .35s ease forwards;
+}
+@keyframes nodein{to{opacity:1; transform:translateY(0)}}
+.node.root{font-weight:700; font-size:1.1rem; background:var(--card); box-shadow:var(--shadow)}
+.node.leaf{font-weight:700; font-size:1.15rem}
+.node.leaf.green{color:var(--greendeep); background:var(--greenbg); border-color:var(--green); border-width:2px}
+.node.leaf.red{color:var(--reddeep); background:var(--redbg); border-color:var(--red); border-width:2px}
+.node.leaf.mix{background:var(--mixbg); border-width:2px; border-image:linear-gradient(90deg,var(--green),var(--red)) 1}
+.tick{width:2px; height:8px; background:var(--line); transform-origin:top; transform:scaleY(0); animation:tickin .25s ease forwards}
+@keyframes tickin{to{transform:scaleY(1)}}
+</style>
+</head>
+<body>
+<h1>تصنيف القبائل في وقعة الجمل</h1>
+<p class="hint">اضغط على اسم أي قبيلة لعرض نسبها كاملاً</p>
+<div class="wrap">
+  <div class="maincols">
+
+    <div class="maincol" id="col-adnaan">
+      <h2>العدنانية</h2>
+      <div class="section green">
+        <div class="tribes" id="adnaan-green"></div>
+        <div class="foot green">القبائل التي كانت مع مولانا علي ع م في وقعة الجمل</div>
+      </div>
+      <div class="section red">
+        <div class="tribes" id="adnaan-red"></div>
+        <div class="foot red">القبائل التي كانت مع اَصحاب الجمل في وقعة الجمل</div>
+      </div>
+      <div class="section mix">
+        <div class="tribes" id="adnaan-mix"></div>
+        <div class="foot mix">القبائل التي كانت بعضها مع مولانا علي ع م وبعضها مع اَصحاب الجمل</div>
+      </div>
+    </div>
+
+    <div class="maincol" id="col-qahtaan">
+      <h2>القحطانية</h2>
+      <div class="section green">
+        <div class="tribes" id="qahtaan-green"></div>
+        <div class="foot green">القبائل التي كانت مع مولانا علي ع م في وقعة الجمل</div>
+      </div>
+      <div class="section red">
+        <div class="tribes" id="qahtaan-red"></div>
+        <div class="foot red">القبائل التي كانت مع اَصحاب الجمل في وقعة الجمل</div>
+      </div>
+      <div class="section mix">
+        <div class="tribes" id="qahtaan-mix"></div>
+        <div class="foot mix">القبائل التي كانت بعضها مع مولانا علي ع م وبعضها مع اَصحاب الجمل</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="close" id="closeBtn">✕</button>
+    <h2 id="modalTitle"></h2>
+    <div class="lineage" id="lineage"></div>
+  </div>
+</div>
+
+<script>
+let TRIBES = [];
+
+// Excel-exported Arabic CSVs are usually windows-1256 (no BOM); detect UTF-8/UTF-16 BOM
+// when present, otherwise fall back to windows-1256.
+function decodeBuffer(buf){
+  const b = new Uint8Array(buf);
+  if(b[0]===0xEF && b[1]===0xBB && b[2]===0xBF) return new TextDecoder('utf-8').decode(buf);
+  if(b[0]===0xFF && b[1]===0xFE) return new TextDecoder('utf-16le').decode(buf);
+  if(b[0]===0xFE && b[1]===0xFF) return new TextDecoder('utf-16be').decode(buf);
+  return new TextDecoder('windows-1256').decode(buf);
+}
+
+function toRows(text){
+  return text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(r=>r.length>0).map(r=>r.split(','));
+}
+
+// strips a trailing " ع م" marker and trailing footnote numbers like "(4)"
+function clean(name){
+  if(!name) return name;
+  return name.trim().replace(/\s*ع\s*م\s*$/,'').replace(/\(\d+\)\s*$/,'').trim();
+}
+
+// adnaan.csv / qahtaan.csv: each column is one lineage chain, top = tribe/leaf, bottom = root
+function parseGrid(text){
+  const rows = toRows(text);
+  const nCols = Math.max(...rows.map(r=>r.length));
+  const cols = [];
+  for(let c=0;c<nCols;c++){
+    const vals = [];
+    for(const r of rows){
+      const v = (r[c]||'').trim();
+      if(v) vals.push(v); else break; // ragged columns: stop at first blank
+    }
+    if(vals.length) cols.push(vals);
+  }
+  return cols;
+}
+
+// find a name anywhere in any column, return that column from the name down to the root
+function findPath(cols, name){
+  const target = clean(name);
+  for(const col of cols){
+    for(let i=0;i<col.length;i++){
+      if(clean(col[i])===target) return col.slice(i).map(clean);
+    }
+  }
+  return null;
+}
+
+function parseFocused(text){
+  const rows = toRows(text);
+  const header = rows[0].map(h=>h.trim().toLowerCase());
+  const iName = header.indexOf('names')>=0?header.indexOf('names'):1;
+  const iColor = header.indexOf('color')>=0?header.indexOf('color'):2;
+  const iQabila = header.indexOf('qabila')>=0?header.indexOf('qabila'):3;
+  return rows.slice(1)
+    .map(r=>({ name:clean(r[iName]), color:(r[iColor]||'').trim(), qabila:(r[iQabila]||'').trim() }))
+    .filter(t=>t.name);
+}
+
+async function loadTribes(){
+  try{
+    const [fBuf, aBuf, qBuf] = await Promise.all([
+      fetch('focused.csv').then(r=>{ if(!r.ok) throw new Error('focused.csv: '+r.status); return r.arrayBuffer(); }),
+      fetch('adnaan.csv').then(r=>{ if(!r.ok) throw new Error('adnaan.csv: '+r.status); return r.arrayBuffer(); }),
+      fetch('qahtaan.csv').then(r=>{ if(!r.ok) throw new Error('qahtaan.csv: '+r.status); return r.arrayBuffer(); }),
+    ]);
+    const adnaanCols = parseGrid(decodeBuffer(aBuf));
+    const qahtaanCols = parseGrid(decodeBuffer(qBuf));
+    const focusedRows = parseFocused(decodeBuffer(fBuf));
+
+    const missing = [];
+    TRIBES = focusedRows.map(t=>{
+      const cols = t.qabila==='adnaan' ? adnaanCols : qahtaanCols;
+      const path = findPath(cols, t.name);
+      if(!path) missing.push(t.name);
+      return { ...t, path };
+    }).filter(t=>t.path);
+    if(missing.length) console.warn('لم يتم العثور على نسب للقبائل التالية:', missing);
+
+    initPage();
+  }catch(err){
+    document.body.innerHTML = '<p style="text-align:center;padding:60px 20px;font-family:sans-serif;color:#b23a2e">'
+      + 'تعذّر تحميل ملفات البيانات (focused.csv, adnaan.csv, qahtaan.csv).<br>تأكد من وضع الملفات الثلاثة في نفس مجلد هذه الصفحة، وفتح الصفحة عبر خادم محلي (وليس بالنقر المزدوج على الملف).'
+      + '<br><span style="font-size:.8em;color:#8a7f70">' + err.message + '</span></p>';
+  }
+}
+loadTribes();
+
+function initPage(){
+const groups = {green:{adnaan:[],qahtaan:[]}, red:{adnaan:[],qahtaan:[]}, mix:{adnaan:[],qahtaan:[]}};
+TRIBES.forEach(t=>groups[t.color][t.qabila].push(t));
+
+['adnaan','qahtaan'].forEach(q=>{
+  ['green','red','mix'].forEach(color=>{
+    const el = document.getElementById(q+'-'+color);
+    groups[color][q].forEach(t=>{
+      const b = document.createElement('button');
+      b.className = 'tbtn '+color;
+      b.textContent = t.name;
+      b.onclick = ()=> openModal(t);
+      el.appendChild(b);
+    });
+  });
+});
+
+equalizeRows();
+} // end initPage
+
+function equalizeRows(){
+  ['green','red','mix'].forEach(color=>{
+    const a = document.getElementById('adnaan-'+color).closest('.section');
+    const q = document.getElementById('qahtaan-'+color).closest('.section');
+    a.style.minHeight = ''; q.style.minHeight = '';
+    const h = Math.max(a.offsetHeight, q.offsetHeight);
+    a.style.minHeight = h+'px';
+    q.style.minHeight = h+'px';
+  });
+}
+let rTimer;
+window.addEventListener('resize', ()=>{ clearTimeout(rTimer); rTimer=setTimeout(equalizeRows,150); });
+
+function openModal(t){
+  document.getElementById('modalTitle').textContent = t.name;
+  const box = document.getElementById('lineage');
+  box.innerHTML = '';
+  // path is [tribe, ..., root]; display root at top -> tribe at bottom, with arrows
+  const ordered = [...t.path].reverse();
+  ordered.forEach((name, idx)=>{
+    const delay = (idx*0.06).toFixed(2)+'s';
+    if(idx>0){
+      const tick = document.createElement('div');
+      tick.className='tick';
+      tick.style.animationDelay = delay;
+      box.appendChild(tick);
+    }
+    const n = document.createElement('div');
+    const isRoot = idx===0;
+    const isLeaf = idx===ordered.length-1;
+    n.className = 'node' + (isRoot?' root':'') + (isLeaf?' leaf '+t.color:'');
+    n.style.animationDelay = delay;
+    n.textContent = name;
+    box.appendChild(n);
+  });
+  document.getElementById('overlay').classList.add('show');
+}
+
+document.getElementById('closeBtn').onclick = ()=> document.getElementById('overlay').classList.remove('show');
+document.getElementById('overlay').onclick = (e)=>{ if(e.target.id==='overlay') e.currentTarget.classList.remove('show'); };
+</script>
+</body>
+</html>
