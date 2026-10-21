@@ -3,7 +3,7 @@
 /* ============ Sample fallback data (used only if the CSV can't be fetched) ============ */
 
 
-const CSV_PATH = "../Lawhaat/Lawhatdata.csv";
+const CSV_TABLE = "Lawhatdata";
 const FAV_KEY = "lawhaat_favorites";
 const ALL_PAGES_LABEL = "كل الصفحات";
 // How long a given "fresh" version of the Drive images is considered good for.
@@ -291,10 +291,8 @@ function decodeCsvBuffer(buffer){
 /* ============ Load CSV ============ */
 async function loadData(){
   try{
-    const response = await fetch(CSV_PATH, { cache:"no-store" });
-    if(!response.ok) throw new Error(`CSV load failed: ${response.status}`);
-    const buffer = await response.arrayBuffer();
-    if(!decodeCsvBuffer(buffer)) useFallback();
+    const csvText = await fetchTableAsCsv(CSV_TABLE);
+    if(!parseCsvText(csvText)) useFallback();
   } catch(e){
     useFallback();
   }

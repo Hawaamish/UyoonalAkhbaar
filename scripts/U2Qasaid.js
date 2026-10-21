@@ -1,6 +1,6 @@
 // Extracted from U2Qasaid.html. Existing section comments describe the page's behavior.
 
-const csvPath = "../assets/data/U2 Qasaid_Behr_extracted.csv";
+const csvTable = "U2 Qasaid_Behr_extracted";
 
 		const keys = {
 			pageA: "صـ",
@@ -133,12 +133,9 @@ const csvPath = "../assets/data/U2 Qasaid_Behr_extracted.csv";
 		async function loadCsvFile() {
 			clearError();
 			try {
-				const response = await fetch(csvPath, { cache: "no-store" });
-				if (!response.ok) throw new Error("تعذر تحميل CSV");
-				const text = await response.text();
-				parseCsvText(text);
+				parseCsvText(await fetchTableAsCsv(csvTable));
 			} catch (err) {
-				setError("تعذر تحميل الملف CSV تلقائيًا. تأكد أن الملف موجود بجانب الصفحة بنفس الاسم.");
+				setError("تعذر تحميل البيانات من Supabase.");
 			}
 		}
 

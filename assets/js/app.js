@@ -5,7 +5,7 @@
    ================================================================ */
 
 // Path to the local CSV data source (columns documented in README).
-const CSV_URL = '../assets/data/Uyun2Map_Data.csv';
+const CSV_TABLE = 'Uyun2Map_Data';
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://xbxpcgrwxrlqxxgtdtgp.supabase.co';
@@ -484,24 +484,19 @@ const sourceExtentFeatures = []; // used to fit the view once loaded
 // Initialize Supabase connection
 initSupabase();
 
-Papa.parse(CSV_URL, {
-  download: true,
-  header: true,
-  skipEmptyLines: true,
-  complete: function(results){
-    buildLayersFromRows(results.data);
-    document.getElementById('loading-overlay').classList.add('hidden');
-  },
-  error: function(err){
-    console.error('CSV load/parse error:', err);
-    document.getElementById('loading-overlay').innerHTML =
-      `<div style="max-width:320px;text-align:center;">
-         Could not load <b>${CSV_URL}</b>.<br>
-         Make sure the file sits next to this HTML page and that you are
-         viewing it over http:// (not file://).
-       </div>`;
-  }
-});
+fetchTableAsCsv(CSV_TABLE)
+ .then(function(text){
+   const results = Papa.parse(text, { header: true, skipEmptyLines: true });
+   buildLayersFromRows(results.data);
+   document.getElementById('loading-overlay').classList.add('hidden');
+ })
+ .catch(function(err){
+   console.error('Supabase load error:', err);
+   document.getElementById('loading-overlay').innerHTML =
+     `<div style="max-width:320px;text-align:center;">
+        Could not load table <b>${CSV_TABLE}</b> from Supabase.
+      </div>`;
+ });
 
 function buildLayersFromRows(rows){
   if (!geoPlacesNowController && typeof window.initGeoPlacesNow === 'function'){

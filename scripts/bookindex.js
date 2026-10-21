@@ -1,7 +1,7 @@
 // Extracted from bookindex.html. Existing section comments describe the page's behavior.
 
 let bookData = [];
-    const csvFileName = '../assets/data/U2_FehristDatabaseView1.csv'; 
+    const csvTableName = 'U2_FehristDatabaseView1';
 
     const categories = [
         { name: "الايات الكريمة", color: "#FFD1DC" },
@@ -24,8 +24,8 @@ let bookData = [];
     }
 
     function loadCSV() {
-        Papa.parse(csvFileName, {
-            download: true,
+        fetchTableAsCsv(csvTableName).then(function(text) {
+          Papa.parse(text, {
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
@@ -47,6 +47,9 @@ let bookData = [];
             error: function() {
                 document.getElementById('loader').innerText = "خطأ في تحميل البيانات";
             }
+          });
+        }).catch(function() {
+            document.getElementById('loader').innerText = "خطأ في تحميل البيانات";
         });
     }
 

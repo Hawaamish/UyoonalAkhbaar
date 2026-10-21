@@ -173,6 +173,7 @@ h1{text-align:center; font-size:1.5rem; padding:6px 12px 2px; padding-top:calc(6
   </div>
 </div>
 
+<script src="assets/js/supabase-csv.js"></script>
 <script>
 let TRIBES = [];
 
@@ -236,14 +237,14 @@ function parseFocused(text){
 
 async function loadTribes(){
   try{
-    const [fBuf, aBuf, qBuf] = await Promise.all([
-      fetch('focused.csv').then(r=>{ if(!r.ok) throw new Error('focused.csv: '+r.status); return r.arrayBuffer(); }),
-      fetch('adnaan.csv').then(r=>{ if(!r.ok) throw new Error('adnaan.csv: '+r.status); return r.arrayBuffer(); }),
-      fetch('qahtaan.csv').then(r=>{ if(!r.ok) throw new Error('qahtaan.csv: '+r.status); return r.arrayBuffer(); }),
+    const [fText, aText, qText] = await Promise.all([
+      fetchTableAsCsv('focused'),
+      fetchTableAsCsv('adnaan'),
+      fetchTableAsCsv('qahtaan'),
     ]);
-    const adnaanCols = parseGrid(decodeBuffer(aBuf));
-    const qahtaanCols = parseGrid(decodeBuffer(qBuf));
-    const focusedRows = parseFocused(decodeBuffer(fBuf));
+    const adnaanCols = parseGrid(aText);
+    const qahtaanCols = parseGrid(qText);
+    const focusedRows = parseFocused(fText);
 
     const missing = [];
     TRIBES = focusedRows.map(t=>{
