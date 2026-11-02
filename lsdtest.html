@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanz Al Marjaan - Type Box</title>
+<style>
+@font-face {
+    font-family: 'Kanz Al Marjaan';
+    src: url('assets/fonts/kanz-al-marjaan-webfont.woff2?v=3') format('woff2'),
+         url('assets/fonts/kanz-al-marjaan-webfont.woff?v=3') format('woff'),
+         url('assets/fonts/kanz-al-marjaan-webfont.ttf?v=3') format('truetype');
+}
+body { margin: 0; padding: 20px; background: #faf8f5; color: #3f3a33; font-family: sans-serif; }
+.controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; direction: ltr; }
+#editor {
+    width: 100%; box-sizing: border-box; min-height: 220px; padding: 16px;
+    font-family: 'Kanz Al Marjaan', 'Amiri', serif; font-size: 48px; line-height: 2.2;
+    border: 1px solid #d8d1c5; border-radius: 8px; background: #fffdf9; color: #000;
+    font-kerning: normal; font-variant-ligatures: normal; text-rendering: optimizeLegibility;
+}
+h2 { font-size: 16px; direction: ltr; }
+#palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 4px; direction: rtl; }
+#palette button {
+    font-family: 'Kanz Al Marjaan', 'Amiri', serif; font-size: 30px; line-height: 1.8; padding: 0;
+    border: 1px solid #d8d1c5; border-radius: 6px; background: #fff; cursor: pointer;
+}
+#palette button:hover { background: #f1e3c5; }
+.group { grid-column: 1 / -1; font: 13px sans-serif; color: #6f675d; margin-top: 10px; direction: ltr; }
+</style>
+</head>
+<body>
+<div class="controls">
+    <label>Size <input id="size" type="range" min="16" max="140" value="48"> <span id="sizeVal">48</span>px</label>
+    <label><input id="rtl" type="checkbox" checked> RTL</label>
+    <button id="clear">Clear</button>
+</div>
+<textarea id="editor" placeholder="اكتب هنا" spellcheck="false" autofocus></textarea>
+
+<h2>Click a character to insert it (Arabic, Persian/Urdu, presentation forms)</h2>
+<div id="palette"></div>
+
+<script>
+const editor = document.getElementById('editor');
+const palette = document.getElementById('palette');
+
+const ranges = [
+    ['Arabic', 0x0600, 0x06FF],
+    ['Arabic Supplement', 0x0750, 0x077F],
+    ['Presentation Forms-A', 0xFB50, 0xFDFF],
+    ['Presentation Forms-B', 0xFE70, 0xFEFF]
+];
+
+// Lists every assigned code point in the Arabic blocks; ones missing from the font fall back to Amiri.
+document.fonts.load("32px 'Kanz Al Marjaan'", 'ب').then(() => {
+    ranges.forEach(([name, from, to]) => {
+        const label = document.createElement('div');
+        label.className = 'group';
+        label.textContent = name;
+        palette.appendChild(label);
+        for (let cp = from; cp <= to; cp++) {
+            const ch = String.fromCodePoint(cp);
+            if (/\p{Cn}|\p{Cs}/u.test(ch)) continue;
+            const btn = document.createElement('button');
+            const isMark = /\p{Mn}/u.test(ch);
+            btn.textContent = isMark ? '\u0640' + ch : ch;
+            btn.dataset.ch = ch;
+            btn.title = 'U+' + cp.toString(16).toUpperCase().padStart(4, '0');
+            palette.appendChild(btn);
+        }
+    });
+});
+
+palette.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const s = editor.selectionStart, t = editor.selectionEnd;
+    editor.setRangeText(btn.dataset.ch, s, t, 'end');
+    editor.focus();
+});
+
+document.getElementById('size').addEventListener('input', e => {
+    editor.style.fontSize = e.target.value + 'px';
+    document.getElementById('sizeVal').textContent = e.target.value;
+});
+document.getElementById('rtl').addEventListener('change', e => {
+    editor.dir = e.target.checked ? 'rtl' : 'ltr';
+});
+document.getElementById('clear').addEventListener('click', () => { editor.value = ''; editor.focus(); });
+</script>
+</body>
+</html>

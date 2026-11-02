@@ -2,12 +2,16 @@
 
 @font-face {
     font-family: 'Kanz Al Marjaan';
-    src: url('../assets/fonts/kanz-al-marjaan-webfont.ttf?v=2') format('truetype');
+    src: url('../assets/fonts/kanz-al-marjaan-webfont.woff2?v=3') format('woff2'),
+         url('../assets/fonts/kanz-al-marjaan-webfont.woff?v=3') format('woff'),
+         url('../assets/fonts/kanz-al-marjaan-webfont.ttf?v=3') format('truetype');
     font-display: swap;
 }
 
 .kanz-text {
     font-family: 'Kanz Al Marjaan', 'Amiri', serif;
+    letter-spacing: 0;
+    font-variant-ligatures: normal;
 }
 
 :root {
@@ -320,8 +324,10 @@
             color: #2f2b26 !important;
             font-size: clamp(1.2rem, 1.6vw, 1.5rem);
             line-height: 2.35;
-            letter-spacing: 0.01em;
+            letter-spacing: 0;
             word-spacing: 0.07em;
+            font-variant-ligatures: normal;
+            text-rendering: optimizeLegibility;
             max-width: 72ch;
             margin-inline: auto;
             text-wrap: pretty;
@@ -343,8 +349,10 @@
             font-family: 'Amiri', serif;
             color: #2f2b26 !important;
             line-height: 2.35;
-            letter-spacing: 0.01em;
+            letter-spacing: 0;
             word-spacing: 0.07em;
+            font-variant-ligatures: normal;
+            text-rendering: optimizeLegibility;
             text-wrap: pretty;
         }
 
