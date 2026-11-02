@@ -840,8 +840,24 @@
     // onerror attributes execute in global scope, so expose this helper.
     window.handleDriveImageFallback = handleDriveImageFallback;
 
+    // Text between "}}" and "{{" (any order, may span paragraphs) gets the Kanz font.
+    function applyKanzMarkers(html) {
+        if (!/\}\}|\{\{/.test(html)) return html;
+        let active = false;
+        return html.split(/(<[^>]*>)/).map(part => {
+            if (part.startsWith('<') && part.endsWith('>')) return part;
+            return part.split(/(\}\}|\{\{)/).map(seg => {
+                if (seg === '}}' || seg === '{{') {
+                    active = !active;
+                    return '';
+                }
+                return active && seg.trim() ? `<span class="kanz-text">${seg}</span>` : seg;
+            }).join('');
+        }).join('');
+    }
+
     function enhanceInfoHtml(rawHtml) {
-        const decoded = decodeHtmlEntities(rawHtml || '');
+        const decoded = applyKanzMarkers(decodeHtmlEntities(rawHtml || ''));
         const withSeparators = decoded.replace(/\*\*\*/g, '<hr class="my-4 border-t-2 border-gray-300">');
         const wrapper = document.createElement('div');
         wrapper.innerHTML = withSeparators;

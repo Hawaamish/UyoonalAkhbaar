@@ -1,5 +1,15 @@
 /* Extracted from hamish.html. Existing section comments describe the page's visual regions. */
 
+@font-face {
+    font-family: 'Kanz Al Marjaan';
+    src: url('../assets/fonts/kanz-al-marjaan-webfont.ttf?v=2') format('truetype');
+    font-display: swap;
+}
+
+.kanz-text {
+    font-family: 'Kanz Al Marjaan', 'Amiri', serif;
+}
+
 :root {
             --page-sidebar-width: 120px;
             --word-sidebar-width: 200px;
