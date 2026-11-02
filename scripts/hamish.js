@@ -1138,7 +1138,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
                 return `
     <button class="word-button${w.source === 'SH_data' ? ' sh-data-button' : ''}" data-index="${index}">
         <span class="${wordStyle}">${lookIcon}${highlightedWord}</span> 
-        <span>[س ${w.Line}]</span>
+        <span class="text-[10px] opacity-50">(صـ${w.Page})</span>
     </button>
 `;
             }).join('');
@@ -1247,7 +1247,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
         return `
     <button class="word-button${w.source === 'SH_data' ? ' sh-data-button' : ''}" data-index="${index}">
         <span class="${wordStyle}">${lookIcon}${highlightedWord}</span> 
-        <span>[س ${w.Line}]</span>
+        <span class="text-[10px] opacity-50">(صـ${w.Page})</span>
     </button>
 `;
     }).join('');
