@@ -672,3 +672,16 @@
                 flex: 1;
             }
         }
+.settings-tab{display:block;width:100%;text-align:right;padding:.6rem .75rem;border-radius:.6rem;font-size:.9rem;color:#374151;background:transparent;transition:background .15s}
+.settings-tab:hover{background:#e5e7eb}
+.settings-tab.active{background:#dcfce7;color:#166534;font-weight:700}
+
+
+@keyframes settingsSlideIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+#settingsModal:not(.hidden) #settingsPanel{animation:settingsSlideIn .25s ease-out}
+
+
+#settingsOpen svg{transition:transform .5s ease}
+#settingsOpen:hover svg{transform:rotate(90deg)}
+#settingsOpen:active svg,#settingsOpen.is-spinning svg{transform:rotate(360deg);transition-duration:.6s}
+

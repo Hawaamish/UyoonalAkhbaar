@@ -12,7 +12,11 @@
     <link rel="stylesheet" href="../assets/css/styles.css">
 
     <link rel="stylesheet" href="../styles/hamish.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
     <script src="../scripts/hamish.js" defer></script>
+    <script src="../scripts/hamishExport.js" defer></script>
+    <script src="../scripts/hamishSettings.js" defer></script>
 </head>
 <body class="zen-reading h-screen flex flex-col">
 
@@ -26,14 +30,14 @@
     </div>
 
     <!-- Header -->
-    <header class="bg-white border-b p-3 sm:p-4 grid grid-cols-1 md:grid-cols-[minmax(220px,1fr)_minmax(420px,640px)_minmax(220px,1fr)] items-center gap-3">
+    <header class="relative bg-white border-b p-3 sm:p-4 grid grid-cols-1 md:grid-cols-[minmax(220px,1fr)_minmax(420px,640px)_minmax(220px,1fr)] items-center gap-3">
         <div class="flex items-center gap-2 sm:gap-3 w-full md:justify-self-start">
             <button id="menuToggle" class="hidden p-2 hover:bg-gray-100 rounded-lg" aria-label="Toggle menu">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
             </button>
-            <h1 class="text-lg sm:text-xl font-bold text-blue-800 flex-1 sm:flex-none text-center">هوامش كتاب عيون الاَخبار - الجزء الثاني</h1>
+            <h1 class="text-lg sm:text-xl font-bold text-blue-800 flex-1 sm:flex-none text-center">هوامش كتاب عيون الاَخبار - الجزء الثاني</h1>
         </div>
         <div class="w-full md:justify-self-center">
             <div class="flex flex-row items-center gap-2 w-full">
@@ -51,30 +55,121 @@
                 <span id="advancedSearchHint" class="hidden text-xs text-gray-500 whitespace-nowrap">اضغط هنا للبحث المتقدم</span>
             </div>
         </div>
-        <div class="hidden md:flex items-center gap-1 justify-self-end">
-                <div class="zen-palette-picker">
-                    <button id="zenPaletteButton" type="button" aria-label="ألوان القراءة" aria-expanded="false" title="ألوان القراءة"></button>
-                    <div id="zenPaletteMenu" class="hidden" role="menu" aria-label="اختيار لوحة الألوان">
-                        <button type="button" class="zen-swatch" data-theme="earth" title="Earth" role="menuitem"></button>
-                        <button type="button" class="zen-swatch" data-theme="sage" title="Sage" role="menuitem"></button>
-                        <button type="button" class="zen-swatch" data-theme="mist" title="Mist" role="menuitem"></button>
-                        <button type="button" class="zen-swatch" data-theme="rose" title="Rose" role="menuitem"></button>
-                    </div>
-                </div>
-                <select id="zenThemeSelect" class="text-sm" title="ألوان القراءة">
-                    <option value="earth" title="Earth"> </option>
-                    <option value="sage" title="Sage"> </option>
-                    <option value="mist" title="Mist"> </option>
-                    <option value="rose" title="Rose"> </option>
-                </select>
-                <button id="focusModeToggle" class="p-2 rounded-lg text-sm" type="button" aria-pressed="false" title="وضع التركيز">
-                    وضع التركيز
-                </button>
-                <button id="decreaseWidth" class="p-2 hover:bg-gray-100 rounded-lg text-sm" title="تقليل العرض">−</button>
-                <button id="resetWidth" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded" title="إعادة تعيين">إعادة</button>
-                <button id="increaseWidth" class="p-2 hover:bg-gray-100 rounded-lg text-sm" title="زيادة العرض">+</button>
-        </div>
+        <div class="hidden md:block"></div>
+        <button id="settingsOpen" type="button" class="absolute left-3 top-3 sm:left-4 sm:top-3 p-2 rounded-lg hover:bg-gray-100 text-gray-700" title="الإعدادات" aria-label="الإعدادات">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        </button>
     </header>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-stretch justify-start bg-black/40" dir="ltr">
+        <div id="settingsPanel" dir="rtl" class="w-full max-w-xl h-full bg-white shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b">
+                <h2 class="text-base font-bold">الإعدادات</h2>
+                <button id="settingsClose" type="button" class="text-gray-500 hover:text-gray-900" aria-label="إغلاق">✕</button>
+            </div>
+            <div class="flex flex-1 min-h-0">
+                <!-- First in RTL = right side: list of settings -->
+                <nav class="w-36 sm:w-48 flex-shrink-0 border-l bg-gray-50 p-2 flex flex-col gap-1 overflow-y-auto" aria-label="قائمة الإعدادات">
+                    <button type="button" class="settings-tab" data-tab="appearance">🎨 المظهر</button>
+                    <button type="button" class="settings-tab" data-tab="layout">↔ عرض القوائم</button>
+                    <button type="button" class="settings-tab" data-tab="font">🔠 حجم الخط</button>
+                    <button type="button" class="settings-tab" data-tab="export">📄 تصدير PDF</button>
+                </nav>
+                <!-- Left side: selected setting -->
+                <div class="flex-1 min-w-0 p-5 overflow-y-auto">
+                    <section class="settings-panel" data-panel="appearance">
+                        <h3 class="font-bold mb-4">المظهر</h3>
+                        <div class="flex items-center justify-between gap-3 mb-5">
+                            <span class="text-sm">ألوان القراءة</span>
+                            <div class="zen-palette-picker">
+                                <button id="zenPaletteButton" type="button" aria-label="ألوان القراءة" aria-expanded="false" title="ألوان القراءة"></button>
+                                <div id="zenPaletteMenu" class="hidden" role="menu" aria-label="اختيار لوحة الألوان">
+                                    <button type="button" class="zen-swatch" data-theme="earth" title="Earth" role="menuitem"></button>
+                                    <button type="button" class="zen-swatch" data-theme="sage" title="Sage" role="menuitem"></button>
+                                    <button type="button" class="zen-swatch" data-theme="mist" title="Mist" role="menuitem"></button>
+                                    <button type="button" class="zen-swatch" data-theme="rose" title="Rose" role="menuitem"></button>
+                                </div>
+                            </div>
+                            <select id="zenThemeSelect" class="text-sm" title="ألوان القراءة">
+                                <option value="earth" title="Earth"> </option>
+                                <option value="sage" title="Sage"> </option>
+                                <option value="mist" title="Mist"> </option>
+                                <option value="rose" title="Rose"> </option>
+                            </select>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-sm">وضع التركيز</span>
+                            <button id="focusModeToggle" class="p-2 rounded-lg text-sm" type="button" aria-pressed="false" title="وضع التركيز">وضع التركيز</button>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel hidden" data-panel="layout">
+                        <h3 class="font-bold mb-4">عرض القوائم</h3>
+                        <div class="flex items-center gap-2 text-sm">
+                            <span>عرض الشريط الجانبي:</span>
+                            <button id="decreaseWidth" type="button" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100" title="تقليل العرض">−</button>
+                            <button id="resetWidth" type="button" class="border border-gray-300 bg-gray-100 px-3 h-9 rounded-lg hover:bg-gray-200 text-xs" title="إعادة تعيين">إعادة</button>
+                            <button id="increaseWidth" type="button" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100" title="زيادة العرض">+</button>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel hidden" data-panel="font">
+                        <h3 class="font-bold mb-4">حجم الخط</h3>
+                        <div id="fontSizeControls" class="hidden md:flex items-center gap-2 text-sm">
+                            <span class="text-gray-500">حجم الخط:</span>
+                            <button id="decreaseFont" type="button" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100 transition">−</button>
+                            <button id="resetFont" type="button" class="border border-gray-300 bg-gray-100 px-3 h-9 rounded-lg hover:bg-gray-200 transition text-xs">إعادة</button>
+                            <button id="increaseFont" type="button" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100 transition">+</button>
+                            <span id="fontSizeLabel" class="text-gray-600">150%</span>
+                        </div>
+                        <div class="md:hidden flex items-center gap-2 text-sm">
+                            <span class="text-gray-500">حجم الخط:</span>
+                            <button id="mobileDecreaseFont" type="button" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100 transition">−</button>
+                            <button id="mobileResetFont" type="button" class="border border-gray-300 bg-gray-100 px-3 h-9 rounded-lg hover:bg-gray-200 transition text-xs">إعادة</button>
+                            <button id="mobileIncreaseFont" type="button" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100 transition">+</button>
+                            <span id="mobileFontSizeLabel" class="text-gray-600 text-xs">150%</span>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel hidden" data-panel="export">
+                        <h3 class="font-bold mb-4">تصدير PDF</h3>
+                        <p class="text-sm text-gray-600 mb-4">تصدير الهوامش إلى ملف PDF (الكل أو صفحات محددة).</p>
+                        <button id="exportPdfOpen" type="button" class="rounded-lg bg-green-600 text-white px-4 py-2 hover:bg-green-700 text-sm">📄 فتح نافذة التصدير</button>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export PDF Modal -->
+    <div id="exportPdfModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" dir="rtl">
+        <div class="w-full max-w-md rounded-3xl bg-white p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-bold">تصدير إلى PDF</h2>
+                <button id="exportPdfClose" type="button" class="text-gray-500 hover:text-gray-900" aria-label="إغلاق">✕</button>
+            </div>
+            <label class="flex items-center gap-2 mb-2 text-sm"><input type="radio" name="exportPdfMode" value="all" class="accent-green-600"> تصدير الكل</label>
+            <label class="flex items-center gap-2 mb-3 text-sm"><input type="radio" name="exportPdfMode" value="range" class="accent-green-600" checked> تصدير صفحات محددة</label>
+            <div id="exportPdfRange" class="flex items-center gap-2 mb-3 text-sm">
+                <span>من</span>
+                <input id="exportPdfFrom" type="text" inputmode="numeric" class="border rounded-lg px-2 py-1 w-20 text-center focus:ring-2 focus:ring-green-500 outline-none">
+                <span>إلى</span>
+                <input id="exportPdfTo" type="text" inputmode="numeric" class="border rounded-lg px-2 py-1 w-20 text-center focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <div id="exportPdfProgressWrap" class="hidden w-full h-3 rounded-full bg-gray-200 overflow-hidden mb-2">
+                <div id="exportPdfProgress" class="h-full bg-green-600 transition-all" style="width:0%"></div>
+            </div>
+            <p id="exportPdfStatus" class="text-xs text-gray-600 min-h-[1.25rem] mb-3"></p>
+            <div class="flex gap-2">
+                <button id="exportPdfGo" type="button" class="flex-1 rounded-lg bg-green-600 text-white px-4 py-2 hover:bg-green-700 text-sm">تصدير</button>
+                <button id="exportPdfCancel" type="button" class="flex-1 rounded-lg border border-gray-300 bg-white text-gray-700 px-4 py-2 hover:bg-gray-100 text-sm">إلغاء</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Advanced Search Panel -->
     <div id="advancedSearchPanel" class="hidden bg-white border-b border-gray-200 px-4 py-4 sm:px-6">
@@ -192,18 +287,11 @@
                                 <span class="text-lg">→</span> رجوع
                             </button>
                             <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold text-xs whitespace-nowrap">صفحة: <span id="mobileDisplayPage"></span></span>
-                            <button id="mobileDetailsMenuToggle" class="flex-shrink-0 p-2 -m-2 text-gray-600 rounded-lg hover:bg-gray-100 text-lg leading-none" aria-label="خيارات" aria-expanded="false" title="خيارات">
+                            <button id="mobileDetailsMenuToggle" style="display:none" class="flex-shrink-0 p-2 -m-2 text-gray-600 rounded-lg hover:bg-gray-100 text-lg leading-none" aria-label="خيارات" aria-expanded="false" title="خيارات">
                                 ⋮
                             </button>
                         </div>
                         <div id="mobileDetailsMenu" class="hidden px-3 pb-3 border-t">
-                            <div class="pt-3 flex items-center justify-center gap-2">
-                                <span class="text-gray-500 text-xs">حجم الخط:</span>
-                                <button id="mobileDecreaseFont" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100 transition">−</button>
-                                <button id="mobileResetFont" class="border border-gray-300 bg-gray-100 px-3 h-9 rounded-lg hover:bg-gray-200 transition text-xs">إعادة</button>
-                                <button id="mobileIncreaseFont" class="border border-gray-300 bg-white w-9 h-9 rounded-lg hover:bg-gray-100 transition">+</button>
-                                <span id="mobileFontSizeLabel" class="text-gray-600 text-xs">150%</span>
-                            </div>
                         </div>
                     </div>
                     <div id="mobileWordHeading" class="flex-shrink-0 px-3 py-2 bg-green-50 border-b border-green-100 text-center">
@@ -245,13 +333,6 @@
                         <button id="nextWord" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
                             التالي <span>←</span>
                         </button>
-                    </div>
-                    <div id="fontSizeControls" class="flex flex-wrap items-center gap-2 text-sm">
-                        <span class="text-gray-500">حجم الخط:</span>
-                        <button id="decreaseFont" class="border border-gray-300 bg-white px-3 py-2 rounded-lg hover:bg-gray-100 transition">−</button>
-                        <button id="resetFont" class="border border-gray-300 bg-gray-100 px-3 py-2 rounded-lg hover:bg-gray-200 transition">إعادة</button>
-                        <button id="increaseFont" class="border border-gray-300 bg-white px-3 py-2 rounded-lg hover:bg-gray-100 transition">+</button>
-                        <span id="fontSizeLabel" class="text-gray-600">150%</span>
                     </div>
                 </div>
 
