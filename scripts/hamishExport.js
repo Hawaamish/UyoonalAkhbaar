@@ -45,7 +45,7 @@
     }
 
     function selectRows() {
-        const sorted = fullData.slice().sort((a, b) =>
+        const sorted = fullData.filter(r => r.source === 'hamish_data').sort((a, b) =>
             compareMixed(a.Page, b.Page) || compareMixed(a.Line, b.Line));
         const mode = document.querySelector('input[name="exportPdfMode"]:checked').value;
         if (mode === 'all') return sorted;
