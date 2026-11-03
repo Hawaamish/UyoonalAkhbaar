@@ -177,6 +177,28 @@
         // State Management
         // =============================================
         let fullData = [];
+        let allData = [];
+        let dataSourceMode = 'hamish'; // 'hamish' | 'sh' | 'both'; resets on every page load
+
+        function applySourceFilter() {
+            fullData = allData.filter(row => {
+                const isSH = row.source === 'SH_data';
+                return dataSourceMode === 'both' || (dataSourceMode === 'sh' ? isSH : !isSH);
+            });
+        }
+
+        function setDataSourceMode(mode) {
+            dataSourceMode = mode;
+            applySourceFilter();
+            renderPageSidebar(fullData);
+            const stillThere = currentPageNum !== null && fullData.some(item => item.Page === currentPageNum);
+            if (stillThere && window.innerWidth >= 768) {
+                filterWordsByPage(currentPageNum);
+            } else if (!stillThere) {
+                wordList.innerHTML = '';
+                mobileWordList.innerHTML = '';
+            }
+        }
         let sidebarOpen = false;
         let currentWordIndex = -1; // Tracks the current active word
         let currentPageNum = null; // Tracks the page shown on the mobile words screen
@@ -431,7 +453,8 @@
                 if (!cached) return false;
                 const rows = JSON.parse(cached);
                 if (!Array.isArray(rows) || rows.length === 0) return false;
-                fullData = rows;
+                allData = rows;
+                applySourceFilter();
                 renderPageSidebar(fullData);
                 return true;
             } catch (err) {
@@ -462,12 +485,13 @@
                     loadSupabaseTable(SUPABASE_EXTENDED_TABLE, 'SH_data')
                 ]);
 
-                fullData = hamishRows.concat(extendedRows)
+                allData = hamishRows.concat(extendedRows)
                     .filter(row => row.Word)
                     .sort((a, b) => compareMixed(a.Page, b.Page) || compareMixed(a.Line, b.Line));
+                applySourceFilter();
 
                 renderPageSidebar(fullData);
-                saveCachedData(fullData);
+                saveCachedData(allData);
             } catch (err) {
                 console.error('Supabase load failed:', err);
                 // If we already showed cached data, keep it on screen rather than
@@ -647,7 +671,7 @@
         // =============================================
         function displayWords(words, pageNum = null) {
     const wordHTML = words.map(w => {
-        const index = fullData.indexOf(w);
+        const index = allData.indexOf(w);
         const hasLook = w.unzur && w.unzur.includes("انظر");
         const lookIcon = hasLook ? '<span class="text-red-600 mr-1">📎</span> ' : '';
         const wordStyle = [
@@ -671,7 +695,7 @@
             document.querySelectorAll('.word-button').forEach(button => {
                 button.addEventListener('click', function() {
                     const index = this.dataset.index;
-                    const item = fullData[index];
+                    const item = allData[index];
                     showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
                 });
             });
@@ -696,7 +720,7 @@
     document.getElementById('displayWord').innerText = word;
     mobileDisplayPage.innerText = page;
     mobileDisplayWord.innerText = word;
-    currentWordIndex = fullData.findIndex(item => item.Word === word && item.Page === page && item.source === source);
+    currentWordIndex = allData.findIndex(item => item.Word === word && item.Page === page && item.source === source);
     
     // Highlight word
     document.querySelectorAll('.word-button').forEach(btn => btn.classList.remove('active-word'));
@@ -1109,7 +1133,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
             if(mobileWordsHeader) mobileWordsHeader.classList.add('hidden');
 
             const normalizedTerm = removeDiacritics(term);
-            const results = fullData.filter(item => {
+            const results = allData.filter(item => {
                 const wordMatch = removeDiacritics(item.Word || '').toLowerCase().includes(normalizedTerm);
                 const infoMatch = removeDiacritics(item.Information || '').toLowerCase().includes(normalizedTerm);
                 return wordMatch || infoMatch;
@@ -1126,7 +1150,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
             }
 
             const searchHTML = '<div class="h-2"></div>' + results.map(w => {
-                const index = fullData.indexOf(w);
+                const index = allData.indexOf(w);
                 const hasLook = w.unzur && w.unzur.includes("انظر");
                 const lookIcon = hasLook ? '<span class="text-red-600 mr-1">📎</span> ' : '';
                 const wordStyle = [
@@ -1149,7 +1173,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
             document.querySelectorAll('.word-button').forEach(button => {
                 button.addEventListener('click', function() {
                     const index = this.dataset.index;
-                    const item = fullData[index];
+                    const item = allData[index];
                     showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
                 });
             });
@@ -1218,7 +1242,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
     if(mobileWordsHeader) mobileWordsHeader.classList.add('hidden');
 
     const normalizedTerm = removeDiacritics(term);
-    const results = fullData.filter(item => removeDiacritics(item.Word).toLowerCase().includes(normalizedTerm));
+    const results = allData.filter(item => removeDiacritics(item.Word).toLowerCase().includes(normalizedTerm));
     
     console.log('Search term:', term, 'Results:', results.length);
     
@@ -1235,7 +1259,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
     }
     
     const searchHTML = '<div class="h-2"></div>' + results.map(w => {
-        const index = fullData.indexOf(w);
+        const index = allData.indexOf(w);
         const hasLook = w.unzur && w.unzur.includes("انظر");
         const lookIcon = hasLook ? '<span class="text-red-600 mr-1">📎</span> ' : '';
         const wordStyle = [
@@ -1259,7 +1283,7 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
     document.querySelectorAll('.word-button').forEach(button => {
         button.addEventListener('click', function() {
             const index = this.dataset.index;
-            const item = fullData[index];
+            const item = allData[index];
             showDetails(item.Word, item.Page, item.Information, item.media, item.links, item.source);
         });
     });
@@ -1277,16 +1301,19 @@ if (mediaFile && mediaFile.trim() !== "" && mediaFile !== "undefined") {
 function navigateWords(direction) {
     if (currentWordIndex === -1) return;
 
-    const newIndex = currentWordIndex + direction;
+    // Indexes refer to allData; skip entries hidden by the data-source setting unless searching.
+    const isVisible = (row) => lastSearchTerm !== '' || fullData.includes(row);
+    let newIndex = currentWordIndex + direction;
+    while (newIndex >= 0 && newIndex < allData.length && !isVisible(allData[newIndex])) newIndex += direction;
 
-    if (newIndex >= 0 && newIndex < fullData.length) {
-        const item = fullData[newIndex];
-        const currentPage = fullData[currentWordIndex].Page;
+    if (newIndex >= 0 && newIndex < allData.length) {
+        const item = allData[newIndex];
+        const currentPage = allData[currentWordIndex].Page;
 
         // If the next word is on a different page, refresh the word list sidebar
         if (item.Page !== currentPage) {
             const wordsOnNewPage = fullData.filter(w => w.Page === item.Page);
-            displayWords(wordsOnNewPage, item.Page);
+            displayWords(wordsOnNewPage.length ? wordsOnNewPage : allData.filter(w => w.Page === item.Page), item.Page);
         }
         // Scroll the new word button into view
         setTimeout(() => {

@@ -685,3 +685,28 @@
 #settingsOpen:hover svg{transform:rotate(90deg)}
 #settingsOpen:active svg,#settingsOpen.is-spinning svg{transform:rotate(360deg);transition-duration:.6s}
 
+
+/* ---- Modern settings panel ---- */
+#settingsModal{backdrop-filter:blur(3px);background:rgba(15,23,20,.35)}
+#settingsPanel{background:#f6f8f6;border-radius:0 24px 24px 0}
+.settings-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;background:linear-gradient(135deg,#166534,#22a05a);color:#fff}
+.settings-header h2{font-size:1.15rem;font-weight:700;line-height:1.4}
+.settings-header p{font-size:.78rem;opacity:.85}
+.settings-close{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;transition:background .2s,transform .3s}
+.settings-close:hover{background:rgba(255,255,255,.32);transform:rotate(90deg)}
+.settings-nav{width:11rem;flex-shrink:0;padding:14px 10px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;background:#fff;border-left:1px solid #e5ebe6}
+.settings-tab{display:flex;align-items:center;gap:10px;width:100%;text-align:right;padding:10px 10px;border-radius:14px;font-size:.9rem;color:#4b5563;background:transparent;transition:background .2s,color .2s,transform .2s}
+.settings-tab .tab-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:#f0f3f1;font-size:1rem;flex-shrink:0;transition:background .2s}
+.settings-tab:hover{background:#f1f6f2;transform:translateX(-2px)}
+.settings-tab.active{background:linear-gradient(135deg,#e3f6e9,#d3f0dd);color:#14532d;font-weight:700;box-shadow:0 2px 8px rgba(34,160,90,.18)}
+.settings-tab.active .tab-icon{background:#fff}
+.settings-content{flex:1;min-width:0;padding:22px;overflow-y:auto}
+.settings-panel{background:#fff;border:1px solid #e5ebe6;border-radius:18px;padding:20px;box-shadow:0 2px 10px rgba(20,60,40,.06)}
+.settings-panel:not(.hidden){animation:settingsFade .25s ease-out}
+@keyframes settingsFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.settings-panel h3{font-size:1.05rem;color:#14532d;padding-bottom:10px;border-bottom:2px solid #e3f6e9}
+.settings-option{display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:10px;border:1.5px solid #e1e7e3;border-radius:14px;font-size:.92rem;cursor:pointer;transition:border-color .2s,background .2s}
+.settings-option:hover{background:#f5faf6}
+.settings-option:has(input:checked){border-color:#22a05a;background:#ecf9f0;font-weight:700;color:#14532d}
+.settings-panel button:not(.zen-swatch):not(#zenPaletteButton):not(#focusModeToggle):not(#exportPdfOpen){border-radius:12px}
+@media (max-width:640px){.settings-nav{width:8.5rem}#settingsPanel{border-radius:0}}

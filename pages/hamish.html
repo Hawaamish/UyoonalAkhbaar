@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -11,12 +11,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/styles.css">
 
-    <link rel="stylesheet" href="../styles/hamish.css">
+    <link rel="stylesheet" href="../styles/hamish.css?v=5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-    <script src="../scripts/hamish.js" defer></script>
+    <script src="../scripts/hamish.js?v=6" defer></script>
     <script src="../scripts/hamishExport.js" defer></script>
-    <script src="../scripts/hamishSettings.js" defer></script>
+    <script src="../scripts/hamishSettings.js?v=5" defer></script>
 </head>
 <body class="zen-reading h-screen flex flex-col">
 
@@ -37,7 +37,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
             </button>
-            <h1 class="text-lg sm:text-xl font-bold text-blue-800 flex-1 sm:flex-none text-center">هوامش كتاب عيون الاَخبار - الجزء الثاني</h1>
+            <h1 class="text-lg sm:text-xl font-bold text-blue-800 flex-1 sm:flex-none text-center">هوامش كتاب عيون الاَخبار - الجزء الثاني</h1>
+
         </div>
         <div class="w-full md:justify-self-center">
             <div class="flex flex-row items-center gap-2 w-full">
@@ -66,21 +67,24 @@
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-stretch justify-start bg-black/40" dir="ltr">
-        <div id="settingsPanel" dir="rtl" class="w-full max-w-xl h-full bg-white shadow-2xl flex flex-col overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-3 border-b">
-                <h2 class="text-base font-bold">الإعدادات</h2>
-                <button id="settingsClose" type="button" class="text-gray-500 hover:text-gray-900" aria-label="إغلاق">✕</button>
+        <div id="settingsPanel" dir="rtl" class="w-full max-w-xl h-full shadow-2xl flex flex-col overflow-hidden">
+            <div class="settings-header">
+                <div>
+                    <h2>الاِعدادات</h2>
+                </div>
+                <button id="settingsClose" type="button" class="settings-close" aria-label="إغلاق">✕</button>
             </div>
             <div class="flex flex-1 min-h-0">
                 <!-- First in RTL = right side: list of settings -->
-                <nav class="w-36 sm:w-48 flex-shrink-0 border-l bg-gray-50 p-2 flex flex-col gap-1 overflow-y-auto" aria-label="قائمة الإعدادات">
-                    <button type="button" class="settings-tab" data-tab="appearance">🎨 المظهر</button>
-                    <button type="button" class="settings-tab" data-tab="layout">↔ عرض القوائم</button>
-                    <button type="button" class="settings-tab" data-tab="font">🔠 حجم الخط</button>
-                    <button type="button" class="settings-tab" data-tab="export">📄 تصدير PDF</button>
+                <nav class="settings-nav" aria-label="قائمة الإعدادات">
+                    <button type="button" class="settings-tab" data-tab="appearance"><span class="tab-icon">🎨</span><span>المظهر</span></button>
+                    <button type="button" class="settings-tab" data-tab="data"><span class="tab-icon">📚</span><span>المواد العلمي</span></button>
+                    <button type="button" class="settings-tab" data-tab="layout"><span class="tab-icon">↔</span><span>عرض القوائم</span></button>
+                    <button type="button" class="settings-tab" data-tab="font"><span class="tab-icon">🔠</span><span>حجم الخط</span></button>
+                    <button type="button" class="settings-tab" data-tab="export"><span class="tab-icon">📄</span><span>تصدير PDF</span></button>
                 </nav>
                 <!-- Left side: selected setting -->
-                <div class="flex-1 min-w-0 p-5 overflow-y-auto">
+                <div class="settings-content">
                     <section class="settings-panel" data-panel="appearance">
                         <h3 class="font-bold mb-4">المظهر</h3>
                         <div class="flex items-center justify-between gap-3 mb-5">
@@ -105,6 +109,14 @@
                             <span class="text-sm">وضع التركيز</span>
                             <button id="focusModeToggle" class="p-2 rounded-lg text-sm" type="button" aria-pressed="false" title="وضع التركيز">وضع التركيز</button>
                         </div>
+                    </section>
+
+                    <section class="settings-panel hidden" data-panel="data">
+                        <h3 class="font-bold mb-4">مصدر البيانات</h3>
+                        <p class="text-sm text-gray-600 mb-4">اختر البيانات المعروضة في قائمة الصفحات والكلمات.</p>
+                        <label class="settings-option"><input type="radio" name="dataSourceMode" value="hamish" class="accent-green-600" checked> الهوامش</label>
+                        <label class="settings-option"><input type="radio" name="dataSourceMode" value="sh" class="accent-green-600"> حواشي الكتاب</label>
+                        <label class="settings-option"><input type="radio" name="dataSourceMode" value="both" class="accent-green-600"> عرض الاثنين معاً</label>
                     </section>
 
                     <section class="settings-panel hidden" data-panel="layout">

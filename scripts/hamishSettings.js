@@ -9,6 +9,8 @@
         panels.forEach(p => p.classList.toggle('hidden', p.dataset.panel !== name));
     }
     function open() {
+        const popup = document.getElementById('featurePopup');
+        if (popup) popup.style.display = 'none';
         modal.classList.remove('hidden');
     }
     function close() {
@@ -27,6 +29,11 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
     // The export dialog opens on top of settings; close settings first.
     document.getElementById('exportPdfOpen').addEventListener('click', close);
+
+    document.querySelectorAll('input[name="dataSourceMode"]').forEach(r => {
+        r.checked = r.value === 'hamish';
+        r.addEventListener('change', () => { if (r.checked) setDataSourceMode(r.value); });
+    });
 
     select('appearance');
 })();

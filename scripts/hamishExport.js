@@ -45,7 +45,7 @@
     }
 
     function selectRows() {
-        const sorted = fullData.filter(r => r.source === 'hamish_data').sort((a, b) =>
+        const sorted = allData.filter(r => r.source === 'hamish_data').sort((a, b) =>
             compareMixed(a.Page, b.Page) || compareMixed(a.Line, b.Line));
         const mode = document.querySelector('input[name="exportPdfMode"]:checked').value;
         if (mode === 'all') return sorted;
@@ -156,7 +156,7 @@
         }
         let rows;
         try {
-            if (!fullData.length) throw new Error('لم يتم تحميل البيانات بعد');
+            if (!allData.length) throw new Error('لم يتم تحميل البيانات بعد');
             rows = selectRows();
             if (!rows.length) throw new Error('لا توجد بيانات في هذا النطاق');
         } catch (e) {
