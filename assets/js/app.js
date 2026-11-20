@@ -666,11 +666,12 @@ function buildZoomToolbar(rows){
         activeZoomCategories = [...activeZoomCategories, category];
       }
 
-      const routeControllersByCategory = {
-        'مسير علي عليه السلام': aliasRouteController,
-        'مسير عائشة وطلحة والزبير': ayeshaRouteController
-      };
-      const routeController = routeControllersByCategory[category];
+      // Match by key words so label variants (e.g. "مسير مولانا علي ص ع") still trigger the route.
+      let routeController = null;
+      if (category.includes('مسير')){
+        if (category.includes('عائشة')) routeController = ayeshaRouteController;
+        else if (category.includes('علي')) routeController = aliasRouteController;
+      }
       if (routeController && typeof routeController.setVisible === 'function'){
         if (!isActive){
           if (activeZoomCategories.length > 0){
