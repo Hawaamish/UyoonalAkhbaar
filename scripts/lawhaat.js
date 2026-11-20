@@ -13,17 +13,16 @@ const DRIVE_REFRESH_MS = 300000;
 const DRIVE_CB_KEY = "lawhaat_drive_cb";
 // Cloudinary uploads here overwrite the same public ID (URL never changes),
 // so live revalidation is only needed while images are still being replaced.
-// Once all lawhaat images are final, flip this to false: it stops the
-// background refresh timer and lets every image cache permanently instead of
-// re-fetching on every render.
+// Once all lawhaat images are final, flip this to false so every image caches
+// permanently instead of being revalidated on render.
 const CONSTRUCTION_MODE = true;
 const IMAGE_REVALIDATE_MS = CONSTRUCTION_MODE ? DRIVE_REFRESH_MS : Infinity;
 // Grid thumbnails only ever render at ~200px wide, so there is no need to pull
 // the full w2000 image for every card. The modal (with its zoom/pan viewer)
 // still gets a large version.
-const GRID_THUMB_SIZE = "w480";
+const GRID_THUMB_SIZE = "w640";
 const MODAL_THUMB_SIZE = "w200";
-const MODAL_IMG_SIZE = "w1600";
+const MODAL_IMG_SIZE = "w3200";
 
 let allData = [];
 let activeCategory = "الكل";
@@ -46,7 +45,6 @@ let driveCacheBuster = (function(){
   try{ localStorage.setItem(DRIVE_CB_KEY, String(fresh)); } catch(e){}
   return fresh;
 })();
-let driveRefreshTimer = null;
 
 function isNarrowScreen(){
   return window.matchMedia("(max-width:720px)").matches;
@@ -103,7 +101,7 @@ function extractCloudinaryPublicId(url){
 // Maps Drive-style size string ("w480") → Cloudinary transformation string.
 function sizeToCloudinaryTransform(sz){
   const n = String(sz || GRID_THUMB_SIZE).replace(/^w/, "");
-  return `w_${n},c_limit,q_auto,f_auto`;
+  return `w_${n},c_limit,q_auto:best,f_auto`;
 }
 
 function getCloudinaryImageCandidates(url, size){
@@ -208,25 +206,6 @@ async function setImageSourceWithFallback(imgEl, rawUrl, size){
     }
   }
   fetchAndCache(imgEl, candidates, cacheKey);
-}
-
-function refreshDriveImages(){
-  if(document.hidden) return;
-  driveCacheBuster = Date.now();
-  try{ localStorage.setItem(DRIVE_CB_KEY, String(driveCacheBuster)); } catch(e){}
-  render();
-  if(currentModalSrno){
-    const active = getFilteredItems().find(item => item.srno === currentModalSrno);
-    if(active){
-      setImageSourceWithFallback(document.getElementById("modalImg"), active.linktoimg, MODAL_IMG_SIZE);
-      renderModalThumbnails();
-    }
-  }
-}
-
-function startDriveAutoRefresh(){
-  if(driveRefreshTimer) clearInterval(driveRefreshTimer);
-  driveRefreshTimer = setInterval(refreshDriveImages, DRIVE_REFRESH_MS);
 }
 
 /* ============ Favorites ============ */
@@ -671,11 +650,8 @@ function navigateModal(step){
 function openModal(r, direction = 0){
   currentModalSrno = r.srno;
   currentModalItems = getFilteredItems();
-  document.getElementById("modalTitle").textContent = r.lawhatname || "";
-  document.getElementById("modalIbarat").innerHTML = renderMarkdown(r.ibarat || "");
-  document.getElementById("modalPage").textContent = r.page || "-";
-  document.getElementById("modalLine").textContent = r.line || "-";
   const img = document.getElementById("modalImg");
+  img.alt = r.lawhatname || "";
   const frame = document.getElementById("modalImgFrame");
   if(direction !== 0){
     frame.classList.remove("slide-in", "slide-left", "slide-right");
@@ -918,6 +894,4 @@ document.getElementById("modalImg").addEventListener("load", ()=>{
 });
 
 openImgDb().catch(()=>{}); // open IndexedDB early so cache is ready before images render
-// No point polling for changes once the images are locked down (see CONSTRUCTION_MODE above).
-if(CONSTRUCTION_MODE) startDriveAutoRefresh();
 loadData();

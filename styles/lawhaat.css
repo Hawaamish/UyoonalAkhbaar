@@ -386,8 +386,7 @@
     max-height:94vh;
     border-radius:14px;
     box-shadow:0 20px 50px rgba(0,0,0,.3);
-    display:grid;
-    grid-template-columns:minmax(520px, 1.6fr) 360px;
+    display:block;
     overflow:hidden;
     position:relative;
   }
@@ -420,6 +419,7 @@
 
   .modal-image-side{
     min-width:520px;
+    max-height:94vh;
     background:var(--bg-panel);
     position:relative;
     overflow:hidden;
@@ -451,6 +451,7 @@
   .modal-image-side .img-scroll{
     width:100%;
     height:100%;
+    max-height:94vh;
     overflow:auto;
     display:flex;
     align-items:center;
@@ -595,6 +596,7 @@
   .modal-image-side:fullscreen .img-scroll{
     width:100vw;
     height:100vh;
+    max-height:none;
     overflow:hidden;
     touch-action:none;
   }
@@ -602,156 +604,59 @@
   .img-scroll.pan-active.dragging{cursor:grabbing;}
   .modal-image-side:fullscreen .img-scroll.pan-active{touch-action:none;}
 
-  .modal-info-side{
-    width:360px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    padding:16px;
-    background:var(--bg-page);
-    overflow-y:auto;
+  /* Interactive touches for the image viewer */
+  @keyframes controlPop{
+    from{opacity:0;transform:translateY(-8px) scale(.7);}
+    to{opacity:1;transform:translateY(0) scale(1);}
   }
-  .info-title{
-    font-size:18px;
-    font-weight:700;
-    color:var(--pastel-sage);
-    margin:0 0 2px;
+  @keyframes navPop{
+    from{opacity:0;transform:translateY(-50%) scale(.6);}
+    to{opacity:1;transform:translateY(-50%) scale(1);}
   }
-  .ibarat-box{
-    background:var(--bg-card);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:14px;
-    flex:1;
-    font-size:16px;
-    line-height:1.9;
-    color:var(--ink);
-    min-height:120px;
-    max-height:50vh;
-    overflow-y:scroll;
-    scrollbar-gutter:stable;
-    scrollbar-width:thin;
-    scrollbar-color:var(--pastel-sage-dim) var(--line-soft);
+  @keyframes navNudgeNext{
+    0%,100%{translate:0 0;}
+    50%{translate:-4px 0;}
   }
-  .ibarat-box::-webkit-scrollbar{
-    width:10px;
+  @keyframes navNudgePrev{
+    0%,100%{translate:0 0;}
+    50%{translate:4px 0;}
   }
-  .ibarat-box::-webkit-scrollbar-track{
-    background:var(--line-soft);
-    border-radius:10px;
+  .overlay.open .zoom-controls button,
+  .overlay.open .modal-close{
+    animation:controlPop .4s cubic-bezier(.2,1.2,.3,1) both;
   }
-  .ibarat-box::-webkit-scrollbar-thumb{
-    background:var(--pastel-sage-dim);
-    border-radius:10px;
-    border:2px solid var(--line-soft);
+  .overlay.open .zoom-controls button:nth-child(2){animation-delay:.06s;}
+  .overlay.open .zoom-controls button:nth-child(3){animation-delay:.12s;}
+  .overlay.open .zoom-controls button:nth-child(4){animation-delay:.18s;}
+  .overlay.open .modal-nav-btn{
+    animation:navPop .45s cubic-bezier(.2,1.2,.3,1) .2s both;
   }
-  .ibarat-box::-webkit-scrollbar-thumb:hover{
-    background:var(--pastel-sage);
+  .zoom-controls button,
+  .modal-close,
+  .modal-nav-btn{
+    transition:transform .18s cubic-bezier(.3,1.5,.5,1), background-color .18s ease, box-shadow .18s ease;
   }
-  .ibarat-box #modalIbarat{
-    white-space:normal;
+  .zoom-controls button:hover,
+  .modal-close:hover{
+    transform:translateY(-2px) scale(1.12);
+    box-shadow:0 6px 14px rgba(0,0,0,.22);
   }
-  .ibarat-box #modalIbarat > :first-child{
-    margin-top:0;
+  .modal-close:hover{transform:rotate(90deg) scale(1.12);}
+  .zoom-controls button:active,
+  .modal-close:active{transform:scale(.92);}
+  .modal-nav-btn:hover{
+    transform:translateY(-50%) scale(1.14);
+    box-shadow:0 10px 24px rgba(0,0,0,.28);
   }
-  .ibarat-box #modalIbarat > :last-child{
-    margin-bottom:0;
+  .modal-nav-btn:active{transform:translateY(-50%) scale(.92);}
+  .modal-nav-prev:hover svg{animation:navNudgePrev .5s ease infinite;}
+  .modal-nav-next:hover svg{animation:navNudgeNext .5s ease infinite;}
+  @media (prefers-reduced-motion:reduce){
+    .overlay.open .zoom-controls button,
+    .overlay.open .modal-close,
+    .overlay.open .modal-nav-btn,
+    .modal-nav-btn svg{animation:none !important;}
   }
-  .ibarat-box #modalIbarat h1,
-  .ibarat-box #modalIbarat h2,
-  .ibarat-box #modalIbarat h3,
-  .ibarat-box #modalIbarat h4,
-  .ibarat-box #modalIbarat h5,
-  .ibarat-box #modalIbarat h6{
-    color:var(--pastel-sage);
-    margin:14px 0 8px;
-    line-height:1.4;
-  }
-  .ibarat-box #modalIbarat h1{font-size:24px;}
-  .ibarat-box #modalIbarat h2{font-size:21px;}
-  .ibarat-box #modalIbarat h3{font-size:19px;}
-  .ibarat-box #modalIbarat p{
-    margin:0 0 10px;
-  }
-  .ibarat-box #modalIbarat ul,
-  .ibarat-box #modalIbarat ol{
-    margin:0 0 10px;
-    padding-inline-start:22px;
-  }
-  .ibarat-box #modalIbarat li{
-    margin:2px 0;
-  }
-  .ibarat-box #modalIbarat blockquote{
-    margin:10px 0;
-    padding:6px 12px;
-    border-inline-start:3px solid var(--line);
-    background:#fbfcf7;
-    color:var(--ink-dim);
-  }
-  .ibarat-box #modalIbarat code{
-    font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    background:#f3f5ea;
-    border:1px solid var(--line-soft);
-    border-radius:5px;
-    padding:1px 5px;
-    font-size:.92em;
-    direction:ltr;
-    unicode-bidi:embed;
-    display:inline-block;
-  }
-  .ibarat-box #modalIbarat sup{
-    font-size:.72em;
-    line-height:0;
-    vertical-align:super;
-    color:var(--pastel-sage);
-    font-weight:700;
-  }
-  .ibarat-box #modalIbarat pre{
-    background:#f3f5ea;
-    border:1px solid var(--line-soft);
-    border-radius:8px;
-    padding:10px;
-    overflow:auto;
-    margin:10px 0;
-  }
-  .ibarat-box #modalIbarat pre code{
-    border:none;
-    background:transparent;
-    padding:0;
-    display:block;
-  }
-  .ibarat-box #modalIbarat a{
-    color:var(--pastel-sage);
-    text-decoration:underline;
-    text-decoration-thickness:1px;
-    text-underline-offset:2px;
-  }
-  .ibarat-box #modalIbarat hr.md-h2-divider{
-    border:none;
-    border-top:1px solid var(--line);
-    margin:14px 0 10px;
-  }
-  .ibarat-box .label, .mini-card .label{
-    display:block;
-    font-size:12px;
-    color:var(--pastel-sage);
-    margin-bottom:6px;
-    font-weight:700;
-  }
-  .mini-cards{
-    display:flex;
-    gap:10px;
-  }
-  .mini-card{
-    flex:1;
-    background:var(--pastel-sage);
-    color:var(--on-green);
-    border-radius:10px;
-    padding:12px;
-    text-align:center;
-  }
-  .mini-card .label{color:rgba(255,255,255,.75);}
-  .mini-card .val{font-size:22px;font-weight:700;}
 
   /* ---------- Data source banner ---------- */
   .notice{
@@ -800,7 +705,6 @@
       padding:6px;
     }
     .modal{
-      grid-template-columns:1fr;
       width:calc(100vw - 10px);
       height:auto;
       max-height:none;
@@ -820,14 +724,4 @@
     .zoom-controls{display:none;}
     .modal-image-side:fullscreen .zoom-controls{display:flex;}
     .modal-image-side:fullscreen .img-scroll{touch-action:none;}
-    .modal-info-side{
-      width:auto;
-      height:auto;
-      max-height:none;
-      overflow:visible;
-    }
-    .ibarat-box{
-      min-height:auto;
-      flex:none;
-    }
   }
