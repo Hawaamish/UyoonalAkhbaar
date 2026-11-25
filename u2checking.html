@@ -54,7 +54,7 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .ib{border:1px solid var(--line);background:transparent;border-radius:8px;padding:1px 8px;font-size:14px;white-space:nowrap;margin-top:4px}
 .ib.has{border-color:var(--acc);color:var(--acc)}
 .by{font-size:13px;color:var(--mute);margin:-2px 0 0 52px}
-.thread{margin:6px 0 6px 52px;background:var(--note);border:1px solid var(--line);border-radius:10px;padding:10px}
+.thread{background:var(--note);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:35vh;overflow:auto}
 .nt{border-bottom:1px solid var(--line);padding:6px 0}.nt:last-of-type{border:0}
 .nt small{color:var(--mute)}.nt audio{width:100%;height:34px;margin-top:4px}
 .fl{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
@@ -62,6 +62,12 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .fl img{height:70px;border-radius:6px;display:block}
 .comp{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
 .comp textarea{flex:1;min-width:160px}
+.comment-files{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.comment-file{border:1px solid var(--line);border-radius:8px;padding:6px;max-width:180px;overflow-wrap:anywhere}
+.comment-file img{display:block;max-width:100%;max-height:100px;border-radius:6px}
+.comment-file button{margin-top:4px}
+.comment-box .row{flex-wrap:wrap}
+.comment-box audio{max-width:100%}
 .add{display:flex;gap:8px;margin-top:10px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:14px;z-index:20}
 .modal.show{display:flex}
@@ -144,6 +150,24 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <div class="row"><button class="btn" id="memX">Close</button><button class="btn pri" id="memAdd">Add</button></div>
 </div></div>
 
+<div class="modal" id="commentM" role="dialog" aria-modal="true" aria-labelledby="commentTitle"><div class="box comment-box">
+ <h3 id="commentTitle">Comments</h3>
+ <p id="commentPoint" dir="auto"></p>
+ <small>Responses are shared with tracker members. Voice recording requires microphone permission and a secure connection.</small>
+ <div class="thread" id="commentThread" aria-live="polite"></div>
+ <label for="commentText">Your response (paste images here)</label>
+ <textarea id="commentText" rows="4" dir="auto" placeholder="Write a response or paste images…"></textarea>
+ <div class="comment-files" id="commentFiles"></div>
+ <input type="file" id="commentInput" accept="image/*,.pdf,.txt,.csv,.md,.json" multiple hidden>
+ <div class="row">
+  <button class="btn" id="commentAttach">📎 Attach files</button>
+  <button class="btn" id="commentRec">🎙 Voice</button>
+  <button class="btn" id="commentClose">Close</button>
+  <button class="btn pri" id="commentSend">Send</button>
+ </div>
+ <small id="commentStatus" role="status"></small>
+</div></div>
+
 <div id="lb"><img id="lbi" alt=""></div>
 <div id="toast"></div>
 <div id="printArea"></div>
@@ -153,7 +177,8 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 const SUPABASE_URL="https://eixqwdctohiosypozrhd.supabase.co",SUPABASE_KEY="sb_publishable_L3bI6hCA99uZMkPutEk_tQ_6LxZCnWI",B="tracker-files";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=null,filter="all",editId=null,tmpBlob=null,tmpUrl=null;
-let openT=new Set(),pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
+let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
+let commentItem=null,commentPage=null,commentSending=false,recStarting=false;
 const urlC={};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -195,8 +220,11 @@ async function loadAll(){
  await loadNotes();
 }
 async function loadNotes(){
- notesFor=cur;if(!cur){notes=[];return}
- const{data}=await sb.from("notes").select("*").eq("page_id",cur).order("created_at");notes=data||[];
+ const pid=cur;if(!pid){notesFor=null;notes=[];return}
+ const{data,error}=await sb.from("notes").select("*").eq("page_id",pid).order("created_at");
+ if(pid!==cur)return;
+ if(error){if(notesFor!==pid)notes=[];toast("Couldn’t load comments: "+error.message);return}
+ notesFor=pid;notes=data||[];
 }
 async function hydrate(){
  const els=[...document.querySelectorAll("[data-p]")];
@@ -205,7 +233,7 @@ async function hydrate(){
  els.forEach(e=>{const c=urlC[e.dataset.p];if(!c)return;const k=e.tagName==="A"?"href":"src";if(e.getAttribute(k)!==c.u)e.setAttribute(k,c.u)});
 }
 async function up(path,blob,type){const{error}=await sb.storage.from(B).upload(path,blob,{contentType:(type||blob.type||"application/octet-stream").split(";")[0],upsert:false});if(error)throw error;return path}
-async function rmFiles(paths){paths=paths.filter(Boolean);if(paths.length)await sb.storage.from(B).remove(paths)}
+async function rmFiles(paths){paths=paths.filter(Boolean);if(paths.length){const{error}=await sb.storage.from(B).remove(paths);if(error)throw error}}
 const notePaths=ns=>ns.flatMap(n=>[n.voice_path,...(n.attachments||[]).map(a=>a.path)]);
 
 /* ---------- parse + image ---------- */
@@ -224,7 +252,7 @@ async function addItems(pid,arr){let o=Date.now();if(arr.length){const{error}=aw
 
 /* ---------- render ---------- */
 function busy(){const a=document.activeElement;return rec||[...document.querySelectorAll("audio")].some(x=>!x.paused)||(a&&$("main").contains(a)&&/^(TEXTAREA|INPUT)$/.test(a.tagName))}
-function draw(force){if(!force&&busy()){dirty=true;return}dirty=false;renderList();renderMain();hydrate()}
+function draw(force){if(!force&&busy()){dirty=true;return}dirty=false;renderList();renderMain();if(commentItem)renderCommentThread();hydrate()}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250));
 document.addEventListener("pause",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250),true);
 function renderList(){
@@ -234,17 +262,13 @@ function renderList(){
  $("plist").innerHTML=L.map(p=>{const s=stat(p);return '<button class="pi'+(p.id===cur?" on":"")+'" data-id="'+p.id+'">'+
   (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<div><div class="nm" dir="auto">'+esc(p.label||"Untitled")+'</div><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><div class="bar"><i style="width:'+s.pc+'%"></i></div></div></button>'}).join("")||'<div class="empty">No pages yet</div>';
 }
-function pd(id){return pend[id]||(pend[id]={files:[],voice:null})}
-function threadHTML(it){
- const L=notes.filter(n=>n.item_id===it.id),d=pd(it.id);
- const list=L.map(n=>'<div class="nt"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
+function pd(id){return pend[id]||(pend[id]={text:"",files:[],voice:null})}
+function renderCommentThread(){
+ const L=notes.filter(n=>n.item_id===commentItem);
+ $("commentThread").innerHTML=L.map(n=>'<div class="nt"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
   ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+n.id+'">delete</a>':'')+'</small>'+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+esc(n.body)+'</div>':'')+
   (n.voice_path?'<audio controls data-p="'+esc(n.voice_path)+'"></audio>':'')+
-  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt=""></a>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet. Add a note, files or a voice note below.</small>';
- const chips=d.files.map((f,i)=>'<span class="chip">'+esc(f.name)+' <a href="#" data-pf="'+it.id+':'+i+'">×</a></span>').join("")+(d.voice?'<audio controls src="'+d.voice.url+'" style="height:32px"></audio> <a href="#" data-pv="'+it.id+'">×</a>':"");
- const r=rec&&recFor===it.id;
- return '<div class="thread">'+list+'<div class="fl">'+chips+'</div><div class="comp"><textarea rows="2" dir="auto" data-nt="'+it.id+'" placeholder="Write a response…"></textarea>'+
-  '<button class="btn" data-att="'+it.id+'">📎 Attach</button><button class="btn'+(r?" rec":"")+'" data-rec="'+it.id+'">'+(r?"⏹ Stop":"🎙 Voice")+'</button><button class="btn pri" data-send="'+it.id+'">Send</button></div></div>';
+  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet.</small>';
 }
 function renderMain(){
  const p=P(),m=$("main");
@@ -257,8 +281,8 @@ function renderMain(){
  '<div><div class="chips">'+["all","open","done"].map(f=>'<button class="chip'+(filter===f?" on":"")+'" data-f="'+f+'">'+f[0].toUpperCase()+f.slice(1)+'</button>').join("")+'</div><div>'+
  (list.map(({it,i})=>{const c=notes.filter(n=>n.item_id===it.id).length;
   return '<div class="it'+(it.done?" done":"")+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'"'+(it.done?" checked":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
-  '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" title="Notes, files and voice notes">💬'+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
-  (it.done&&it.done_by?'<div class="by">✓ cleared by '+esc(nm(it.done_by))+'</div>':'')+(openT.has(it.id)?threadHTML(it):'')+'</div>'}).join("")||'<div class="empty">Nothing here</div>')+
+  '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" title="Open comments" aria-label="Open comments for point '+(i+1)+'">💬'+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
+  (it.done&&it.done_by?'<div class="by">✓ cleared by '+esc(nm(it.done_by))+'</div>':'')+'</div>'}).join("")||'<div class="empty">Nothing here</div>')+
  '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="Add a point and press Enter"><button class="btn" id="newBtn">Add</button></div></div></div></div>';
  m.querySelectorAll("textarea[data-t]").forEach(grow);
 }
@@ -270,21 +294,9 @@ $("q").oninput=renderList;
 $("main").onclick=async e=>{
  const p=P();if(!p)return;const t=e.target,d=t.dataset;
  try{
- if(d.dn){e.preventDefault();const n=notes.find(x=>x.id===d.dn);await sb.from("notes").delete().eq("id",d.dn);await rmFiles(notePaths([n]));return}
- if(d.pf){e.preventDefault();const[i,k]=d.pf.split(":");pd(i).files.splice(+k,1);draw(true);return}
- if(d.pv){e.preventDefault();pd(d.pv).voice=null;draw(true);return}
  if(d.f){filter=d.f;draw(true);return}
  if(d.x&&confirm("Remove this point and its notes?")){const ns=notes.filter(n=>n.item_id===d.x);const{error}=await sb.from("items").delete().eq("id",d.x);if(error)throw error;await rmFiles(notePaths(ns));return}
- if(d.th){openT.has(d.th)?openT.delete(d.th):openT.add(d.th);draw(true);return}
- if(d.att){const f=document.createElement("input");f.type="file";f.multiple=true;f.accept="image/*,.pdf,.txt,.csv,.md,.json";
-  f.onchange=async()=>{toast("Uploading…");for(const x of f.files){try{let b=x;if(x.type.startsWith("image/"))b=await shrink(x);
-   const path=await up("notes/"+cur+"/"+uuid()+"-"+clean(x.name),b,b.type||x.type);pd(d.att).files.push({path,name:x.name,type:b.type||x.type})}catch(er){toast("Couldn’t upload "+x.name)}}draw(true)};f.click();return}
- if(d.rec){toggleRec(d.rec);return}
- if(d.send){const ta=$("main").querySelector('[data-nt="'+d.send+'"]'),pe=pd(d.send),text=ta.value.trim();
-  if(!text&&!pe.files.length&&!pe.voice){toast("Write something or attach a file first");return}
-  let vp=null;if(pe.voice)vp=await up("voice/"+cur+"/"+uuid()+".webm",pe.voice.blob,pe.voice.blob.type);
-  const{error}=await sb.from("notes").insert({page_id:cur,item_id:d.send,body:text,attachments:pe.files,voice_path:vp});if(error)throw error;
-  pend[d.send]={files:[],voice:null};ta.value="";toast("Response added");await loadNotes();draw(true);return}
+ if(d.th){openComments(d.th);return}
  if(t.id==="shot"){$("lbi").src=t.src;$("lb").style.display="block"}
  if(t.id==="newBtn")addOne();
  if(t.id==="bPrint")doPrint([p]);
@@ -304,15 +316,103 @@ $("main").onkeydown=e=>{if(e.target.id==="newIt"&&e.key==="Enter")addOne()};
 async function addOne(){const v=$("newIt").value.trim();if(!v)return;$("newIt").value="";try{await addItems(cur,[v])}catch(er){fail(er)}$("newIt").focus()}
 $("lb").onclick=()=>$("lb").style.display="none";
 
+/* ---------- shared comments ---------- */
+function renderCommentDraft(){
+ if(!commentItem)return;
+ const d=pd(commentItem);
+ $("commentFiles").innerHTML=d.files.map((f,i)=>'<div class="comment-file">'+(f.url?'<img src="'+f.url+'" alt="">':"")+
+  '<span>'+esc(f.file.name)+'</span><br><button class="btn" data-remove-file="'+i+'">Remove</button></div>').join("")+
+  (d.voice?'<div class="comment-file"><audio controls src="'+d.voice.url+'"></audio><button class="btn" data-remove-voice>Remove voice</button></div>':"");
+ const recording=!!rec&&recFor===commentItem,stopping=recording&&rec.state==="inactive";
+ $("commentRec").textContent=recording?"⏹ Stop recording":"🎙 Voice";
+ $("commentRec").classList.toggle("rec",recording);
+ $("commentRec").disabled=commentSending||recStarting||stopping;
+ $("commentSend").disabled=commentSending||recStarting||recording;
+ $("commentClose").disabled=commentSending||recStarting||recording;
+ $("commentAttach").disabled=commentSending;
+ $("commentText").disabled=commentSending;
+ $("commentFiles").querySelectorAll("button").forEach(b=>b.disabled=commentSending);
+ $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 60 seconds). Stop before sending or closing.":"Drafts remain available until this page is reloaded.";
+}
+function openComments(id){
+ const it=items.find(i=>i.id===id);if(!it)return;
+ commentItem=id;commentPage=it.page_id;
+ $("commentPoint").textContent=it.text;
+ $("commentText").value=pd(id).text;
+ $("commentM").classList.add("show");
+ renderCommentThread();renderCommentDraft();hydrate();$("commentText").focus();
+}
+function closeComments(){
+ if(commentSending||recStarting||rec)return;
+ const id=commentItem;$("commentM").classList.remove("show");commentItem=null;commentPage=null;
+ const button=[...$("main").querySelectorAll("[data-th]")].find(b=>b.dataset.th===id);if(button)button.focus();
+}
+$("commentClose").onclick=closeComments;
+$("commentM").onkeydown=e=>{if(e.key==="Escape")closeComments()};
+$("commentText").oninput=e=>{pd(commentItem).text=e.target.value};
+function addCommentFiles(files){
+ const d=pd(commentItem);
+ for(const file of files)d.files.push({file,url:file.type.startsWith("image/")?URL.createObjectURL(file):null});
+ renderCommentDraft();
+}
+$("commentAttach").onclick=()=>$("commentInput").click();
+$("commentInput").onchange=e=>{if(commentItem)addCommentFiles(e.target.files);e.target.value=""};
+$("commentText").onpaste=e=>{
+ const images=[...e.clipboardData.items].filter(i=>i.kind==="file"&&i.type.startsWith("image/")).map(i=>i.getAsFile()).filter(Boolean);
+ if(!images.length)return;
+ if(!e.clipboardData.getData("text/plain"))e.preventDefault();
+ addCommentFiles(images);
+};
+$("commentFiles").onclick=e=>{
+ const b=e.target.closest("button");if(!b||commentSending)return;const d=pd(commentItem);
+ if(b.dataset.removeFile!==undefined){const f=d.files.splice(Number(b.dataset.removeFile),1)[0];if(f.url)URL.revokeObjectURL(f.url)}
+ if(b.hasAttribute("data-remove-voice")){URL.revokeObjectURL(d.voice.url);d.voice=null}
+ renderCommentDraft();
+};
+$("commentThread").onclick=async e=>{
+ const a=e.target.closest("[data-dn]");if(!a)return;e.preventDefault();
+ const n=notes.find(x=>x.id===a.dataset.dn);if(!n||!confirm("Delete this response for everyone?"))return;
+ const{error}=await sb.from("notes").delete().eq("id",n.id);if(error){fail(error);return}
+ try{await rmFiles(notePaths([n]))}catch(er){toast("Response deleted, but file cleanup failed: "+er.message)}
+ await loadNotes();draw(true);
+};
+$("commentSend").onclick=async()=>{
+ if(commentSending||recStarting||rec)return;
+ const id=commentItem,pid=commentPage,d=pd(id),text=d.text.trim(),uploaded=[];let saved=false;
+ if(!text&&!d.files.length&&!d.voice){toast("Write something or attach a file first");return}
+ commentSending=true;renderCommentDraft();
+ try{
+  const attachments=[];
+  for(const entry of d.files){const f=entry.file,path=await up("notes/"+pid+"/"+uuid()+"-"+clean(f.name),f,f.type);
+   uploaded.push(path);attachments.push({path,name:f.name,type:f.type||"application/octet-stream"})}
+  let vp=null;if(d.voice){const type=d.voice.blob.type,ext=type.includes("mp4")?"mp4":type.includes("ogg")?"ogg":"webm";
+   vp=await up("voice/"+pid+"/"+uuid()+"."+ext,d.voice.blob,type);uploaded.push(vp)}
+  const{error}=await sb.from("notes").insert({page_id:pid,item_id:id,body:text,attachments,voice_path:vp});if(error)throw error;
+  saved=true;
+  d.files.forEach(f=>{if(f.url)URL.revokeObjectURL(f.url)});if(d.voice)URL.revokeObjectURL(d.voice.url);
+  delete pend[id];$("commentText").value="";toast("Response shared");
+  await loadNotes();draw(true);
+ }catch(er){
+  if(!saved&&uploaded.length){const{error}=await sb.storage.from(B).remove(uploaded);if(error){toast("Couldn’t save: "+er.message+"; upload cleanup failed: "+error.message);return}}
+  if(saved)toast("Response saved, but couldn’t refresh: "+er.message);else fail(er);
+ }finally{commentSending=false;renderCommentDraft()}
+};
+$("commentRec").onclick=()=>toggleRec(commentItem);
+
 /* voice notes: recorded in the browser, max 60 s */
 async function toggleRec(iid){
- if(rec){rec.stop();return}
+ if(rec){if(rec.state==="recording"){rec.stop();renderCommentDraft()}return}
+ recStarting=true;renderCommentDraft();let st;
  try{
-  const st=await navigator.mediaDevices.getUserMedia({audio:true}),mr=new MediaRecorder(st),ch=[];
+  st=await navigator.mediaDevices.getUserMedia({audio:true});const mr=new MediaRecorder(st),ch=[];let recordingFailed=false;
   mr.ondataavailable=e=>ch.push(e.data);
-  mr.onstop=()=>{st.getTracks().forEach(t=>t.stop());clearTimeout(recT);const b=new Blob(ch,{type:mr.mimeType||"audio/webm"});rec=null;pd(iid).voice={blob:b,url:URL.createObjectURL(b)};draw(true)};
-  rec=mr;recFor=iid;mr.start();recT=setTimeout(()=>mr.state==="recording"&&mr.stop(),60000);draw(true);
- }catch(er){rec=null;toast("Microphone unavailable or blocked in this browser")}
+  mr.onstop=()=>{st.getTracks().forEach(t=>t.stop());clearTimeout(recT);const b=new Blob(ch,{type:mr.mimeType||"audio/webm"});rec=null;recFor=null;
+   if(!recordingFailed&&b.size){const d=pd(iid);if(d.voice)URL.revokeObjectURL(d.voice.url);d.voice={blob:b,url:URL.createObjectURL(b)}}else if(!recordingFailed)toast("No audio was recorded");
+   renderCommentDraft();if(dirty&&!busy())draw()};
+  mr.onerror=()=>{recordingFailed=true;toast("Recording failed")};
+  rec=mr;recFor=iid;mr.start();recT=setTimeout(()=>mr.state==="recording"&&mr.stop(),60000);
+ }catch(er){if(st)st.getTracks().forEach(t=>t.stop());rec=null;recFor=null;toast("Microphone unavailable. Check permission and use HTTPS or localhost.")}
+ finally{recStarting=false;renderCommentDraft()}
 }
 
 /* ---------- add / edit page ---------- */
