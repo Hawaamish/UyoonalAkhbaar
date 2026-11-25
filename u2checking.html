@@ -46,7 +46,9 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 .it{border-bottom:1px dashed var(--line);padding:6px 0}
 .ir{display:flex;gap:8px;align-items:flex-start}
-.ir input[type=checkbox]{width:20px;height:20px;margin-top:8px;accent-color:var(--acc);flex:none}
+.ir input[type=checkbox]{width:26px;height:26px;margin:6px 0 0;accent-color:var(--acc);flex:none;cursor:pointer}
+.ir input[type=checkbox]:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.ir input[type=checkbox]:disabled{cursor:wait}
 .ir textarea{border-color:transparent;background:transparent;resize:none;overflow:hidden;padding:3px 6px}
 .ir textarea:focus{border-color:var(--line);background:var(--card)}
 .it.done .ir textarea{text-decoration:line-through;color:var(--mute)}
@@ -179,6 +181,8 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=null,filter="all",editId=null,tmpBlob=null,tmpUrl=null;
 let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
 let commentItem=null,commentPage=null,commentSending=false,recStarting=false;
+let loadVersion=0;
+const pendingChecks=new Map();
 const urlC={};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,9 +217,12 @@ sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)setTimeout(()=>en
 
 /* ---------- data ---------- */
 async function loadAll(){
+ const version=++loadVersion;
  const[a,b,m]=await Promise.all([sb.from("pages").select("*").order("sort_order"),sb.from("items").select("*").order("sort_order"),sb.from("members").select("*")]);
+ if(version!==loadVersion)return;
  if(a.error)return fail(a.error);
- pages=a.data;items=b.data||[];members=m.data||members;
+ if(b.error)return toast("Couldn’t load points: "+b.error.message);
+ pages=a.data;items=(b.data||[]).map(i=>pendingChecks.has(i.id)?{...i,...pendingChecks.get(i.id).update}:i);members=m.data||members;
  if(!cur||!P())cur=pages[0]?.id||null;
  await loadNotes();
 }
@@ -251,8 +258,8 @@ function shrink(blob,max=1600){return new Promise(res=>{const u=URL.createObject
 async function addItems(pid,arr){let o=Date.now();if(arr.length){const{error}=await sb.from("items").insert(arr.map(t=>({page_id:pid,text:t,sort_order:o++})));if(error)throw error}}
 
 /* ---------- render ---------- */
-function busy(){const a=document.activeElement;return rec||[...document.querySelectorAll("audio")].some(x=>!x.paused)||(a&&$("main").contains(a)&&/^(TEXTAREA|INPUT)$/.test(a.tagName))}
-function draw(force){if(!force&&busy()){dirty=true;return}dirty=false;renderList();renderMain();if(commentItem)renderCommentThread();hydrate()}
+function busy(){const a=document.activeElement;return rec||[...document.querySelectorAll("audio")].some(x=>!x.paused)||(a&&$("main").contains(a)&&(a.tagName==="TEXTAREA"||(a.tagName==="INPUT"&&a.type!=="checkbox")))}
+function draw(force){if(!force&&busy()){dirty=true;refreshChecks();return}dirty=false;renderList();renderMain();if(commentItem)renderCommentThread();hydrate()}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250));
 document.addEventListener("pause",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250),true);
 function renderList(){
@@ -261,6 +268,17 @@ function renderList(){
  const L=pages.filter(p=>!q||(p.label||"").toLowerCase().includes(q)||its(p.id).some(i=>i.text.toLowerCase().includes(q)));
  $("plist").innerHTML=L.map(p=>{const s=stat(p);return '<button class="pi'+(p.id===cur?" on":"")+'" data-id="'+p.id+'">'+
   (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<div><div class="nm" dir="auto">'+esc(p.label||"Untitled")+'</div><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><div class="bar"><i style="width:'+s.pc+'%"></i></div></div></button>'}).join("")||'<div class="empty">No pages yet</div>';
+}
+function checkStatus(it){return it.done?(it.done_by?"Checked · cleared by "+nm(it.done_by):"Checked"):"Unchecked"}
+function refreshChecks(){
+ renderList();const p=P(),progress=$("pageProgress");
+ if(p&&progress){const s=stat(p);progress.textContent=s.d+" of "+s.n+" done · "+s.pc+"%"}
+ $("main").querySelectorAll("[data-c]").forEach(box=>{
+  const it=items.find(i=>i.id===box.dataset.c);if(!it)return;
+  box.checked=!!it.done;box.disabled=pendingChecks.has(it.id);
+  const row=box.closest(".it");row.classList.toggle("done",!!it.done);row.querySelector(".by").textContent=checkStatus(it);
+ });
+ hydrate();
 }
 function pd(id){return pend[id]||(pend[id]={text:"",files:[],voice:null})}
 function renderCommentThread(){
@@ -275,14 +293,14 @@ function renderMain(){
  if(!p){m.innerHTML='<div class="panel empty"><div style="font-size:40px">🗂️</div><p>Add your first page: paste a page image and its list of points.</p></div>';return}
  const A=its(p.id),s=stat(p);
  const list=A.map((it,i)=>({it,i})).filter(({it})=>filter==="all"||(filter==="open"?!it.done:it.done));
- m.innerHTML='<div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
+ m.innerHTML='<div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
  '<div class="tools"><button class="btn" id="bShare">↗ Share</button><button class="btn" id="bPrint">🖨 Print</button><button class="btn" id="bEdit">✎ Edit</button><button class="btn danger" id="bDel">🗑</button></div></div>'+
  '<div class="split">'+(p.image_path?'<div><img class="shot" id="shot" data-p="'+esc(p.image_path)+'" alt="Page image"></div>':'<div class="empty">No image</div>')+
  '<div><div class="chips">'+["all","open","done"].map(f=>'<button class="chip'+(filter===f?" on":"")+'" data-f="'+f+'">'+f[0].toUpperCase()+f.slice(1)+'</button>').join("")+'</div><div>'+
  (list.map(({it,i})=>{const c=notes.filter(n=>n.item_id===it.id).length;
-  return '<div class="it'+(it.done?" done":"")+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'"'+(it.done?" checked":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
+  return '<div class="it'+(it.done?" done":"")+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'" aria-label="Mark point '+(i+1)+' as checked"'+(it.done?" checked":"")+(pendingChecks.has(it.id)?" disabled":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
   '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" title="Open comments" aria-label="Open comments for point '+(i+1)+'">💬'+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
-  (it.done&&it.done_by?'<div class="by">✓ cleared by '+esc(nm(it.done_by))+'</div>':'')+'</div>'}).join("")||'<div class="empty">Nothing here</div>')+
+  '<div class="by">'+esc(checkStatus(it))+'</div></div>'}).join("")||'<div class="empty">Nothing here</div>')+
  '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="Add a point and press Enter"><button class="btn" id="newBtn">Add</button></div></div></div></div>';
  m.querySelectorAll("textarea[data-t]").forEach(grow);
 }
@@ -309,8 +327,25 @@ $("main").onclick=async e=>{
  }catch(er){fail(er)}
 };
 $("main").onchange=async e=>{const d=e.target.dataset;try{
- if(d.c){const{error}=await sb.from("items").update({done:e.target.checked,done_by:e.target.checked?me:null,done_at:e.target.checked?new Date().toISOString():null}).eq("id",d.c);if(error)throw error}
+ if(d.c){await saveCheck(d.c,e.target.checked);return}
  if(d.t){const{error}=await sb.from("items").update({text:e.target.value}).eq("id",d.t);if(error)throw error}}catch(er){fail(er)}};
+async function saveCheck(id,checked){
+ const it=items.find(i=>i.id===id);if(!it||pendingChecks.has(id))return;
+ const previous={done:it.done,done_by:it.done_by,done_at:it.done_at};
+ const update={done:checked,done_by:checked?me:null,done_at:checked?new Date().toISOString():null};
+ pendingChecks.set(id,{update});Object.assign(it,update);refreshChecks();
+ try{
+  const{data,error}=await sb.from("items").update(update).eq("id",id).select("id,done,done_by,done_at").maybeSingle();
+  if(error)throw error;if(!data)throw new Error("Point was not updated");
+  ++loadVersion;
+  const current=items.find(i=>i.id===id);if(current)Object.assign(current,data);
+  pendingChecks.delete(id);draw();
+  loadAll().then(()=>draw()).catch(er=>toast("Couldn’t refresh points: "+er.message));
+ }catch(er){
+  pendingChecks.delete(id);const current=items.find(i=>i.id===id);if(current)Object.assign(current,previous);
+  refreshChecks();await loadAll();draw();fail(er);
+ }
+}
 $("main").oninput=e=>{if(e.target.dataset.t)grow(e.target)};
 $("main").onkeydown=e=>{if(e.target.id==="newIt"&&e.key==="Enter")addOne()};
 async function addOne(){const v=$("newIt").value.trim();if(!v)return;$("newIt").value="";try{await addItems(cur,[v])}catch(er){fail(er)}$("newIt").focus()}
