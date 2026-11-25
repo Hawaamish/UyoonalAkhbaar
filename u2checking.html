@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page Review Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f3ee;--card:#fff;--ink:#1f2a37;--mute:#6b7280;--line:#e5dfd5;--acc:#0f766e;--acc2:#e6f4f1;--note:#fff8e6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181c;--card:#1d2328;--ink:#e8ecef;--mute:#98a2ad;--line:#2c343b;--acc:#2dd4bf;--acc2:#16312e;--note:#2b2718}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Amiri","Scheherazade New","Traditional Arabic",Georgia,serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:9px;display:inline-flex;gap:6px;align-items:center}
+.btn:hover{border-color:var(--acc)}.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.btn.rec{background:#dc2626;color:#fff;border-color:#dc2626}.btn.danger:hover{border-color:#dc2626;color:#dc2626}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+h1{font-size:19px;margin:0}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#live{font-size:13px;color:var(--mute)}
+.app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
+@media (max-width:800px){.app{grid-template-columns:1fr}}
+aside,.main{min-width:0}
+.overall{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.bar{height:7px;background:var(--line);border-radius:9px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
+input[type=search],input[type=text],input[type=email],input[type=password],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;font:inherit}
+.plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pi{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:left;width:100%}
+.pi.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+.pi img{width:44px;height:56px;object-fit:cover;border-radius:6px;background:var(--line);flex:none}
+.pi .nm{font-weight:700}.pi small{color:var(--mute)}.pi>div{flex:1;min-width:0}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.empty{text-align:center;color:var(--mute);padding:40px 16px}
+.ph{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.ph h2{margin:0;font-size:22px}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.shot{width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;position:sticky;top:70px}
+.chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:2px 12px;font-size:14px}
+.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.it{border-bottom:1px dashed var(--line);padding:6px 0}
+.ir{display:flex;gap:8px;align-items:flex-start}
+.ir input[type=checkbox]{width:20px;height:20px;margin-top:8px;accent-color:var(--acc);flex:none}
+.ir textarea{border-color:transparent;background:transparent;resize:none;overflow:hidden;padding:3px 6px}
+.ir textarea:focus{border-color:var(--line);background:var(--card)}
+.it.done .ir textarea{text-decoration:line-through;color:var(--mute)}
+.n{color:var(--mute);width:22px;margin-top:6px;font-size:13px;flex:none}
+.ib{border:1px solid var(--line);background:transparent;border-radius:8px;padding:1px 8px;font-size:14px;white-space:nowrap;margin-top:4px}
+.ib.has{border-color:var(--acc);color:var(--acc)}
+.by{font-size:13px;color:var(--mute);margin:-2px 0 0 52px}
+.thread{margin:6px 0 6px 52px;background:var(--note);border:1px solid var(--line);border-radius:10px;padding:10px}
+.nt{border-bottom:1px solid var(--line);padding:6px 0}.nt:last-of-type{border:0}
+.nt small{color:var(--mute)}.nt audio{width:100%;height:34px;margin-top:4px}
+.fl{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
+.fl a{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:14px;color:var(--acc);text-decoration:none;background:var(--card)}
+.fl img{height:70px;border-radius:6px;display:block}
+.comp{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
+.comp textarea{flex:1;min-width:160px}
+.add{display:flex;gap:8px;margin-top:10px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:14px;z-index:20}
+.modal.show{display:flex}
+.box{background:var(--card);border-radius:16px;padding:18px;width:min(640px,100%);max-height:92vh;overflow:auto}
+.box h3{margin:0 0 8px}
+label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.hot{border-color:var(--acc);background:var(--acc2)}.drop img{max-width:100%;max-height:200px;border-radius:8px}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.mrow{display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:5px 0}.mrow span{flex:1;min-width:0;overflow-wrap:anywhere}
+#auth{max-width:380px;margin:12vh auto;padding:0 16px;text-align:center}
+#auth .panel{text-align:left}#auth .btn{justify-content:center;width:100%;margin-top:8px}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;overflow:auto;z-index:30;padding:20px;text-align:center}
+#lb img{max-width:100%;cursor:zoom-out}
+#toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
+#toast.show{opacity:1}
+#printArea{display:none}
+@media print{
+ body>*:not(#printArea){display:none!important}
+ #printArea{display:block;color:#000;background:#fff}
+ .pp{page-break-after:always;padding:6mm}
+ .pp img{max-width:100%;max-height:140mm;display:block;margin:0 auto 6mm}
+ .pp li{margin:4px 0;list-style:none}.pp .d{text-decoration:line-through;color:#555}.pp .q{margin-inline-start:20px;font-size:.9em;color:#333}
+}
+</style>
+</head>
+<body>
+<div id="auth" style="display:none">
+ <h1 style="margin-bottom:12px">📖 Page Review Tracker</h1>
+ <div class="panel">
+  <label>Email</label><input type="email" id="aE" autocomplete="username">
+  <label>Password</label><input type="password" id="aP" autocomplete="current-password">
+  <button class="btn pri" id="aIn">Sign in</button>
+  <button class="btn" id="aUp">Create account</button>
+  <p id="aMsg" style="color:var(--mute);font-size:14px;margin:10px 0 0"></p>
+ </div>
+</div>
+
+<div id="app" style="display:none">
+<header>
+ <h1>📖 Page Review Tracker</h1>
+ <div class="tools">
+  <span id="live">Connecting…</span>
+  <button class="btn pri" id="addBtn">＋ Add page</button>
+  <button class="btn" id="printAll">🖨 Print all</button>
+  <button class="btn" id="exp">⬇ Backup</button>
+  <button class="btn" id="impB">⬆ Import old backup</button>
+  <button class="btn" id="memB" style="display:none">👥 Members</button>
+  <button class="btn" id="out">Sign out</button>
+  <input type="file" id="impF" accept=".json" hidden>
+ </div>
+</header>
+<div class="app">
+ <aside>
+  <div class="overall"><b id="ovT">0 of 0 points done</b><div class="bar"><i id="ovB" style="width:0"></i></div></div>
+  <input type="search" id="q" placeholder="Search pages or points…">
+  <div class="plist" id="plist"></div>
+ </aside>
+ <div class="main" id="main"></div>
+</div>
+</div>
+
+<div class="modal" id="modal"><div class="box">
+ <h3 id="mT">Add page</h3>
+ <label>Page label (e.g. ص204)</label>
+ <input type="text" id="mLabel" dir="auto" placeholder="ص204">
+ <label>Page image: paste (Ctrl/Cmd+V), drop, or click to choose</label>
+ <div class="drop" id="drop"><span>📋 Paste image here</span></div>
+ <input type="file" id="file" accept="image/*" hidden>
+ <label id="mTxtL">Paste your points (numbered lines become checklist items)</label>
+ <textarea id="mTxt" rows="8" dir="auto"></textarea>
+ <div class="row"><button class="btn" id="mCancel">Cancel</button><button class="btn pri" id="mOk">Save page</button></div>
+</div></div>
+
+<div class="modal" id="memM"><div class="box">
+ <h3>Members</h3><div id="memL"></div>
+ <label>Add a person (they then create an account with this email)</label>
+ <input type="email" id="mmE" placeholder="email"><input type="text" id="mmN" placeholder="Display name" style="margin-top:6px">
+ <select id="mmR" style="margin-top:6px"><option value="member">Member</option><option value="admin">Admin</option></select>
+ <div class="row"><button class="btn" id="memX">Close</button><button class="btn pri" id="memAdd">Add</button></div>
+</div></div>
+
+<div id="lb"><img id="lbi" alt=""></div>
+<div id="toast"></div>
+<div id="printArea"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL="https://eixqwdctohiosypozrhd.supabase.co",SUPABASE_KEY="sb_publishable_L3bI6hCA99uZMkPutEk_tQ_6LxZCnWI",B="tracker-files";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=null,filter="all",editId=null,tmpBlob=null,tmpUrl=null;
+let openT=new Set(),pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
+const urlC={};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uuid=()=>crypto.randomUUID();
+const clean=s=>String(s).replace(/[^\w.\-]+/g,"_").slice(-60);
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2400)}
+const fail=e=>toast("Couldn’t save: "+(e&&e.message||"no permission"));
+const P=()=>pages.find(p=>p.id===cur);
+const its=pid=>items.filter(i=>i.page_id===pid);
+const stat=p=>{const a=its(p.id),d=a.filter(i=>i.done).length;return{d,n:a.length,pc:a.length?Math.round(d/a.length*100):0}};
+const nm=e=>{if(!e)return"Someone";const m=members.find(x=>x.email.toLowerCase()===e.toLowerCase());return e===me?"You":(m&&m.name)||e.split("@")[0]};
+
+/* ---------- auth ---------- */
+function showAuth(msg){$("app").style.display="none";$("auth").style.display="";$("aMsg").textContent=msg||""}
+$("aIn").onclick=async()=>{const{error}=await sb.auth.signInWithPassword({email:$("aE").value.trim(),password:$("aP").value});if(error)$("aMsg").textContent=error.message};
+$("aUp").onclick=async()=>{const{data,error}=await sb.auth.signUp({email:$("aE").value.trim(),password:$("aP").value});
+ if(error)$("aMsg").textContent=error.message;else if(!data.session)$("aMsg").textContent="Account created. Check your email to confirm, then sign in."};
+$("aP").onkeydown=e=>{if(e.key==="Enter")$("aIn").click()};
+$("out").onclick=async()=>{chan&&sb.removeChannel(chan);chan=null;await sb.auth.signOut();location.reload()};
+async function enter(u){
+ me=(u.email||"").toLowerCase();
+ const{data,error}=await sb.from("members").select("*");
+ if(error||!data||!data.some(m=>m.email.toLowerCase()===me)){showAuth("This email ("+me+") isn’t on the access list yet. Ask an admin to add it, then sign in again.");await sb.auth.signOut();return}
+ members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
+ $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
+ await loadAll();draw(true);
+ chan=sb.channel("tracker").on("postgres_changes",{event:"*",schema:"public"},()=>{clearTimeout(syncT);syncT=setTimeout(async()=>{await loadAll();draw()},300)})
+  .subscribe(s=>{$("live").textContent=s==="SUBSCRIBED"?"● Live":"Reconnecting…"});
+}
+sb.auth.getSession().then(({data})=>data.session?enter(data.session.user):showAuth());
+sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)enter(s.user)});
+
+/* ---------- data ---------- */
+async function loadAll(){
+ const[a,b,m]=await Promise.all([sb.from("pages").select("*").order("sort_order"),sb.from("items").select("*").order("sort_order"),sb.from("members").select("*")]);
+ if(a.error)return fail(a.error);
+ pages=a.data;items=b.data||[];members=m.data||members;
+ if(!cur||!P())cur=pages[0]?.id||null;
+ await loadNotes();
+}
+async function loadNotes(){
+ notesFor=cur;if(!cur){notes=[];return}
+ const{data}=await sb.from("notes").select("*").eq("page_id",cur).order("created_at");notes=data||[];
+}
+async function hydrate(){
+ const els=[...document.querySelectorAll("[data-p]")];
+ const need=[...new Set(els.map(e=>e.dataset.p).filter(p=>!urlC[p]||urlC[p].t<Date.now()))];
+ if(need.length){const{data}=await sb.storage.from(B).createSignedUrls(need,3600);(data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}})}
+ els.forEach(e=>{const c=urlC[e.dataset.p];if(!c)return;const k=e.tagName==="A"?"href":"src";if(e.getAttribute(k)!==c.u)e.setAttribute(k,c.u)});
+}
+async function up(path,blob,type){const{error}=await sb.storage.from(B).upload(path,blob,{contentType:(type||blob.type||"application/octet-stream").split(";")[0],upsert:false});if(error)throw error;return path}
+async function rmFiles(paths){paths=paths.filter(Boolean);if(paths.length)await sb.storage.from(B).remove(paths)}
+const notePaths=ns=>ns.flatMap(n=>[n.voice_path,...(n.attachments||[]).map(a=>a.path)]);
+
+/* ---------- parse + image ---------- */
+function parse(text){
+ let lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),label="";
+ if(lines.length&&lines[0].length<=14&&/^(ص|p\.?|page)\s*\d+/i.test(lines[0]))label=lines.shift();
+ const num=/^(\d+|[a-zA-Z])\s*[.)]\s+/,numbered=lines.some(l=>num.test(l)),out=[];
+ lines.forEach(l=>{if(!numbered)out.push(l);else if(num.test(l))out.push(l.replace(num,""));else if(out.length)out[out.length-1]+=" "+l;else out.push(l)});
+ return{label,items:out};
+}
+function shrink(blob,max=1600){return new Promise(res=>{const u=URL.createObjectURL(blob),im=new Image();
+ im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");
+  c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+  URL.revokeObjectURL(u);c.toBlob(b=>res(b),"image/jpeg",.85)};im.onerror=()=>res(blob);im.src=u})}
+async function addItems(pid,arr){let o=Date.now();if(arr.length){const{error}=await sb.from("items").insert(arr.map(t=>({page_id:pid,text:t,sort_order:o++})));if(error)throw error}}
+
+/* ---------- render ---------- */
+function busy(){const a=document.activeElement;return rec||[...document.querySelectorAll("audio")].some(x=>!x.paused)||(a&&$("main").contains(a)&&/^(TEXTAREA|INPUT)$/.test(a.tagName))}
+function draw(force){if(!force&&busy()){dirty=true;return}dirty=false;renderList();renderMain();hydrate()}
+document.addEventListener("focusout",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250));
+document.addEventListener("pause",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250),true);
+function renderList(){
+ const q=$("q").value.toLowerCase();let D=0,N=0;pages.forEach(p=>{const s=stat(p);D+=s.d;N+=s.n});
+ $("ovT").textContent=D+" of "+N+" points done";$("ovB").style.width=(N?D/N*100:0)+"%";
+ const L=pages.filter(p=>!q||(p.label||"").toLowerCase().includes(q)||its(p.id).some(i=>i.text.toLowerCase().includes(q)));
+ $("plist").innerHTML=L.map(p=>{const s=stat(p);return '<button class="pi'+(p.id===cur?" on":"")+'" data-id="'+p.id+'">'+
+  (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<div><div class="nm" dir="auto">'+esc(p.label||"Untitled")+'</div><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><div class="bar"><i style="width:'+s.pc+'%"></i></div></div></button>'}).join("")||'<div class="empty">No pages yet</div>';
+}
+function pd(id){return pend[id]||(pend[id]={files:[],voice:null})}
+function threadHTML(it){
+ const L=notes.filter(n=>n.item_id===it.id),d=pd(it.id);
+ const list=L.map(n=>'<div class="nt"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
+  ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+n.id+'">delete</a>':'')+'</small>'+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+esc(n.body)+'</div>':'')+
+  (n.voice_path?'<audio controls data-p="'+esc(n.voice_path)+'"></audio>':'')+
+  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt=""></a>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet. Add a note, files or a voice note below.</small>';
+ const chips=d.files.map((f,i)=>'<span class="chip">'+esc(f.name)+' <a href="#" data-pf="'+it.id+':'+i+'">×</a></span>').join("")+(d.voice?'<audio controls src="'+d.voice.url+'" style="height:32px"></audio> <a href="#" data-pv="'+it.id+'">×</a>':"");
+ const r=rec&&recFor===it.id;
+ return '<div class="thread">'+list+'<div class="fl">'+chips+'</div><div class="comp"><textarea rows="2" dir="auto" data-nt="'+it.id+'" placeholder="Write a response…"></textarea>'+
+  '<button class="btn" data-att="'+it.id+'">📎 Attach</button><button class="btn'+(r?" rec":"")+'" data-rec="'+it.id+'">'+(r?"⏹ Stop":"🎙 Voice")+'</button><button class="btn pri" data-send="'+it.id+'">Send</button></div></div>';
+}
+function renderMain(){
+ const p=P(),m=$("main");
+ if(!p){m.innerHTML='<div class="panel empty"><div style="font-size:40px">🗂️</div><p>Add your first page: paste a page image and its list of points.</p></div>';return}
+ const A=its(p.id),s=stat(p);
+ const list=A.map((it,i)=>({it,i})).filter(({it})=>filter==="all"||(filter==="open"?!it.done:it.done));
+ m.innerHTML='<div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
+ '<div class="tools"><button class="btn" id="bShare">↗ Share</button><button class="btn" id="bPrint">🖨 Print</button><button class="btn" id="bEdit">✎ Edit</button><button class="btn danger" id="bDel">🗑</button></div></div>'+
+ '<div class="split">'+(p.image_path?'<div><img class="shot" id="shot" data-p="'+esc(p.image_path)+'" alt="Page image"></div>':'<div class="empty">No image</div>')+
+ '<div><div class="chips">'+["all","open","done"].map(f=>'<button class="chip'+(filter===f?" on":"")+'" data-f="'+f+'">'+f[0].toUpperCase()+f.slice(1)+'</button>').join("")+'</div><div>'+
+ (list.map(({it,i})=>{const c=notes.filter(n=>n.item_id===it.id).length;
+  return '<div class="it'+(it.done?" done":"")+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'"'+(it.done?" checked":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
+  '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" title="Notes, files and voice notes">💬'+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
+  (it.done&&it.done_by?'<div class="by">✓ cleared by '+esc(nm(it.done_by))+'</div>':'')+(openT.has(it.id)?threadHTML(it):'')+'</div>'}).join("")||'<div class="empty">Nothing here</div>')+
+ '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="Add a point and press Enter"><button class="btn" id="newBtn">Add</button></div></div></div></div>';
+ m.querySelectorAll("textarea[data-t]").forEach(grow);
+}
+function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+"px"}
+
+/* ---------- actions ---------- */
+$("plist").onclick=async e=>{const b=e.target.closest(".pi");if(b){cur=b.dataset.id;await loadNotes();draw(true)}};
+$("q").oninput=renderList;
+$("main").onclick=async e=>{
+ const p=P();if(!p)return;const t=e.target,d=t.dataset;
+ try{
+ if(d.dn){e.preventDefault();const n=notes.find(x=>x.id===d.dn);await sb.from("notes").delete().eq("id",d.dn);await rmFiles(notePaths([n]));return}
+ if(d.pf){e.preventDefault();const[i,k]=d.pf.split(":");pd(i).files.splice(+k,1);draw(true);return}
+ if(d.pv){e.preventDefault();pd(d.pv).voice=null;draw(true);return}
+ if(d.f){filter=d.f;draw(true);return}
+ if(d.x&&confirm("Remove this point and its notes?")){const ns=notes.filter(n=>n.item_id===d.x);const{error}=await sb.from("items").delete().eq("id",d.x);if(error)throw error;await rmFiles(notePaths(ns));return}
+ if(d.th){openT.has(d.th)?openT.delete(d.th):openT.add(d.th);draw(true);return}
+ if(d.att){const f=document.createElement("input");f.type="file";f.multiple=true;f.accept="image/*,.pdf,.txt,.csv,.md,.json";
+  f.onchange=async()=>{toast("Uploading…");for(const x of f.files){try{let b=x;if(x.type.startsWith("image/"))b=await shrink(x);
+   const path=await up("notes/"+cur+"/"+uuid()+"-"+clean(x.name),b,b.type||x.type);pd(d.att).files.push({path,name:x.name,type:b.type||x.type})}catch(er){toast("Couldn’t upload "+x.name)}}draw(true)};f.click();return}
+ if(d.rec){toggleRec(d.rec);return}
+ if(d.send){const ta=$("main").querySelector('[data-nt="'+d.send+'"]'),pe=pd(d.send),text=ta.value.trim();
+  if(!text&&!pe.files.length&&!pe.voice){toast("Write something or attach a file first");return}
+  let vp=null;if(pe.voice)vp=await up("voice/"+cur+"/"+uuid()+".webm",pe.voice.blob,pe.voice.blob.type);
+  const{error}=await sb.from("notes").insert({page_id:cur,item_id:d.send,body:text,attachments:pe.files,voice_path:vp});if(error)throw error;
+  pend[d.send]={files:[],voice:null};ta.value="";toast("Response added");await loadNotes();draw(true);return}
+ if(t.id==="shot"){$("lbi").src=t.src;$("lb").style.display="block"}
+ if(t.id==="newBtn")addOne();
+ if(t.id==="bPrint")doPrint([p]);
+ if(t.id==="bShare")share(p);
+ if(t.id==="bEdit")openModal(p);
+ if(t.id==="bDel"&&confirm("Delete this page, its checklist and notes for everyone?")){
+  const{data:ns}=await sb.from("notes").select("*").eq("page_id",p.id);
+  const{error}=await sb.from("pages").delete().eq("id",p.id);if(error)throw error;
+  await rmFiles([p.image_path,...notePaths(ns||[])]);toast("Deleted")}
+ }catch(er){fail(er)}
+};
+$("main").onchange=async e=>{const d=e.target.dataset;try{
+ if(d.c){const{error}=await sb.from("items").update({done:e.target.checked,done_by:e.target.checked?me:null,done_at:e.target.checked?new Date().toISOString():null}).eq("id",d.c);if(error)throw error}
+ if(d.t){const{error}=await sb.from("items").update({text:e.target.value}).eq("id",d.t);if(error)throw error}}catch(er){fail(er)}};
+$("main").oninput=e=>{if(e.target.dataset.t)grow(e.target)};
+$("main").onkeydown=e=>{if(e.target.id==="newIt"&&e.key==="Enter")addOne()};
+async function addOne(){const v=$("newIt").value.trim();if(!v)return;$("newIt").value="";try{await addItems(cur,[v])}catch(er){fail(er)}$("newIt").focus()}
+$("lb").onclick=()=>$("lb").style.display="none";
+
+/* voice notes: recorded in the browser, max 60 s */
+async function toggleRec(iid){
+ if(rec){rec.stop();return}
+ try{
+  const st=await navigator.mediaDevices.getUserMedia({audio:true}),mr=new MediaRecorder(st),ch=[];
+  mr.ondataavailable=e=>ch.push(e.data);
+  mr.onstop=()=>{st.getTracks().forEach(t=>t.stop());clearTimeout(recT);const b=new Blob(ch,{type:mr.mimeType||"audio/webm"});rec=null;pd(iid).voice={blob:b,url:URL.createObjectURL(b)};draw(true)};
+  rec=mr;recFor=iid;mr.start();recT=setTimeout(()=>mr.state==="recording"&&mr.stop(),60000);draw(true);
+ }catch(er){rec=null;toast("Microphone unavailable or blocked in this browser")}
+}
+
+/* ---------- add / edit page ---------- */
+function openModal(p){
+ editId=p?p.id:null;tmpBlob=null;tmpUrl=null;
+ $("mT").textContent=p?"Edit page":"Add page";$("mLabel").value=p?p.label||"":"";$("mTxt").value="";
+ $("mTxtL").textContent=p?"Add more points (optional, appended)":"Paste your points (numbered lines become checklist items)";
+ const im=p&&p.image_path&&urlC[p.image_path];
+ $("drop").innerHTML=im?'<img src="'+im.u+'" alt="">':'<span>📋 Paste image here</span>';
+ $("modal").classList.add("show");
+}
+const closeModal=()=>$("modal").classList.remove("show");
+$("addBtn").onclick=()=>openModal(null);$("mCancel").onclick=closeModal;
+$("drop").onclick=()=>$("file").click();
+async function setImg(b){tmpBlob=await shrink(b);tmpUrl=URL.createObjectURL(tmpBlob);$("drop").innerHTML='<img src="'+tmpUrl+'" alt="">'}
+$("file").onchange=e=>{if(e.target.files[0])setImg(e.target.files[0])};
+$("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("hot")};
+$("drop").ondragleave=()=>$("drop").classList.remove("hot");
+$("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("hot");const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))setImg(f)};
+document.addEventListener("paste",e=>{if(!$("modal").classList.contains("show"))return;
+ for(const it of e.clipboardData.items)if(it.type.startsWith("image/")){e.preventDefault();setImg(it.getAsFile());toast("Image added");break}});
+$("mOk").onclick=async()=>{
+ const r=parse($("mTxt").value),label=$("mLabel").value.trim()||r.label;
+ try{
+  if(editId){const p=pages.find(x=>x.id===editId),u={};if(label)u.label=label;let old=null;
+   if(tmpBlob){u.image_path=await up("pages/"+editId+"/"+uuid()+".jpg",tmpBlob,"image/jpeg");old=p.image_path}
+   if(Object.keys(u).length){const{error}=await sb.from("pages").update(u).eq("id",editId);if(error)throw error}
+   await addItems(editId,r.items);if(old)await rmFiles([old])}
+  else{if(!tmpBlob&&!r.items.length){toast("Add an image or some points first");return}
+   const id=uuid();let ip=null;if(tmpBlob)ip=await up("pages/"+id+"/"+uuid()+".jpg",tmpBlob,"image/jpeg");
+   const{error}=await sb.from("pages").insert({id,label:label||"Page "+(pages.length+1),image_path:ip});if(error)throw error;
+   await addItems(id,r.items);cur=id}
+  closeModal();await loadAll();draw(true);toast("Saved for everyone")}catch(er){fail(er)}};
+
+/* ---------- share / print / backup / import ---------- */
+const asText=p=>(p.label||"Page")+"\n"+its(p.id).map((i,n)=>(i.done?"☑ ":"☐ ")+(n+1)+". "+i.text).join("\n")+"\n\n"+location.href;
+async function share(p){
+ const text=asText(p);
+ try{if(navigator.share){await navigator.share({title:p.label,text});return}}catch(e){if(e.name==="AbortError")return}
+ try{await navigator.clipboard.writeText(text);toast("Checklist copied")}catch(e){prompt("Copy this checklist:",text)}
+}
+async function doPrint(list){
+ $("printArea").innerHTML=list.map(p=>'<div class="pp"><h2 dir="auto">'+esc(p.label)+'</h2>'+(p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'')+
+  '<ul dir="auto" style="padding:0">'+its(p.id).map((i,n)=>'<li class="'+(i.done?"d":"")+'">'+(i.done?"☑ ":"☐ ")+(n+1)+". "+esc(i.text)+
+  (p.id===cur?notes.filter(x=>x.item_id===i.id&&x.body).map(x=>'<div class="q">↳ '+esc(nm(x.author))+': '+esc(x.body)+'</div>').join(""):"")+'</li>').join("")+'</ul></div>').join("");
+ await hydrate();setTimeout(()=>window.print(),500);
+}
+$("printAll").onclick=()=>pages.length?doPrint(pages):toast("Nothing to print");
+$("exp").onclick=async()=>{
+ const{data:allN}=await sb.from("notes").select("*");
+ const out=pages.map(p=>({label:p.label,items:its(p.id).map(i=>({text:i.text,done:i.done,done_by:i.done_by,notes:(allN||[]).filter(n=>n.item_id===i.id).map(n=>({author:n.author,body:n.body,at:n.created_at}))}))}));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"}));
+ a.download="page-tracker-"+new Date().toISOString().slice(0,10)+".json";a.click()};
+$("impB").onclick=()=>$("impF").click();
+$("impF").onchange=async e=>{
+ try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d))throw new Error("Not a backup file");
+  if(!confirm("Import "+d.length+" pages into the shared tracker?"))return;
+  for(const p of d){const id=uuid();let ip=null;
+   if(typeof p.img==="string"&&p.img.startsWith("data:"))ip=await up("pages/"+id+"/"+uuid()+".jpg",await (await fetch(p.img)).blob(),"image/jpeg");
+   const{error}=await sb.from("pages").insert({id,label:p.label||"Page",image_path:ip});if(error)throw error;
+   const rows=(p.items||[]).map((i,n)=>({page_id:id,text:i.text||"",done:!!i.done,sort_order:Date.now()+n}));
+   if(rows.length){const r=await sb.from("items").insert(rows);if(r.error)throw r.error}}
+  await loadAll();draw(true);toast("Imported "+d.length+" pages")}catch(er){fail(er)}e.target.value=""};
+
+/* ---------- members (admin) ---------- */
+function drawMem(){$("memL").innerHTML=members.map(m=>'<div class="mrow"><span><b>'+esc(m.name||m.email)+'</b><br><small>'+esc(m.email)+' · '+m.role+'</small></span>'+
+ (m.email.toLowerCase()===me?'':'<button class="btn danger" data-rm="'+esc(m.email)+'">Remove</button>')+'</div>').join("")}
+$("memB").onclick=()=>{drawMem();$("memM").classList.add("show")};$("memX").onclick=()=>$("memM").classList.remove("show");
+$("memL").onclick=async e=>{const em=e.target.dataset.rm;if(!em||!confirm("Remove "+em+"?"))return;const{error}=await sb.from("members").delete().eq("email",em);if(error)return fail(error);await loadAll();drawMem()};
+$("memAdd").onclick=async()=>{const email=$("mmE").value.trim().toLowerCase();if(!email)return;
+ const{error}=await sb.from("members").insert({email,name:$("mmN").value.trim(),role:$("mmR").value});if(error)return fail(error);
+ $("mmE").value="";$("mmN").value="";await loadAll();drawMem();toast("Added "+email)};
+</script>
+</body>
+</html>
