@@ -22,6 +22,8 @@ header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:s
 h1{font-size:19px;margin:0}
 .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #live{font-size:13px;color:var(--mute)}
+.presence-btn{white-space:nowrap}.presence-dot{color:var(--comment)}
+.presence-list .mrow{justify-content:space-between}.presence-list small{color:var(--mute)}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
 @media (max-width:800px){.app{grid-template-columns:1fr}}
 .mobile-back{display:none}
@@ -127,6 +129,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <h1>📖 Page Review Tracker</h1>
  <div class="tools">
   <span id="live">Connecting…</span>
+  <button class="btn presence-btn" id="presenceBtn" aria-haspopup="dialog">Online members: connecting…</button>
   <button class="btn pri" id="addBtn">＋ Add page</button>
   <button class="btn" id="printAll">🖨 Print all</button>
   <button class="btn" id="exp">⬇ Backup</button>
@@ -168,6 +171,13 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <div class="row"><button class="btn" id="memX">Close</button><button class="btn pri" id="memAdd">Add</button></div>
 </div></div>
 
+<div class="modal" id="presenceM" role="dialog" aria-modal="true" aria-labelledby="presenceTitle"><div class="box">
+ <button class="btn mobile-back" id="presenceBack">← Back</button>
+ <h3 id="presenceTitle">Online members</h3>
+ <div id="presenceList" class="presence-list" aria-live="polite"></div>
+ <div class="row"><button class="btn" id="presenceClose">Close</button></div>
+</div></div>
+
 <div class="modal" id="commentM" role="dialog" aria-modal="true" aria-labelledby="commentTitle"><div class="box comment-box">
  <button class="btn mobile-back" id="commentBack">← Back</button>
  <h3 id="commentTitle">Comments</h3>
@@ -204,6 +214,7 @@ let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=
 let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
 let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pageSaving=false;
 let loadVersion=0,itemsVersion=0,notesVersion=0;
+let presenceUser="",presenceConnected=false,presenceReady=false,presenceError=false,presenceEpoch=0,presenceRunning=false,presenceSent="",presenceRetry=null;
 const syncTables=new Set();
 const pendingChecks=new Map();
 const itemsByPage=new Map(),itemsById=new Map(),pageStats=new Map();
@@ -264,11 +275,11 @@ window.addEventListener("popstate",e=>{
 });
 function showMobileDetail(id){
  if(!mobile.matches)return;
- const show=()=>{cur=id;document.body.classList.add("mobile-detail");window.scrollTo(0,0)};
- const hide=()=>{document.body.classList.remove("mobile-detail");window.scrollTo(0,0)};
+ const show=()=>{cur=id;document.body.classList.add("mobile-detail");window.scrollTo(0,0);publishPresence()};
+ const hide=()=>{document.body.classList.remove("mobile-detail");window.scrollTo(0,0);publishPresence()};
  show();pushMobileLayer("detail",hide,()=>{show();loadNotes().then(()=>draw(true)).catch(er=>toast("Couldn’t load comments: "+er.message))});
 }
-function backToPages(){closeMobileLayer("detail",()=>document.body.classList.remove("mobile-detail"))}
+function backToPages(){closeMobileLayer("detail",()=>{document.body.classList.remove("mobile-detail");publishPresence()})}
 
 /* ---------- auth ---------- */
 function showAuth(msg){$("app").style.display="none";$("auth").style.display="";$("aMsg").textContent=msg||""}
@@ -282,13 +293,68 @@ async function enter(u){
  const{data,error}=await sb.from("members").select("*");
  if(error||!data||!data.some(m=>m.email.toLowerCase()===me)){showAuth("This email ("+me+") isn’t on the access list yet. Ask an admin to add it, then sign in again.");me="";await sb.auth.signOut();return}
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
+ presenceUser=u.id;
  $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
  await loadAll();draw(true);
  chan=sb.channel("tracker").on("postgres_changes",{event:"*",schema:"public"},scheduleSync)
-  .subscribe(s=>{$("live").textContent=s==="SUBSCRIBED"?"● Live":"Reconnecting…"});
+  .on("presence",{event:"sync"},renderPresence)
+  .subscribe(s=>{
+   $("live").textContent=s==="SUBSCRIBED"?"● Live":"Reconnecting…";
+   presenceEpoch++;presenceConnected=s==="SUBSCRIBED";presenceReady=false;presenceError=s==="CHANNEL_ERROR"||s==="TIMED_OUT";presenceRunning=false;presenceSent="";
+   clearTimeout(presenceRetry);presenceRetry=null;renderPresence();if(presenceConnected)publishPresence();
+  });
 }
 sb.auth.getSession().then(({data})=>data.session?enter(data.session.user):showAuth());
 sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)setTimeout(()=>enter(s.user),0)});
+
+/* ---------- live presence ---------- */
+function renderPresence(){
+ const button=$("presenceBtn"),list=$("presenceList");
+ if(!presenceConnected||!presenceReady||!chan){
+  button.textContent=presenceError?"Online members: unavailable":"Online members: connecting…";
+  list.textContent=presenceError?"Presence is unavailable. Retrying…":"Connecting to online members…";return;
+ }
+ const online=new Map();
+ for(const entries of Object.values(chan.presenceState()))for(const entry of entries){
+  if(typeof entry.user_id!=="string"||!entry.user_id||typeof entry.name!=="string")continue;
+  let person=online.get(entry.user_id);
+  if(!person){person={name:entry.name.slice(0,100),pageIds:new Set(),browsing:false};online.set(entry.user_id,person)}
+  if(typeof entry.page_id==="string"&&entry.page_id)person.pageIds.add(entry.page_id);else person.browsing=true;
+ }
+ const people=[...online.entries()].sort((a,b)=>a[0]===presenceUser?-1:b[0]===presenceUser?1:pageCollator.compare(a[1].name,b[1].name));
+ button.innerHTML='<span class="presence-dot" aria-hidden="true">●</span> '+people.length+' online';
+ list.innerHTML=people.map(([id,person])=>{
+  const locations=[...person.pageIds].map(pid=>pages.find(p=>p.id===pid)?.label||"Page unavailable");
+  if(person.browsing)locations.push("Browsing pages");
+  return '<div class="mrow"><span><b>'+esc(id===presenceUser?"You":person.name)+'</b><br><small>'+esc(locations.join(" · "))+'</small></span><span class="presence-dot">● Online</span></div>';
+ }).join("")||"No members online.";
+}
+function publishPresence(){
+ if(!presenceConnected||!chan||!presenceUser||presenceRunning||presenceRetry)return;
+ const member=members.find(m=>m.email.toLowerCase()===me);
+ const payload={user_id:presenceUser,name:((member&&member.name)||me.split("@")[0]||"Member").slice(0,100),
+  page_id:mobile.matches&&!document.body.classList.contains("mobile-detail")?null:cur};
+ const sent=JSON.stringify(payload);if(sent===presenceSent)return;
+ const channel=chan,epoch=presenceEpoch;presenceRunning=true;
+ channel.track(payload).then(result=>{
+  if(epoch!==presenceEpoch||channel!==chan)return;
+  if(result!=="ok")throw new Error("Presence tracking failed: "+result);
+  presenceSent=sent;presenceReady=true;presenceError=false;renderPresence();
+ }).catch(er=>{
+  if(epoch!==presenceEpoch||channel!==chan)return;
+  console.error("Couldn’t update online presence:",er);presenceReady=false;presenceError=true;renderPresence();
+  presenceRetry=setTimeout(()=>{presenceRetry=null;publishPresence()},5000);
+ }).finally(()=>{
+  if(epoch!==presenceEpoch||channel!==chan)return;
+  presenceRunning=false;if(!presenceRetry)publishPresence();
+ });
+}
+function hidePresence(){$("presenceM").classList.remove("show");$("presenceBtn").focus()}
+function showPresence(){renderPresence();$("presenceM").classList.add("show");$("presenceClose").focus()}
+$("presenceBtn").onclick=()=>{showPresence();pushMobileLayer("presence",hidePresence,showPresence)};
+$("presenceClose").onclick=$("presenceBack").onclick=()=>closeMobileLayer("presence",hidePresence);
+$("presenceM").onkeydown=e=>{if(e.key==="Escape")closeMobileLayer("presence",hidePresence)};
+mobile.addEventListener("change",publishPresence);
 
 /* ---------- data ---------- */
 function scheduleSync(change){
@@ -413,7 +479,7 @@ async function addItems(pid,arr){let o=Date.now();if(arr.length){const{error}=aw
 
 /* ---------- render ---------- */
 function busy(){const a=document.activeElement;return rec||[...document.querySelectorAll("audio")].some(x=>!x.paused)||(a&&$("main").contains(a)&&(a.tagName==="TEXTAREA"||(a.tagName==="INPUT"&&a.type!=="checkbox")))}
-function draw(force){if(!force&&busy()){dirty=true;refreshChecks();return}dirty=false;renderList();renderMain();if(commentItem)renderCommentThread();hydrate()}
+function draw(force){publishPresence();renderPresence();if(!force&&busy()){dirty=true;refreshChecks();return}dirty=false;renderList();renderMain();if(commentItem)renderCommentThread();hydrate()}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250));
 document.addEventListener("pause",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250),true);
 function renderList(){
