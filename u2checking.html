@@ -70,6 +70,8 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .comment-file button{margin-top:4px}
 .comment-box .row{flex-wrap:wrap}
 .comment-box audio{max-width:100%}
+.mic-level{display:flex;gap:8px;align-items:center;margin-top:8px}
+.mic-level meter{flex:1}
 .add{display:flex;gap:8px;margin-top:10px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:14px;z-index:20}
 .modal.show{display:flex}
@@ -160,6 +162,10 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <label for="commentText">Your response (paste images here)</label>
  <textarea id="commentText" rows="4" dir="auto" placeholder="Write a response or paste images…"></textarea>
  <div class="comment-files" id="commentFiles"></div>
+ <label for="commentMic">Microphone</label>
+ <select id="commentMic"><option value="">System default</option></select>
+ <small id="micHelp">Microphones become available after permission is granted.</small>
+ <div class="mic-level"><label for="micLevel">Input level</label><meter id="micLevel" min="0" max="1" value="0">0</meter></div>
  <input type="file" id="commentInput" accept="image/*,.pdf,.txt,.csv,.md,.json" multiple hidden>
  <div class="row">
   <button class="btn" id="commentAttach">📎 Attach files</button>
@@ -236,8 +242,16 @@ async function loadNotes(){
 async function hydrate(){
  const els=[...document.querySelectorAll("[data-p]")];
  const need=[...new Set(els.map(e=>e.dataset.p).filter(p=>!urlC[p]||urlC[p].t<Date.now()))];
- if(need.length){const{data}=await sb.storage.from(B).createSignedUrls(need,3600);(data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}})}
- els.forEach(e=>{const c=urlC[e.dataset.p];if(!c)return;const k=e.tagName==="A"?"href":"src";if(e.getAttribute(k)!==c.u)e.setAttribute(k,c.u)});
+ if(need.length){
+  need.forEach(p=>delete urlC[p]);
+  try{
+   const{data,error}=await sb.storage.from(B).createSignedUrls(need,3600);if(error)throw error;
+   (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});
+   els.filter(e=>e.tagName==="AUDIO"&&!urlC[e.dataset.p]).forEach(e=>showVoiceError(e,"Couldn’t load this voice note. Check your access and connection."));
+  }catch(er){els.filter(e=>e.tagName==="AUDIO").forEach(e=>showVoiceError(e,"Couldn’t load this voice note: "+er.message))}
+ }
+ els.forEach(e=>{const c=urlC[e.dataset.p];if(!c)return;const k=e.tagName==="A"?"href":"src";
+  if(e.getAttribute(k)!==c.u){e.setAttribute(k,c.u);if(e.tagName==="AUDIO"&&e.nextElementSibling?.classList.contains("voice-error"))e.nextElementSibling.remove()}});
 }
 async function up(path,blob,type){const{error}=await sb.storage.from(B).upload(path,blob,{contentType:(type||blob.type||"application/octet-stream").split(";")[0],upsert:false});if(error)throw error;return path}
 async function rmFiles(paths){paths=paths.filter(Boolean);if(paths.length){const{error}=await sb.storage.from(B).remove(paths);if(error)throw error}}
@@ -285,7 +299,7 @@ function renderCommentThread(){
  const L=notes.filter(n=>n.item_id===commentItem);
  $("commentThread").innerHTML=L.map(n=>'<div class="nt"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
   ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+n.id+'">delete</a>':'')+'</small>'+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+esc(n.body)+'</div>':'')+
-  (n.voice_path?'<audio controls data-p="'+esc(n.voice_path)+'"></audio>':'')+
+  (n.voice_path?'<audio controls preload="metadata" aria-label="Play voice note" data-p="'+esc(n.voice_path)+'"></audio>':'')+
   ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet.</small>';
 }
 function renderMain(){
@@ -357,7 +371,7 @@ function renderCommentDraft(){
  const d=pd(commentItem);
  $("commentFiles").innerHTML=d.files.map((f,i)=>'<div class="comment-file">'+(f.url?'<img src="'+f.url+'" alt="">':"")+
   '<span>'+esc(f.file.name)+'</span><br><button class="btn" data-remove-file="'+i+'">Remove</button></div>').join("")+
-  (d.voice?'<div class="comment-file"><audio controls src="'+d.voice.url+'"></audio><button class="btn" data-remove-voice>Remove voice</button></div>':"");
+  (d.voice?'<div class="comment-file"><audio controls preload="metadata" aria-label="Play recording before sending" src="'+d.voice.url+'"></audio><button class="btn" data-remove-voice>Remove voice</button></div>':"");
  const recording=!!rec&&recFor===commentItem,stopping=recording&&rec.state==="inactive";
  $("commentRec").textContent=recording?"⏹ Stop recording":"🎙 Voice";
  $("commentRec").classList.toggle("rec",recording);
@@ -365,9 +379,10 @@ function renderCommentDraft(){
  $("commentSend").disabled=commentSending||recStarting||recording;
  $("commentClose").disabled=commentSending||recStarting||recording;
  $("commentAttach").disabled=commentSending;
+ $("commentMic").disabled=commentSending||recStarting||recording;
  $("commentText").disabled=commentSending;
  $("commentFiles").querySelectorAll("button").forEach(b=>b.disabled=commentSending);
- $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 60 seconds). Stop before sending or closing.":"Drafts remain available until this page is reloaded.";
+ $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 2 minutes). Speak and check the input level.":d.voice&&d.voice.warning?d.voice.warning:"Drafts remain available until this page is reloaded.";
 }
 function openComments(id){
  const it=items.find(i=>i.id===id);if(!it)return;
@@ -375,7 +390,7 @@ function openComments(id){
  $("commentPoint").textContent=it.text;
  $("commentText").value=pd(id).text;
  $("commentM").classList.add("show");
- renderCommentThread();renderCommentDraft();hydrate();$("commentText").focus();
+ renderCommentThread();renderCommentDraft();hydrate();listMicrophones();$("commentText").focus();
 }
 function closeComments(){
  if(commentSending||recStarting||rec)return;
@@ -420,7 +435,7 @@ $("commentSend").onclick=async()=>{
   const attachments=[];
   for(const entry of d.files){const f=entry.file,path=await up("notes/"+pid+"/"+uuid()+"-"+clean(f.name),f,f.type);
    uploaded.push(path);attachments.push({path,name:f.name,type:f.type||"application/octet-stream"})}
-  let vp=null;if(d.voice){const type=d.voice.blob.type,ext=type.includes("mp4")?"mp4":type.includes("ogg")?"ogg":"webm";
+  let vp=null;if(d.voice){const type=d.voice.blob.type,ext=type.includes("wav")?"wav":type.includes("mp4")?"mp4":type.includes("ogg")?"ogg":type.includes("webm")?"webm":"bin";
    vp=await up("voice/"+pid+"/"+uuid()+"."+ext,d.voice.blob,type);uploaded.push(vp)}
   const{error}=await sb.from("notes").insert({page_id:pid,item_id:id,body:text,attachments,voice_path:vp});if(error)throw error;
   saved=true;
@@ -434,19 +449,79 @@ $("commentSend").onclick=async()=>{
 };
 $("commentRec").onclick=()=>toggleRec(commentItem);
 
-/* voice notes: recorded in the browser, max 60 s */
+async function listMicrophones(){
+ if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;
+ try{
+  const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="audioinput"&&d.deviceId);
+  const selected=$("commentMic").value;
+  $("commentMic").innerHTML='<option value="">System default</option>'+devices.map((d,i)=>'<option value="'+esc(d.deviceId)+'">'+esc(d.label||"Microphone "+(i+1))+'</option>').join("");
+  if(devices.some(d=>d.deviceId===selected))$("commentMic").value=selected;
+  $("micHelp").textContent=devices.length?"Select a microphone before recording.":"Microphones become available after permission is granted.";
+ }catch(er){$("micHelp").textContent="Couldn’t list microphones: "+er.message}
+}
+function makeWav(chunks,count,rate){
+ const buffer=new ArrayBuffer(44+count*2),view=new DataView(buffer);
+ const write=(offset,text)=>{for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i))};
+ write(0,"RIFF");view.setUint32(4,36+count*2,true);write(8,"WAVE");write(12,"fmt ");
+ view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+ view.setUint32(24,rate,true);view.setUint32(28,rate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);
+ write(36,"data");view.setUint32(40,count*2,true);
+ let offset=44;for(const chunk of chunks)for(const sample of chunk){view.setInt16(offset,sample,true);offset+=2}
+ return new Blob([buffer],{type:"audio/wav"});
+}
+function showVoiceError(audio,message){
+ let warning=audio.nextElementSibling;
+ if(!warning||!warning.classList.contains("voice-error")){warning=document.createElement("small");warning.className="voice-error";warning.setAttribute("role","alert");audio.after(warning)}
+ warning.textContent=message;
+}
+document.addEventListener("error",e=>{
+ if(e.target.tagName==="AUDIO"&&$("commentM").contains(e.target))showVoiceError(e.target,"Couldn’t play this recording. Check the microphone or try another browser.");
+},true);
+
+/* voice notes: mono PCM WAV, max 2 minutes */
 async function toggleRec(iid){
  if(rec){if(rec.state==="recording"){rec.stop();renderCommentDraft()}return}
- recStarting=true;renderCommentDraft();let st;
+ recStarting=true;renderCommentDraft();let st,ctx,source,processor;
  try{
-  st=await navigator.mediaDevices.getUserMedia({audio:true});const mr=new MediaRecorder(st),ch=[];let recordingFailed=false;
-  mr.ondataavailable=e=>ch.push(e.data);
-  mr.onstop=()=>{st.getTracks().forEach(t=>t.stop());clearTimeout(recT);const b=new Blob(ch,{type:mr.mimeType||"audio/webm"});rec=null;recFor=null;
-   if(!recordingFailed&&b.size){const d=pd(iid);if(d.voice)URL.revokeObjectURL(d.voice.url);d.voice={blob:b,url:URL.createObjectURL(b)}}else if(!recordingFailed)toast("No audio was recorded");
-   renderCommentDraft();if(dirty&&!busy())draw()};
-  mr.onerror=()=>{recordingFailed=true;toast("Recording failed")};
-  rec=mr;recFor=iid;mr.start();recT=setTimeout(()=>mr.state==="recording"&&mr.stop(),60000);
- }catch(er){if(st)st.getTracks().forEach(t=>t.stop());rec=null;recFor=null;toast("Microphone unavailable. Check permission and use HTTPS or localhost.")}
+  const device=$("commentMic").value;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("Microphone access requires HTTPS or localhost");
+  st=await navigator.mediaDevices.getUserMedia({audio:device?{deviceId:{exact:device}}:true});
+  const AudioContext=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContext)throw new Error("This browser does not support audio recording");
+  ctx=new AudioContext();if(!ctx.createScriptProcessor)throw new Error("This browser does not support audio recording");
+  source=ctx.createMediaStreamSource(st);processor=ctx.createScriptProcessor(4096,1,1);
+  const rate=Math.min(16000,ctx.sampleRate),limit=rate*120,chunks=[];let count=0,phase=0,sum=0,n=0,peak=0;
+  const recording={state:"recording",stop:reason=>{
+   if(recording.state!=="recording")return;recording.state="inactive";clearTimeout(recT);
+   processor.onaudioprocess=null;source.disconnect();processor.disconnect();st.getTracks().forEach(t=>t.stop());
+   ctx.close().catch(er=>console.error("Couldn’t close audio recorder:",er));$("micLevel").value=0;rec=null;recFor=null;
+   if(count){const d=pd(iid),warning=reason|| (peak<0.003?"Little or no sound detected. Check the microphone and play the recording before sending.":"");
+    if(d.voice)URL.revokeObjectURL(d.voice.url);const blob=makeWav(chunks,count,rate);d.voice={blob,url:URL.createObjectURL(blob),warning}}
+   else toast(reason||"No audio was recorded. Check your microphone and try again.");
+   renderCommentDraft();if(dirty&&!busy())draw();
+  }};
+  processor.onaudioprocess=e=>{
+   e.outputBuffer.getChannelData(0).fill(0);
+   const input=e.inputBuffer.getChannelData(0),out=new Int16Array(Math.ceil(input.length*rate/ctx.sampleRate)+1);
+   let size=0,power=0;for(const sample of input){
+    power+=sample*sample;sum+=sample;n++;phase+=rate;
+    if(phase>=ctx.sampleRate){const v=Math.max(-1,Math.min(1,sum/n));out[size++]=v<0?v*32768:v*32767;phase-=ctx.sampleRate;sum=0;n=0;
+     if(count+size>=limit)break}
+   }
+   const level=Math.sqrt(power/input.length);peak=Math.max(peak,level);$("micLevel").value=Math.min(1,level*5);
+   if(size){chunks.push(out.subarray(0,size));count+=size}
+   if(count>=limit)recording.stop();
+  };
+  source.connect(processor);processor.connect(ctx.destination);await ctx.resume();
+  if(ctx.state!=="running")throw new Error("Audio input could not start");
+  rec=recording;recFor=iid;listMicrophones();
+  st.getAudioTracks().forEach(track=>track.addEventListener("ended",()=>recording.stop("Microphone disconnected. Check the recording before sending.")));
+  recT=setTimeout(()=>recording.stop(),120000);
+ }catch(er){
+  if(processor)processor.disconnect();if(source)source.disconnect();if(st)st.getTracks().forEach(t=>t.stop());
+  if(ctx)ctx.close().catch(err=>console.error("Couldn’t close audio recorder:",err));
+  rec=null;recFor=null;toast("Couldn’t start recording: "+(er.message||"check microphone permission and use HTTPS or localhost"));
+ }
  finally{recStarting=false;renderCommentDraft()}
 }
 
