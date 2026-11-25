@@ -168,7 +168,7 @@ const nm=e=>{if(!e)return"Someone";const m=members.find(x=>x.email.toLowerCase()
 
 /* ---------- auth ---------- */
 function showAuth(msg){$("app").style.display="none";$("auth").style.display="";$("aMsg").textContent=msg||""}
-$("aIn").onclick=async()=>{const{error}=await sb.auth.signInWithPassword({email:$("aE").value.trim(),password:$("aP").value});if(error)$("aMsg").textContent=error.message};
+$("aIn").onclick=async()=>{$("aMsg").textContent="Signing in…";const{error}=await sb.auth.signInWithPassword({email:$("aE").value.trim(),password:$("aP").value});if(error)$("aMsg").textContent=error.message};
 $("aUp").onclick=async()=>{const{data,error}=await sb.auth.signUp({email:$("aE").value.trim(),password:$("aP").value});
  if(error)$("aMsg").textContent=error.message;else if(!data.session)$("aMsg").textContent="Account created. Check your email to confirm, then sign in."};
 $("aP").onkeydown=e=>{if(e.key==="Enter")$("aIn").click()};
@@ -176,7 +176,7 @@ $("out").onclick=async()=>{chan&&sb.removeChannel(chan);chan=null;await sb.auth.
 async function enter(u){
  me=(u.email||"").toLowerCase();
  const{data,error}=await sb.from("members").select("*");
- if(error||!data||!data.some(m=>m.email.toLowerCase()===me)){showAuth("This email ("+me+") isn’t on the access list yet. Ask an admin to add it, then sign in again.");await sb.auth.signOut();return}
+ if(error||!data||!data.some(m=>m.email.toLowerCase()===me)){showAuth("This email ("+me+") isn’t on the access list yet. Ask an admin to add it, then sign in again.");me="";await sb.auth.signOut();return}
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
  $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
  await loadAll();draw(true);
@@ -184,7 +184,7 @@ async function enter(u){
   .subscribe(s=>{$("live").textContent=s==="SUBSCRIBED"?"● Live":"Reconnecting…"});
 }
 sb.auth.getSession().then(({data})=>data.session?enter(data.session.user):showAuth());
-sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)enter(s.user)});
+sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)setTimeout(()=>enter(s.user),0)});
 
 /* ---------- data ---------- */
 async function loadAll(){
