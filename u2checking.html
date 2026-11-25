@@ -287,7 +287,7 @@ $("aIn").onclick=async()=>{$("aMsg").textContent="Signing in…";const{error}=aw
 $("aUp").onclick=async()=>{const{data,error}=await sb.auth.signUp({email:$("aE").value.trim(),password:$("aP").value});
  if(error)$("aMsg").textContent=error.message;else if(!data.session)$("aMsg").textContent="Account created. Check your email to confirm, then sign in."};
 $("aP").onkeydown=e=>{if(e.key==="Enter")$("aIn").click()};
-$("out").onclick=async()=>{chan&&sb.removeChannel(chan);chan=null;await sb.auth.signOut();location.reload()};
+$("out").onclick=async()=>{signedOut=true;clearTimeout(reconnectT);chan&&sb.removeChannel(chan);chan=null;await sb.auth.signOut();location.reload()};
 async function enter(u){
  me=(u.email||"").toLowerCase();
  const{data,error}=await sb.from("members").select("*");
@@ -296,14 +296,36 @@ async function enter(u){
  presenceUser=u.id;
  $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
  await loadAll();draw(true);
- chan=sb.channel("tracker").on("postgres_changes",{event:"*",schema:"public"},scheduleSync)
-  .on("presence",{event:"sync"},renderPresence)
-  .subscribe(s=>{
-   $("live").textContent=s==="SUBSCRIBED"?"● Live":"Reconnecting…";
-   presenceEpoch++;presenceConnected=s==="SUBSCRIBED";presenceReady=false;presenceError=s==="CHANNEL_ERROR"||s==="TIMED_OUT";presenceRunning=false;presenceSent="";
-   clearTimeout(presenceRetry);presenceRetry=null;renderPresence();if(presenceConnected)publishPresence();
-  });
+ signedOut=false;connectLive();
 }
+/* realtime connection that heals itself */
+let signedOut=false,reconnectT=null,reconnectTries=0,lastSync=Date.now();
+function connectLive(){
+ clearTimeout(reconnectT);reconnectT=null;
+ if(signedOut||!me)return;
+ if(chan){const old=chan;chan=null;Promise.resolve(sb.removeChannel(old)).catch(()=>{})}
+ const channel=chan=sb.channel("tracker").on("postgres_changes",{event:"*",schema:"public"},scheduleSync)
+  .on("presence",{event:"sync"},renderPresence);
+ channel.subscribe(s=>{
+  if(channel!==chan)return;
+  const ok=s==="SUBSCRIBED";
+  $("live").textContent=ok?"● Live":"Reconnecting…";
+  presenceEpoch++;presenceConnected=ok;presenceReady=false;presenceError=s==="CHANNEL_ERROR"||s==="TIMED_OUT";presenceRunning=false;presenceSent="";
+  clearTimeout(presenceRetry);presenceRetry=null;renderPresence();
+  if(ok){reconnectTries=0;publishPresence();scheduleSync({table:"all"})}
+  else if(!reconnectT)reconnectT=setTimeout(connectLive,Math.min(15000,1000*2**reconnectTries++));
+ });
+}
+function wake(){
+ if(!me||signedOut||document.hidden)return;
+ if(!presenceConnected)connectLive();
+ else if(Date.now()-lastSync>20000)scheduleSync({table:"all"});
+}
+document.addEventListener("visibilitychange",wake);
+window.addEventListener("online",()=>{reconnectTries=0;if(me&&!signedOut)connectLive()});
+window.addEventListener("focus",wake);
+// Fallback poll in case the socket silently stalls (e.g. throttled background tab)
+setInterval(()=>{if(me&&!signedOut&&!document.hidden&&Date.now()-lastSync>15000)scheduleSync({table:"all"})},5000);
 sb.auth.getSession().then(({data})=>data.session?enter(data.session.user):showAuth());
 sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)setTimeout(()=>enter(s.user),0)});
 
@@ -358,15 +380,16 @@ mobile.addEventListener("change",publishPresence);
 
 /* ---------- data ---------- */
 function scheduleSync(change){
+ if(!change||!change.table)change={table:"all"};
  syncTables.add(change.table==="items"||change.table==="notes"?change.table:"all");
  clearTimeout(syncT);syncT=setTimeout(async()=>{
   const tables=new Set(syncTables);syncTables.clear();
   try{
    if(tables.has("all"))await loadAll();
    else await Promise.all([tables.has("items")?loadItems():null,tables.has("notes")?loadNotes():null]);
-   draw();
+   lastSync=Date.now();draw();
   }catch(er){toast("Couldn’t update tracker: "+er.message)}
- },300);
+ },120);
 }
 async function allRows(query){
  let first=await query(true).range(0,999);
@@ -475,7 +498,14 @@ function shrink(blob,max=1600){return new Promise(res=>{const u=URL.createObject
  im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");
   c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
   URL.revokeObjectURL(u);c.toBlob(b=>res(b),"image/jpeg",.85)};im.onerror=()=>res(blob);im.src=u})}
-async function addItems(pid,arr){let o=Date.now();if(arr.length){const{error}=await sb.from("items").insert(arr.map(t=>({page_id:pid,text:t,sort_order:o++})));if(error)throw error}}
+async function addItems(pid,arr){
+ let o=Date.now();if(!arr.length)return;
+ const{data,error}=await sb.from("items").insert(arr.map(t=>({page_id:pid,text:t,sort_order:o++}))).select();
+ if(error)throw error;
+ ++itemsVersion;
+ for(const row of data||[])if(!itemsById.has(row.id))items.push(row);
+ indexItems();draw(true);
+}
 
 /* ---------- render ---------- */
 function busy(){const a=document.activeElement;return rec||[...document.querySelectorAll("audio")].some(x=>!x.paused)||(a&&$("main").contains(a)&&(a.tagName==="TEXTAREA"||(a.tagName==="INPUT"&&a.type!=="checkbox")))}
