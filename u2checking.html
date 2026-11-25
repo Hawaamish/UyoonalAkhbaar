@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap">
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
---bg:#f6f3ee;--card:#fff;--ink:#1f2a37;--mute:#6b7280;--line:#e5dfd5;--acc:#0f766e;--acc2:#e6f4f1;--note:#fff8e6}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181c;--card:#1d2328;--ink:#e8ecef;--mute:#98a2ad;--line:#2c343b;--acc:#2dd4bf;--acc2:#16312e;--note:#2b2718}}
+--bg:#f6f3ee;--card:#fff;--ink:#1f2a37;--mute:#6b7280;--line:#e5dfd5;--acc:#0f766e;--acc2:#e6f4f1;--note:#fff8e6;--comment:#15803d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181c;--card:#1d2328;--ink:#e8ecef;--mute:#98a2ad;--line:#2c343b;--acc:#2dd4bf;--acc2:#16312e;--note:#2b2718;--comment:#4ade80}}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Amiri","Scheherazade New","Traditional Arabic",Georgia,serif}
@@ -24,6 +24,17 @@ h1{font-size:19px;margin:0}
 #live{font-size:13px;color:var(--mute)}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
 @media (max-width:800px){.app{grid-template-columns:1fr}}
+.mobile-back{display:none}
+@media (max-width:800px){
+ header{position:static;padding:10px 12px}
+ header .tools{width:100%;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+ header .tools>*{flex:none}
+ .app{padding:12px}
+ body:not(.mobile-detail) .main,body.mobile-detail aside{display:none}
+ .mobile-back{display:inline-flex;margin-bottom:12px}
+ .modal.show{padding:0}
+ .modal .box{width:100%;height:100%;max-height:none;border-radius:0;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+}
 aside,.main{min-width:0}
 .overall{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
 .bar{height:7px;background:var(--line);border-radius:9px;overflow:hidden;margin-top:6px}
@@ -54,7 +65,8 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .it.done .ir textarea{text-decoration:line-through;color:var(--mute)}
 .n{color:var(--mute);width:22px;margin-top:6px;font-size:13px;flex:none}
 .ib{border:1px solid var(--line);background:transparent;border-radius:8px;padding:1px 8px;font-size:14px;white-space:nowrap;margin-top:4px}
-.ib.has{border-color:var(--acc);color:var(--acc)}
+.ib.has{border-color:var(--comment);color:var(--comment);background:var(--acc2)}
+.ib svg{width:18px;height:18px;vertical-align:middle}
 .by{font-size:13px;color:var(--mute);margin:-2px 0 0 52px}
 .thread{background:var(--note);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:35vh;overflow:auto}
 .nt{border-bottom:1px solid var(--line);padding:6px 0}.nt:last-of-type{border:0}
@@ -135,6 +147,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 </div>
 
 <div class="modal" id="modal"><div class="box">
+ <button class="btn mobile-back" id="mBack">← Back</button>
  <h3 id="mT">Add page</h3>
  <label>Page label (e.g. ص204)</label>
  <input type="text" id="mLabel" dir="auto" placeholder="ص204">
@@ -147,6 +160,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 </div></div>
 
 <div class="modal" id="memM"><div class="box">
+ <button class="btn mobile-back" id="memBack">← Back</button>
  <h3>Members</h3><div id="memL"></div>
  <label>Add a person (they then create an account with this email)</label>
  <input type="email" id="mmE" placeholder="email"><input type="text" id="mmN" placeholder="Display name" style="margin-top:6px">
@@ -155,6 +169,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 </div></div>
 
 <div class="modal" id="commentM" role="dialog" aria-modal="true" aria-labelledby="commentTitle"><div class="box comment-box">
+ <button class="btn mobile-back" id="commentBack">← Back</button>
  <h3 id="commentTitle">Comments</h3>
  <p id="commentPoint" dir="auto"></p>
  <small>Responses are shared with tracker members. Voice recording requires microphone permission and a secure connection.</small>
@@ -166,6 +181,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <select id="commentMic"><option value="">System default</option></select>
  <small id="micHelp">Microphones become available after permission is granted.</small>
  <div class="mic-level"><label for="micLevel">Input level</label><meter id="micLevel" min="0" max="1" value="0">0</meter></div>
+ <small id="micFeedback" role="status"></small>
  <input type="file" id="commentInput" accept="image/*,.pdf,.txt,.csv,.md,.json" multiple hidden>
  <div class="row">
   <button class="btn" id="commentAttach">📎 Attach files</button>
@@ -176,7 +192,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <small id="commentStatus" role="status"></small>
 </div></div>
 
-<div id="lb"><img id="lbi" alt=""></div>
+<div id="lb"><button class="btn mobile-back">← Back</button><img id="lbi" alt=""></div>
 <div id="toast"></div>
 <div id="printArea"></div>
 
@@ -186,10 +202,12 @@ const SUPABASE_URL="https://eixqwdctohiosypozrhd.supabase.co",SUPABASE_KEY="sb_p
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=null,filter="all",editId=null,tmpBlob=null,tmpUrl=null;
 let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
-let commentItem=null,commentPage=null,commentSending=false,recStarting=false;
-let loadVersion=0;
+let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pageSaving=false;
+let loadVersion=0,itemsVersion=0,notesVersion=0;
+const syncTables=new Set();
 const pendingChecks=new Map();
-const urlC={};
+const itemsByPage=new Map(),itemsById=new Map(),pageStats=new Map();
+const urlC={},urlPending=new Map();
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uuid=()=>crypto.randomUUID();
@@ -197,9 +215,60 @@ const clean=s=>String(s).replace(/[^\w.\-]+/g,"_").slice(-60);
 function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2400)}
 const fail=e=>toast("Couldn’t save: "+(e&&e.message||"no permission"));
 const P=()=>pages.find(p=>p.id===cur);
-const its=pid=>items.filter(i=>i.page_id===pid);
-const stat=p=>{const a=its(p.id),d=a.filter(i=>i.done).length;return{d,n:a.length,pc:a.length?Math.round(d/a.length*100):0}};
+const its=pid=>itemsByPage.get(pid)||[];
+const stat=p=>{const s=pageStats.get(p.id)||{d:0,n:0};return{d:s.d,n:s.n,pc:s.n?Math.round(s.d/s.n*100):0}};
+function indexItems(){
+ itemsByPage.clear();itemsById.clear();pageStats.clear();
+ for(const item of items){
+  itemsById.set(item.id,item);
+  if(!itemsByPage.has(item.page_id)){itemsByPage.set(item.page_id,[]);pageStats.set(item.page_id,{d:0,n:0})}
+  itemsByPage.get(item.page_id).push(item);const s=pageStats.get(item.page_id);s.n++;if(item.done)s.d++;
+ }
+}
+function updateItem(item,fields){
+ const done=!!item.done;Object.assign(item,fields);
+ if(done!==!!item.done){const s=pageStats.get(item.page_id);if(s)s.d+=item.done?1:-1}
+}
 const nm=e=>{if(!e)return"Someone";const m=members.find(x=>x.email.toLowerCase()===e.toLowerCase());return e===me?"You":(m&&m.name)||e.split("@")[0]};
+const pageCollator=new Intl.Collator(undefined,{numeric:true,sensitivity:"base"});
+function pageNumber(label){
+ const normalized=String(label||"").replace(/[٠-٩۰-۹]/g,c=>String(c.charCodeAt(0)-(c<="٩"?0x660:0x6f0)));
+ return (normalized.match(/\d+/)||[])[0];
+}
+function comparePages(a,b){
+ const x=pageNumber(a.label),y=pageNumber(b.label);
+ if(x&&y){const order=pageCollator.compare(x,y);if(order)return order}
+ else if(x||y)return x?-1:1;
+ return pageCollator.compare(a.label||"",b.label||"");
+}
+
+/* ---------- mobile navigation ---------- */
+const mobile=window.matchMedia("(max-width:800px)"),navToken=uuid(),mobileLayers=[];
+let mobileDepth=0;
+function pushMobileLayer(key,close,open){
+ if(!mobile.matches)return;
+ mobileLayers.length=mobileDepth;mobileLayers.push({key,close,open});mobileDepth++;
+ history.pushState({...history.state,trackerNav:{token:navToken,depth:mobileDepth}},"");
+}
+function closeMobileLayer(key,close){
+ if(mobileDepth&&mobileLayers[mobileDepth-1].key===key)history.back();else close();
+}
+window.addEventListener("popstate",e=>{
+ const state=e.state&&e.state.trackerNav,target=state&&state.token===navToken?state.depth:0;
+ if(target<mobileDepth&&(commentSending||recStarting||pageSaving)){
+  toast("Please wait for the current action to finish.");history.go(mobileDepth-target);return;
+ }
+ if(target<mobileDepth&&rec)rec.stop();
+ while(mobileDepth>target){mobileLayers[mobileDepth-1].close();mobileDepth--}
+ while(mobileDepth<target&&mobileLayers[mobileDepth]){mobileLayers[mobileDepth].open();mobileDepth++}
+});
+function showMobileDetail(id){
+ if(!mobile.matches)return;
+ const show=()=>{cur=id;document.body.classList.add("mobile-detail");window.scrollTo(0,0)};
+ const hide=()=>{document.body.classList.remove("mobile-detail");window.scrollTo(0,0)};
+ show();pushMobileLayer("detail",hide,()=>{show();loadNotes().then(()=>draw(true)).catch(er=>toast("Couldn’t load comments: "+er.message))});
+}
+function backToPages(){closeMobileLayer("detail",()=>document.body.classList.remove("mobile-detail"))}
 
 /* ---------- auth ---------- */
 function showAuth(msg){$("app").style.display="none";$("auth").style.display="";$("aMsg").textContent=msg||""}
@@ -215,27 +284,89 @@ async function enter(u){
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
  $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
  await loadAll();draw(true);
- chan=sb.channel("tracker").on("postgres_changes",{event:"*",schema:"public"},()=>{clearTimeout(syncT);syncT=setTimeout(async()=>{await loadAll();draw()},300)})
+ chan=sb.channel("tracker").on("postgres_changes",{event:"*",schema:"public"},scheduleSync)
   .subscribe(s=>{$("live").textContent=s==="SUBSCRIBED"?"● Live":"Reconnecting…"});
 }
 sb.auth.getSession().then(({data})=>data.session?enter(data.session.user):showAuth());
 sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)setTimeout(()=>enter(s.user),0)});
 
 /* ---------- data ---------- */
+function scheduleSync(change){
+ syncTables.add(change.table==="items"||change.table==="notes"?change.table:"all");
+ clearTimeout(syncT);syncT=setTimeout(async()=>{
+  const tables=new Set(syncTables);syncTables.clear();
+  try{
+   if(tables.has("all"))await loadAll();
+   else await Promise.all([tables.has("items")?loadItems():null,tables.has("notes")?loadNotes():null]);
+   draw();
+  }catch(er){toast("Couldn’t update tracker: "+er.message)}
+ },300);
+}
+async function allRows(query){
+ let first=await query(true).range(0,999);
+ if(first.error&&first.status===416&&first.error.code==="PGRST103")first=await query(false).range(0,999);
+ if(first.error)return{data:null,error:first.error};
+ if(!first.data)return{data:null,error:new Error("No rows returned")};
+ const rows=[...first.data];let offset=rows.length;
+ if(typeof first.count==="number"){
+  if(offset>=first.count)return{data:rows,error:null};
+  if(!offset)return{data:null,error:new Error("Couldn’t read the requested rows")};
+  const size=offset;let partial=false;
+  while(offset<first.count){
+   const starts=[];for(let i=0;i<4&&offset<first.count;i++,offset+=size)starts.push(offset);
+   const results=await Promise.all(starts.map(start=>query(false).range(start,start+size-1)));
+   for(let i=0;i<results.length;i++){
+    const result=results[i];
+    if(result.error&&result.status===416&&result.error.code==="PGRST103")return{data:rows,error:null};
+    if(result.error)return{data:null,error:result.error};
+    if(!result.data)return{data:null,error:new Error("No rows returned")};
+    rows.push(...result.data);
+    if(result.data.length<Math.min(size,first.count-starts[i])){
+     if(!result.data.length)return{data:rows,error:null};
+     offset=starts[i]+result.data.length;partial=true;break;
+    }
+   }
+   if(partial)break;
+  }
+  if(!partial)return{data:rows,error:null};
+ }
+ while(true){
+  if(!offset)return{data:rows,error:null};
+  const{data,error,status}=await query(false).range(offset,offset+999);
+  if(error&&status===416&&error.code==="PGRST103"&&offset>0)return{data:rows,error:null};
+  if(error)return{data:null,error};
+  if(!data)return{data:null,error:new Error("No rows returned")};
+  if(!data.length)return{data:rows,error:null};
+  rows.push(...data);offset+=data.length;
+ }
+}
+const itemsQuery=count=>sb.from("items").select("*",count?{count:"exact"}:undefined).order("sort_order").order("id");
+function replaceItems(data){
+ items=data.map(i=>pendingChecks.has(i.id)?{...i,...pendingChecks.get(i.id).update}:i);indexItems();
+}
+async function loadItems(){
+ const version=++itemsVersion,{data,error}=await allRows(itemsQuery);
+ if(version!==itemsVersion)return;
+ if(error){toast("Couldn’t load points: "+error.message);return}
+ replaceItems(data);
+}
 async function loadAll(){
- const version=++loadVersion;
- const[a,b,m]=await Promise.all([sb.from("pages").select("*").order("sort_order"),sb.from("items").select("*").order("sort_order"),sb.from("members").select("*")]);
+ const version=++loadVersion,itemVersion=++itemsVersion;
+ const[a,b,m]=await Promise.all([
+  allRows(count=>sb.from("pages").select("*",count?{count:"exact"}:undefined).order("sort_order").order("id")),
+  allRows(itemsQuery),
+  sb.from("members").select("*")]);
  if(version!==loadVersion)return;
  if(a.error)return fail(a.error);
- if(b.error)return toast("Couldn’t load points: "+b.error.message);
- pages=a.data;items=(b.data||[]).map(i=>pendingChecks.has(i.id)?{...i,...pendingChecks.get(i.id).update}:i);members=m.data||members;
+ if(itemVersion===itemsVersion&&b.error)return toast("Couldn’t load points: "+b.error.message);
+ pages=a.data.sort(comparePages);if(itemVersion===itemsVersion)replaceItems(b.data);members=m.data||members;
  if(!cur||!P())cur=pages[0]?.id||null;
  await loadNotes();
 }
 async function loadNotes(){
- const pid=cur;if(!pid){notesFor=null;notes=[];return}
- const{data,error}=await sb.from("notes").select("*").eq("page_id",pid).order("created_at");
- if(pid!==cur)return;
+ const version=++notesVersion,pid=cur;if(!pid){notesFor=null;notes=[];return}
+ const{data,error}=await allRows(count=>sb.from("notes").select("*",count?{count:"exact"}:undefined).eq("page_id",pid).order("created_at").order("id"));
+ if(version!==notesVersion||pid!==cur)return;
  if(error){if(notesFor!==pid)notes=[];toast("Couldn’t load comments: "+error.message);return}
  notesFor=pid;notes=data||[];
 }
@@ -243,14 +374,23 @@ async function hydrate(){
  const els=[...document.querySelectorAll("[data-p]")];
  const need=[...new Set(els.map(e=>e.dataset.p).filter(p=>!urlC[p]||urlC[p].t<Date.now()))];
  if(need.length){
-  need.forEach(p=>delete urlC[p]);
-  try{
-   const{data,error}=await sb.storage.from(B).createSignedUrls(need,3600);if(error)throw error;
-   (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});
-   els.filter(e=>e.tagName==="AUDIO"&&!urlC[e.dataset.p]).forEach(e=>showVoiceError(e,"Couldn’t load this voice note. Check your access and connection."));
-  }catch(er){els.filter(e=>e.tagName==="AUDIO").forEach(e=>showVoiceError(e,"Couldn’t load this voice note: "+er.message))}
+  const fresh=need.filter(p=>!urlPending.has(p));
+  if(fresh.length){
+   fresh.forEach(p=>delete urlC[p]);
+   const request=(async()=>{
+    try{
+     const{data,error}=await sb.storage.from(B).createSignedUrls(fresh,3600);if(error)throw error;
+     (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});return null;
+    }catch(er){return er}
+   })();
+   fresh.forEach(p=>urlPending.set(p,request));
+   request.then(()=>fresh.forEach(p=>{if(urlPending.get(p)===request)urlPending.delete(p)}));
+  }
+  const errors=await Promise.all([...new Set(need.map(p=>urlPending.get(p)).filter(Boolean))]),error=errors.find(Boolean);
+  if(error&&els.some(e=>e.isConnected&&e.tagName!=="AUDIO"))toast("Couldn’t load files: "+error.message);
+  els.filter(e=>e.isConnected&&e.tagName==="AUDIO"&&!urlC[e.dataset.p]).forEach(e=>showVoiceError(e,error?"Couldn’t load this voice note: "+error.message:"Couldn’t load this voice note. Check your access and connection."));
  }
- els.forEach(e=>{const c=urlC[e.dataset.p];if(!c)return;const k=e.tagName==="A"?"href":"src";
+ els.forEach(e=>{const c=urlC[e.dataset.p];if(!e.isConnected||!c)return;const k=e.tagName==="A"?"href":"src";
   if(e.getAttribute(k)!==c.u){e.setAttribute(k,c.u);if(e.tagName==="AUDIO"&&e.nextElementSibling?.classList.contains("voice-error"))e.nextElementSibling.remove()}});
 }
 async function up(path,blob,type){const{error}=await sb.storage.from(B).upload(path,blob,{contentType:(type||blob.type||"application/octet-stream").split(";")[0],upsert:false});if(error)throw error;return path}
@@ -283,87 +423,103 @@ function renderList(){
  $("plist").innerHTML=L.map(p=>{const s=stat(p);return '<button class="pi'+(p.id===cur?" on":"")+'" data-id="'+p.id+'">'+
   (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<div><div class="nm" dir="auto">'+esc(p.label||"Untitled")+'</div><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><div class="bar"><i style="width:'+s.pc+'%"></i></div></div></button>'}).join("")||'<div class="empty">No pages yet</div>';
 }
+const commentIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H6l-3 3v-6a8.5 8.5 0 1 1 18-3.5Z"/></svg>';
+function commentCounts(){const counts=new Map();notes.forEach(n=>counts.set(n.item_id,(counts.get(n.item_id)||0)+1));return counts}
+function commentLabel(number,count){return "Open comments for point "+number+(count?" ("+count+" comment"+(count===1?"":"s")+")":" (no comments)")}
 function checkStatus(it){return it.done?(it.done_by?"Checked · cleared by "+nm(it.done_by):"Checked"):"Unchecked"}
 function refreshChecks(){
- renderList();const p=P(),progress=$("pageProgress");
+ renderList();const p=P(),progress=$("pageProgress"),counts=commentCounts();
  if(p&&progress){const s=stat(p);progress.textContent=s.d+" of "+s.n+" done · "+s.pc+"%"}
  $("main").querySelectorAll("[data-c]").forEach(box=>{
-  const it=items.find(i=>i.id===box.dataset.c);if(!it)return;
+  const it=itemsById.get(box.dataset.c);if(!it)return;
   box.checked=!!it.done;box.disabled=pendingChecks.has(it.id);
   const row=box.closest(".it");row.classList.toggle("done",!!it.done);row.querySelector(".by").textContent=checkStatus(it);
+  const button=row.querySelector("[data-th]"),count=counts.get(it.id)||0;
+  if(button.dataset.count!==String(count)){
+   button.dataset.count=count;button.classList.toggle("has",!!count);button.innerHTML=commentIcon+(count?" "+count:"");
+   button.setAttribute("aria-label",commentLabel(row.querySelector(".n").textContent,count));
+  }
  });
  hydrate();
 }
-function pd(id){return pend[id]||(pend[id]={text:"",files:[],voice:null})}
+function pd(id){return pend[id]||(pend[id]={text:"",files:[],voices:[]})}
 function renderCommentThread(){
  const L=notes.filter(n=>n.item_id===commentItem);
  $("commentThread").innerHTML=L.map(n=>'<div class="nt"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
   ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+n.id+'">delete</a>':'')+'</small>'+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+esc(n.body)+'</div>':'')+
   (n.voice_path?'<audio controls preload="metadata" aria-label="Play voice note" data-p="'+esc(n.voice_path)+'"></audio>':'')+
-  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet.</small>';
+  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':/^audio\//.test(f.type)?'<audio controls preload="metadata" aria-label="'+esc(f.name||"Play voice note")+'" data-p="'+esc(f.path)+'"></audio>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet.</small>';
 }
 function renderMain(){
  const p=P(),m=$("main");
- if(!p){m.innerHTML='<div class="panel empty"><div style="font-size:40px">🗂️</div><p>Add your first page: paste a page image and its list of points.</p></div>';return}
- const A=its(p.id),s=stat(p);
+ if(!p){m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button><div class="panel empty"><div style="font-size:40px">🗂️</div><p>Add your first page: paste a page image and its list of points.</p></div>';return}
+ const A=its(p.id),s=stat(p),counts=commentCounts();
  const list=A.map((it,i)=>({it,i})).filter(({it})=>filter==="all"||(filter==="open"?!it.done:it.done));
- m.innerHTML='<div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
+ m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button><div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
  '<div class="tools"><button class="btn" id="bShare">↗ Share</button><button class="btn" id="bPrint">🖨 Print</button><button class="btn" id="bEdit">✎ Edit</button><button class="btn danger" id="bDel">🗑</button></div></div>'+
  '<div class="split">'+(p.image_path?'<div><img class="shot" id="shot" data-p="'+esc(p.image_path)+'" alt="Page image"></div>':'<div class="empty">No image</div>')+
  '<div><div class="chips">'+["all","open","done"].map(f=>'<button class="chip'+(filter===f?" on":"")+'" data-f="'+f+'">'+f[0].toUpperCase()+f.slice(1)+'</button>').join("")+'</div><div>'+
- (list.map(({it,i})=>{const c=notes.filter(n=>n.item_id===it.id).length;
+ (list.map(({it,i})=>{const c=counts.get(it.id)||0;
   return '<div class="it'+(it.done?" done":"")+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'" aria-label="Mark point '+(i+1)+' as checked"'+(it.done?" checked":"")+(pendingChecks.has(it.id)?" disabled":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
-  '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" title="Open comments" aria-label="Open comments for point '+(i+1)+'">💬'+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
+  '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" data-count="'+c+'" title="Open comments" aria-label="'+commentLabel(i+1,c)+'">'+commentIcon+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
   '<div class="by">'+esc(checkStatus(it))+'</div></div>'}).join("")||'<div class="empty">Nothing here</div>')+
  '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="Add a point and press Enter"><button class="btn" id="newBtn">Add</button></div></div></div></div>';
- m.querySelectorAll("textarea[data-t]").forEach(grow);
+ const fields=[...m.querySelectorAll("textarea[data-t]")];
+ fields.forEach(t=>{t.style.height="auto"});const heights=fields.map(t=>t.scrollHeight);
+ fields.forEach((t,i)=>{t.style.height=heights[i]+"px"});
 }
 function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+"px"}
 
 /* ---------- actions ---------- */
-$("plist").onclick=async e=>{const b=e.target.closest(".pi");if(b){cur=b.dataset.id;await loadNotes();draw(true)}};
-$("q").oninput=renderList;
+$("plist").onclick=async e=>{const b=e.target.closest(".pi");if(b){
+ const id=b.dataset.id;if(cur!==id){notes=[];notesFor=null}cur=id;showMobileDetail(id);draw(true);
+ await loadNotes();if(cur===id)draw(true)
+}};
+$("q").oninput=()=>{renderList();hydrate()};
 $("main").onclick=async e=>{
- const p=P();if(!p)return;const t=e.target,d=t.dataset;
+ const t=e.target.closest("button")||e.target,d=t.dataset;if(t.id==="mobileBack"){backToPages();return}
+ const p=P();if(!p)return;
  try{
  if(d.f){filter=d.f;draw(true);return}
  if(d.x&&confirm("Remove this point and its notes?")){const ns=notes.filter(n=>n.item_id===d.x);const{error}=await sb.from("items").delete().eq("id",d.x);if(error)throw error;await rmFiles(notePaths(ns));return}
  if(d.th){openComments(d.th);return}
- if(t.id==="shot"){$("lbi").src=t.src;$("lb").style.display="block"}
+ if(t.id==="shot"){$("lbi").src=t.src;$("lb").style.display="block";pushMobileLayer("image",hideLightbox,showLightbox)}
  if(t.id==="newBtn")addOne();
  if(t.id==="bPrint")doPrint([p]);
  if(t.id==="bShare")share(p);
  if(t.id==="bEdit")openModal(p);
  if(t.id==="bDel"&&confirm("Delete this page, its checklist and notes for everyone?")){
-  const{data:ns}=await sb.from("notes").select("*").eq("page_id",p.id);
+  const{data:ns,error:notesError}=await allRows(count=>sb.from("notes").select("*",count?{count:"exact"}:undefined).eq("page_id",p.id).order("created_at").order("id"));if(notesError)throw notesError;
   const{error}=await sb.from("pages").delete().eq("id",p.id);if(error)throw error;
-  await rmFiles([p.image_path,...notePaths(ns||[])]);toast("Deleted")}
+  await rmFiles([p.image_path,...notePaths(ns||[])]);if(mobile.matches)backToPages();toast("Deleted")}
  }catch(er){fail(er)}
 };
 $("main").onchange=async e=>{const d=e.target.dataset;try{
  if(d.c){await saveCheck(d.c,e.target.checked);return}
  if(d.t){const{error}=await sb.from("items").update({text:e.target.value}).eq("id",d.t);if(error)throw error}}catch(er){fail(er)}};
 async function saveCheck(id,checked){
- const it=items.find(i=>i.id===id);if(!it||pendingChecks.has(id))return;
+ const it=itemsById.get(id);if(!it||pendingChecks.has(id))return;
  const previous={done:it.done,done_by:it.done_by,done_at:it.done_at};
  const update={done:checked,done_by:checked?me:null,done_at:checked?new Date().toISOString():null};
- pendingChecks.set(id,{update});Object.assign(it,update);refreshChecks();
+ pendingChecks.set(id,{update});updateItem(it,update);refreshChecks();
  try{
   const{data,error}=await sb.from("items").update(update).eq("id",id).select("id,done,done_by,done_at").maybeSingle();
   if(error)throw error;if(!data)throw new Error("Point was not updated");
-  ++loadVersion;
-  const current=items.find(i=>i.id===id);if(current)Object.assign(current,data);
-  pendingChecks.delete(id);draw();
-  loadAll().then(()=>draw()).catch(er=>toast("Couldn’t refresh points: "+er.message));
+  ++itemsVersion;
+  const current=itemsById.get(id);if(current)updateItem(current,data);
+  pendingChecks.delete(id);refreshChecks();
+  loadItems().then(()=>draw()).catch(er=>toast("Couldn’t refresh points: "+er.message));
  }catch(er){
-  pendingChecks.delete(id);const current=items.find(i=>i.id===id);if(current)Object.assign(current,previous);
-  refreshChecks();await loadAll();draw();fail(er);
+  pendingChecks.delete(id);const current=itemsById.get(id);if(current)updateItem(current,previous);
+  refreshChecks();await loadItems();draw();fail(er);
  }
 }
 $("main").oninput=e=>{if(e.target.dataset.t)grow(e.target)};
 $("main").onkeydown=e=>{if(e.target.id==="newIt"&&e.key==="Enter")addOne()};
 async function addOne(){const v=$("newIt").value.trim();if(!v)return;$("newIt").value="";try{await addItems(cur,[v])}catch(er){fail(er)}$("newIt").focus()}
-$("lb").onclick=()=>$("lb").style.display="none";
+function hideLightbox(){$("lb").style.display="none"}
+function showLightbox(){$("lb").style.display="block"}
+$("lb").onclick=()=>closeMobileLayer("image",hideLightbox);
 
 /* ---------- shared comments ---------- */
 function renderCommentDraft(){
@@ -371,33 +527,41 @@ function renderCommentDraft(){
  const d=pd(commentItem);
  $("commentFiles").innerHTML=d.files.map((f,i)=>'<div class="comment-file">'+(f.url?'<img src="'+f.url+'" alt="">':"")+
   '<span>'+esc(f.file.name)+'</span><br><button class="btn" data-remove-file="'+i+'">Remove</button></div>').join("")+
-  (d.voice?'<div class="comment-file"><audio controls preload="metadata" aria-label="Play recording before sending" src="'+d.voice.url+'"></audio><button class="btn" data-remove-voice>Remove voice</button></div>':"");
+  d.voices.map((v,i)=>'<div class="comment-file"><span>Voice note '+(i+1)+'</span><audio controls preload="metadata" aria-label="Play voice note '+(i+1)+' before sending" src="'+v.url+'"></audio>'+
+   (v.warning?'<small>'+esc(v.warning)+'</small>':"")+'<button class="btn" data-remove-voice="'+i+'">Remove voice</button></div>').join("");
  const recording=!!rec&&recFor===commentItem,stopping=recording&&rec.state==="inactive";
  $("commentRec").textContent=recording?"⏹ Stop recording":"🎙 Voice";
  $("commentRec").classList.toggle("rec",recording);
- $("commentRec").disabled=commentSending||recStarting||stopping;
- $("commentSend").disabled=commentSending||recStarting||recording;
+ $("commentRec").disabled=commentSending||recStarting||stopping||(!!rec&&!recording);
+ $("commentSend").disabled=commentSending||recStarting||!!rec;
  $("commentClose").disabled=commentSending||recStarting||recording;
+ $("commentBack").disabled=commentSending||recStarting;
  $("commentAttach").disabled=commentSending;
  $("commentMic").disabled=commentSending||recStarting||recording;
  $("commentText").disabled=commentSending;
  $("commentFiles").querySelectorAll("button").forEach(b=>b.disabled=commentSending);
- $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 2 minutes). Speak and check the input level.":d.voice&&d.voice.warning?d.voice.warning:"Drafts remain available until this page is reloaded.";
+ $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 2 minutes). Speak and check the input level.":"Record multiple voice notes; play each one before sending. Drafts remain until this page is reloaded.";
 }
-function openComments(id){
- const it=items.find(i=>i.id===id);if(!it)return;
+function openComments(id,track=true){
+ const it=itemsById.get(id);if(!it)return;
  commentItem=id;commentPage=it.page_id;
  $("commentPoint").textContent=it.text;
  $("commentText").value=pd(id).text;
  $("commentM").classList.add("show");
- renderCommentThread();renderCommentDraft();hydrate();listMicrophones();$("commentText").focus();
+ if(track)pushMobileLayer("comments",dismissComments,()=>openComments(id,false));
+ renderCommentThread();renderCommentDraft();hydrate();listMicrophones();if(!mobile.matches)$("commentText").focus();
 }
-function closeComments(){
- if(commentSending||recStarting||rec)return;
+function dismissComments(){
  const id=commentItem;$("commentM").classList.remove("show");commentItem=null;commentPage=null;
  const button=[...$("main").querySelectorAll("[data-th]")].find(b=>b.dataset.th===id);if(button)button.focus();
 }
+function closeComments(){
+ if(commentSending||recStarting)return;
+ if(rec)rec.stop();
+ closeMobileLayer("comments",dismissComments);
+}
 $("commentClose").onclick=closeComments;
+$("commentBack").onclick=closeComments;
 $("commentM").onkeydown=e=>{if(e.key==="Escape")closeComments()};
 $("commentText").oninput=e=>{pd(commentItem).text=e.target.value};
 function addCommentFiles(files){
@@ -416,7 +580,7 @@ $("commentText").onpaste=e=>{
 $("commentFiles").onclick=e=>{
  const b=e.target.closest("button");if(!b||commentSending)return;const d=pd(commentItem);
  if(b.dataset.removeFile!==undefined){const f=d.files.splice(Number(b.dataset.removeFile),1)[0];if(f.url)URL.revokeObjectURL(f.url)}
- if(b.hasAttribute("data-remove-voice")){URL.revokeObjectURL(d.voice.url);d.voice=null}
+ if(b.dataset.removeVoice!==undefined){const v=d.voices.splice(Number(b.dataset.removeVoice),1)[0];URL.revokeObjectURL(v.url)}
  renderCommentDraft();
 };
 $("commentThread").onclick=async e=>{
@@ -429,17 +593,18 @@ $("commentThread").onclick=async e=>{
 $("commentSend").onclick=async()=>{
  if(commentSending||recStarting||rec)return;
  const id=commentItem,pid=commentPage,d=pd(id),text=d.text.trim(),uploaded=[];let saved=false;
- if(!text&&!d.files.length&&!d.voice){toast("Write something or attach a file first");return}
+ if(!text&&!d.files.length&&!d.voices.length){toast("Write something or attach a file first");return}
  commentSending=true;renderCommentDraft();
  try{
   const attachments=[];
   for(const entry of d.files){const f=entry.file,path=await up("notes/"+pid+"/"+uuid()+"-"+clean(f.name),f,f.type);
    uploaded.push(path);attachments.push({path,name:f.name,type:f.type||"application/octet-stream"})}
-  let vp=null;if(d.voice){const type=d.voice.blob.type,ext=type.includes("wav")?"wav":type.includes("mp4")?"mp4":type.includes("ogg")?"ogg":type.includes("webm")?"webm":"bin";
-   vp=await up("voice/"+pid+"/"+uuid()+"."+ext,d.voice.blob,type);uploaded.push(vp)}
+  let vp=null;for(let i=0;i<d.voices.length;i++){const voice=d.voices[i],type=voice.blob.type,ext=type.includes("wav")?"wav":type.includes("mp4")?"mp4":type.includes("ogg")?"ogg":type.includes("webm")?"webm":"bin";
+   const path=await up("voice/"+pid+"/"+uuid()+"."+ext,voice.blob,type);uploaded.push(path);
+   if(i===0)vp=path;else attachments.push({path,name:"Voice note "+(i+1)+"."+ext,type})}
   const{error}=await sb.from("notes").insert({page_id:pid,item_id:id,body:text,attachments,voice_path:vp});if(error)throw error;
   saved=true;
-  d.files.forEach(f=>{if(f.url)URL.revokeObjectURL(f.url)});if(d.voice)URL.revokeObjectURL(d.voice.url);
+  d.files.forEach(f=>{if(f.url)URL.revokeObjectURL(f.url)});d.voices.forEach(v=>URL.revokeObjectURL(v.url));
   delete pend[id];$("commentText").value="";toast("Response shared");
   await loadNotes();draw(true);
  }catch(er){
@@ -469,6 +634,22 @@ function makeWav(chunks,count,rate){
  let offset=44;for(const chunk of chunks)for(const sample of chunk){view.setInt16(offset,sample,true);offset+=2}
  return new Blob([buffer],{type:"audio/wav"});
 }
+function audioBufferToWav(audio){
+ const rate=Math.min(16000,audio.sampleRate),length=Math.min(audio.length,audio.sampleRate*120),channels=[];
+ for(let c=0;c<audio.numberOfChannels;c++)channels.push(audio.getChannelData(c));
+ if(!channels.length||!audio.length)throw new Error("Recording contains no audio samples");
+ let channel=channels[0],strongest=-1;
+ for(const candidate of channels){let power=0;for(let i=0;i<length;i++)power+=candidate[i]*candidate[i];if(power>strongest){strongest=power;channel=candidate}}
+ const samples=new Int16Array(Math.ceil(length*rate/audio.sampleRate));
+ let count=0,phase=0,sum=0,n=0,peak=0;
+ for(let i=0;i<length;i++){
+  const value=channel[i];
+  peak=Math.max(peak,Math.abs(value));sum+=value;n++;phase+=rate;
+  if(phase>=audio.sampleRate){const v=Math.max(-1,Math.min(1,sum/n));samples[count++]=v<0?v*32768:v*32767;phase-=audio.sampleRate;sum=0;n=0}
+ }
+ if(!count)throw new Error("Recording contains no audio samples");
+ return{blob:makeWav([samples.subarray(0,count)],count,rate),peak};
+}
 function showVoiceError(audio,message){
  let warning=audio.nextElementSibling;
  if(!warning||!warning.classList.contains("voice-error")){warning=document.createElement("small");warning.className="voice-error";warning.setAttribute("role","alert");audio.after(warning)}
@@ -478,49 +659,108 @@ document.addEventListener("error",e=>{
  if(e.target.tagName==="AUDIO"&&$("commentM").contains(e.target))showVoiceError(e.target,"Couldn’t play this recording. Check the microphone or try another browser.");
 },true);
 
-/* voice notes: mono PCM WAV, max 2 minutes */
+function recordingType(){
+ if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return"";
+ const audio=document.createElement("audio");
+ return ["audio/mp4;codecs=mp4a.40.2","audio/webm;codecs=opus","audio/ogg;codecs=opus"]
+  .find(type=>MediaRecorder.isTypeSupported(type)&&audio.canPlayType(type))||"";
+}
+
+/* voice notes: native recording when playable, otherwise mono PCM WAV */
 async function toggleRec(iid){
  if(rec){if(rec.state==="recording"){rec.stop();renderCommentDraft()}return}
- recStarting=true;renderCommentDraft();let st,ctx,source,processor;
+ recStarting=true;$("micFeedback").textContent="Starting microphone…";renderCommentDraft();let st,ctx,source,processor,gain,frame,recorder;
  try{
   const device=$("commentMic").value;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("Microphone access requires HTTPS or localhost");
+  const type=recordingType(),AudioContext=window.AudioContext||window.webkitAudioContext;
+  let resume,monitorError="";
+  if(AudioContext){
+   try{ctx=new AudioContext();resume=ctx.resume().then(()=>null,er=>er)}catch(er){monitorError=er.message}
+  }
   st=await navigator.mediaDevices.getUserMedia({audio:device?{deviceId:{exact:device}}:true});
-  const AudioContext=window.AudioContext||window.webkitAudioContext;
-  if(!AudioContext)throw new Error("This browser does not support audio recording");
-  ctx=new AudioContext();if(!ctx.createScriptProcessor)throw new Error("This browser does not support audio recording");
-  source=ctx.createMediaStreamSource(st);processor=ctx.createScriptProcessor(4096,1,1);
-  const rate=Math.min(16000,ctx.sampleRate),limit=rate*120,chunks=[];let count=0,phase=0,sum=0,n=0,peak=0;
-  const recording={state:"recording",stop:reason=>{
-   if(recording.state!=="recording")return;recording.state="inactive";clearTimeout(recT);
-   processor.onaudioprocess=null;source.disconnect();processor.disconnect();st.getTracks().forEach(t=>t.stop());
-   ctx.close().catch(er=>console.error("Couldn’t close audio recorder:",er));$("micLevel").value=0;rec=null;recFor=null;
-   if(count){const d=pd(iid),warning=reason|| (peak<0.003?"Little or no sound detected. Check the microphone and play the recording before sending.":"");
-    if(d.voice)URL.revokeObjectURL(d.voice.url);const blob=makeWav(chunks,count,rate);d.voice={blob,url:URL.createObjectURL(blob),warning}}
-   else toast(reason||"No audio was recorded. Check your microphone and try again.");
-   renderCommentDraft();if(dirty&&!busy())draw();
-  }};
-  processor.onaudioprocess=e=>{
-   e.outputBuffer.getChannelData(0).fill(0);
-   const input=e.inputBuffer.getChannelData(0),out=new Int16Array(Math.ceil(input.length*rate/ctx.sampleRate)+1);
-   let size=0,power=0;for(const sample of input){
-    power+=sample*sample;sum+=sample;n++;phase+=rate;
-    if(phase>=ctx.sampleRate){const v=Math.max(-1,Math.min(1,sum/n));out[size++]=v<0?v*32768:v*32767;phase-=ctx.sampleRate;sum=0;n=0;
-     if(count+size>=limit)break}
+  const tracks=st.getAudioTracks();if(!tracks.length||tracks.every(t=>t.readyState==="ended"))throw new Error("No active microphone was found");
+  if(ctx&&ctx.state!=="running"){
+   let timer;const result=await Promise.race([resume,new Promise(resolve=>{timer=setTimeout(()=>resolve(new Error("Audio input did not start")),4000)})]);
+   clearTimeout(timer);if(result||ctx.state!=="running")monitorError=(result&&result.message)||"Audio input did not start";
+  }
+  if(!type&&(!ctx||ctx.state!=="running"||!ctx.createScriptProcessor))throw new Error(monitorError||"This browser does not support audio recording");
+  let peak=0,monitored=false,reason="",recordingError=null,count=0,phase=0,sum=0,n=0;
+  const chunks=[],rate=ctx?Math.min(16000,ctx.sampleRate):0,limit=rate*120,started=Date.now();
+  const finish=(blob,error)=>{
+   clearTimeout(recT);if(frame)cancelAnimationFrame(frame);
+   if(source)source.disconnect();if(processor){processor.onaudioprocess=null;processor.disconnect()}if(gain)gain.disconnect();
+   st.getTracks().forEach(t=>t.stop());if(ctx)ctx.close().catch(er=>console.error("Couldn’t close audio recorder:",er));
+   $("micLevel").value=0;rec=null;recFor=null;
+   if(error||!blob||!blob.size){const message=error?error.message||String(error):"No audio was recorded. Check your microphone and try again.";
+    $("micFeedback").textContent=message;toast(message)}
+   else{
+    const warning=[reason,monitored&&peak<0.003?"Little or no sound detected. Check the microphone and play this recording before sending.":!monitored?"Input level unavailable. Play this recording before sending.":""].filter(Boolean).join(" ");
+    pd(iid).voices.push({blob,url:URL.createObjectURL(blob),warning});
+    $("micFeedback").textContent=warning||"Recording ready. Play it back before sending.";
    }
-   const level=Math.sqrt(power/input.length);peak=Math.max(peak,level);$("micLevel").value=Math.min(1,level*5);
-   if(size){chunks.push(out.subarray(0,size));count+=size}
-   if(count>=limit)recording.stop();
+   renderCommentDraft();if(dirty&&!busy())draw();
   };
-  source.connect(processor);processor.connect(ctx.destination);await ctx.resume();
-  if(ctx.state!=="running")throw new Error("Audio input could not start");
+  const recording={state:"recording",stop:message=>{
+   if(recording.state!=="recording")return;recording.state="inactive";clearTimeout(recT);
+   reason=message||"";renderCommentDraft();
+   if(recorder){if(recorder.state!=="inactive")recorder.stop()}
+   else finish(count?makeWav(chunks,count,rate):null,null);
+  }};
+  const levelFeedback=level=>{
+   monitored=true;peak=Math.max(peak,level);$("micLevel").value=Math.min(1,level*5);
+   $("micFeedback").textContent=tracks.every(t=>t.muted)?"Microphone is muted. Check your device settings.":
+    Date.now()-started>3000&&peak<0.003?"No sound detected. Select the correct microphone and check its permissions.":"Recording from "+(tracks[0].label||"the selected microphone")+".";
+  };
+  if(ctx&&ctx.state==="running")source=ctx.createMediaStreamSource(st);
+  if(type){
+   recorder=new MediaRecorder(st,{mimeType:type});let recordedType=recorder.mimeType||type;
+   recorder.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);if(e.data.type)recordedType=e.data.type}};
+   recorder.onerror=e=>{recordingError=e.error||new Error("Recording failed")};
+   recorder.onstop=async()=>{
+    const blob=new Blob(chunks,{type:recordedType});
+    if(recordingError||!blob.size){finish(blob,recordingError);return}
+    let converted;
+    try{
+     if(!ctx||!ctx.decodeAudioData)throw new Error("Audio decoding unavailable");
+     const audio=await ctx.decodeAudioData(await blob.arrayBuffer());converted=audioBufferToWav(audio);
+    }catch(er){
+     const warning="WAV conversion failed: "+er.message+". This recording may not play in every browser.";
+     reason=reason?reason+" "+warning:warning;finish(blob,null);return;
+    }
+    peak=Math.max(peak,converted.peak);monitored=true;finish(converted.blob,null);
+   };
+   if(source){
+    const analyser=ctx.createAnalyser(),samples=new Uint8Array(analyser.fftSize);gain=ctx.createGain();gain.gain.value=0;
+    source.connect(analyser);analyser.connect(gain);gain.connect(ctx.destination);
+    const tick=()=>{if(ctx.state==="running"){analyser.getByteTimeDomainData(samples);let power=0;
+     for(const sample of samples)power+=((sample-128)/128)**2;levelFeedback(Math.sqrt(power/samples.length))}
+     frame=requestAnimationFrame(tick)};
+    tick();
+   }else $("micFeedback").textContent="Input level unavailable. Play the recording to check it.";
+   recorder.start(1000);
+  }else{
+   processor=ctx.createScriptProcessor(4096,1,1);
+   processor.onaudioprocess=e=>{
+    e.outputBuffer.getChannelData(0).fill(0);
+    const input=e.inputBuffer.getChannelData(0),out=new Int16Array(Math.ceil(input.length*rate/ctx.sampleRate)+1);
+    let size=0,power=0;for(const sample of input){
+     power+=sample*sample;sum+=sample;n++;phase+=rate;
+     if(phase>=ctx.sampleRate){const v=Math.max(-1,Math.min(1,sum/n));out[size++]=v<0?v*32768:v*32767;phase-=ctx.sampleRate;sum=0;n=0;
+      if(count+size>=limit)break}
+    }
+    levelFeedback(Math.sqrt(power/input.length));if(size){chunks.push(out.subarray(0,size));count+=size}
+    if(count>=limit)recording.stop();
+   };
+   source.connect(processor);processor.connect(ctx.destination);
+  }
   rec=recording;recFor=iid;listMicrophones();
-  st.getAudioTracks().forEach(track=>track.addEventListener("ended",()=>recording.stop("Microphone disconnected. Check the recording before sending.")));
+  tracks.forEach(track=>track.addEventListener("ended",()=>recording.stop("Microphone disconnected. Check the recording before sending.")));
   recT=setTimeout(()=>recording.stop(),120000);
  }catch(er){
-  if(processor)processor.disconnect();if(source)source.disconnect();if(st)st.getTracks().forEach(t=>t.stop());
+  if(frame)cancelAnimationFrame(frame);if(processor)processor.disconnect();if(source)source.disconnect();if(gain)gain.disconnect();if(st)st.getTracks().forEach(t=>t.stop());
   if(ctx)ctx.close().catch(err=>console.error("Couldn’t close audio recorder:",err));
-  rec=null;recFor=null;toast("Couldn’t start recording: "+(er.message||"check microphone permission and use HTTPS or localhost"));
+  rec=null;recFor=null;$("micFeedback").textContent="Couldn’t start recording: "+(er.message||"check microphone permission and use HTTPS or localhost");toast($("micFeedback").textContent);
  }
  finally{recStarting=false;renderCommentDraft()}
 }
@@ -533,9 +773,12 @@ function openModal(p){
  const im=p&&p.image_path&&urlC[p.image_path];
  $("drop").innerHTML=im?'<img src="'+im.u+'" alt="">':'<span>📋 Paste image here</span>';
  $("modal").classList.add("show");
+ pushMobileLayer("page-modal",dismissModal,()=>$("modal").classList.add("show"));
 }
-const closeModal=()=>$("modal").classList.remove("show");
+function dismissModal(){$("modal").classList.remove("show")}
+function closeModal(){if(!pageSaving)closeMobileLayer("page-modal",dismissModal)}
 $("addBtn").onclick=()=>openModal(null);$("mCancel").onclick=closeModal;
+$("mBack").onclick=closeModal;
 $("drop").onclick=()=>$("file").click();
 async function setImg(b){tmpBlob=await shrink(b);tmpUrl=URL.createObjectURL(tmpBlob);$("drop").innerHTML='<img src="'+tmpUrl+'" alt="">'}
 $("file").onchange=e=>{if(e.target.files[0])setImg(e.target.files[0])};
@@ -545,7 +788,9 @@ $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("hot");const 
 document.addEventListener("paste",e=>{if(!$("modal").classList.contains("show"))return;
  for(const it of e.clipboardData.items)if(it.type.startsWith("image/")){e.preventDefault();setImg(it.getAsFile());toast("Image added");break}});
 $("mOk").onclick=async()=>{
+ if(pageSaving)return;
  const r=parse($("mTxt").value),label=$("mLabel").value.trim()||r.label;
+ pageSaving=true;$("mOk").disabled=true;$("mCancel").disabled=true;$("mBack").disabled=true;
  try{
   if(editId){const p=pages.find(x=>x.id===editId),u={};if(label)u.label=label;let old=null;
    if(tmpBlob){u.image_path=await up("pages/"+editId+"/"+uuid()+".jpg",tmpBlob,"image/jpeg");old=p.image_path}
@@ -555,7 +800,8 @@ $("mOk").onclick=async()=>{
    const id=uuid();let ip=null;if(tmpBlob)ip=await up("pages/"+id+"/"+uuid()+".jpg",tmpBlob,"image/jpeg");
    const{error}=await sb.from("pages").insert({id,label:label||"Page "+(pages.length+1),image_path:ip});if(error)throw error;
    await addItems(id,r.items);cur=id}
-  closeModal();await loadAll();draw(true);toast("Saved for everyone")}catch(er){fail(er)}};
+  pageSaving=false;closeModal();await loadAll();draw(true);toast("Saved for everyone")}catch(er){fail(er)}
+ finally{pageSaving=false;$("mOk").disabled=false;$("mCancel").disabled=false;$("mBack").disabled=false}};
 
 /* ---------- share / print / backup / import ---------- */
 const asText=p=>(p.label||"Page")+"\n"+its(p.id).map((i,n)=>(i.done?"☑ ":"☐ ")+(n+1)+". "+i.text).join("\n")+"\n\n"+location.href;
@@ -572,8 +818,9 @@ async function doPrint(list){
 }
 $("printAll").onclick=()=>pages.length?doPrint(pages):toast("Nothing to print");
 $("exp").onclick=async()=>{
- const{data:allN}=await sb.from("notes").select("*");
- const out=pages.map(p=>({label:p.label,items:its(p.id).map(i=>({text:i.text,done:i.done,done_by:i.done_by,notes:(allN||[]).filter(n=>n.item_id===i.id).map(n=>({author:n.author,body:n.body,at:n.created_at}))}))}));
+ const{data:allN,error}=await allRows(count=>sb.from("notes").select("*",count?{count:"exact"}:undefined).order("created_at").order("id"));
+ if(error){toast("Couldn’t load comments for backup: "+error.message);return}
+ const out=pages.map(p=>({label:p.label,items:its(p.id).map(i=>({text:i.text,done:i.done,done_by:i.done_by,notes:allN.filter(n=>n.item_id===i.id).map(n=>({author:n.author,body:n.body,at:n.created_at}))}))}));
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"}));
  a.download="page-tracker-"+new Date().toISOString().slice(0,10)+".json";a.click()};
 $("impB").onclick=()=>$("impF").click();
@@ -590,7 +837,11 @@ $("impF").onchange=async e=>{
 /* ---------- members (admin) ---------- */
 function drawMem(){$("memL").innerHTML=members.map(m=>'<div class="mrow"><span><b>'+esc(m.name||m.email)+'</b><br><small>'+esc(m.email)+' · '+m.role+'</small></span>'+
  (m.email.toLowerCase()===me?'':'<button class="btn danger" data-rm="'+esc(m.email)+'">Remove</button>')+'</div>').join("")}
-$("memB").onclick=()=>{drawMem();$("memM").classList.add("show")};$("memX").onclick=()=>$("memM").classList.remove("show");
+function hideMembers(){$("memM").classList.remove("show")}
+function showMembers(){drawMem();$("memM").classList.add("show")}
+$("memB").onclick=()=>{showMembers();pushMobileLayer("members",hideMembers,showMembers)};
+$("memX").onclick=()=>closeMobileLayer("members",hideMembers);
+$("memBack").onclick=()=>closeMobileLayer("members",hideMembers);
 $("memL").onclick=async e=>{const em=e.target.dataset.rm;if(!em||!confirm("Remove "+em+"?"))return;const{error}=await sb.from("members").delete().eq("email",em);if(error)return fail(error);await loadAll();drawMem()};
 $("memAdd").onclick=async()=>{const email=$("mmE").value.trim().toLowerCase();if(!email)return;
  const{error}=await sb.from("members").insert({email,name:$("mmN").value.trim(),role:$("mmR").value});if(error)return fail(error);
