@@ -18,8 +18,13 @@ are disabled when notifications cannot be loaded.
 
 ## Using mentions
 
+Each point's conversation displays members in different colors, with your
+messages on the right. Use the composer below the chat to attach files, record
+voice notes, and tag members. Microphone selection and input level are under
+**Microphone settings**.
+
 Open a point's comments and type **@** followed by a name, or select
-**@ Tag a member** to search. Choose a member from the suggestions and send the
+**@ Tag** to search. Choose a member from the suggestions and send the
 response to create their notification. A member can be tagged more than once
 in a comment but receives only one notification for it.
 Self-mentions do not send a notification. Deleting a response removes its

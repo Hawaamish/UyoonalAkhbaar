@@ -87,19 +87,28 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .ib.has{border-color:var(--comment);color:var(--comment);background:var(--acc2)}
 .ib svg{width:18px;height:18px;vertical-align:middle}
 .by{font-size:13px;color:var(--mute);margin:-2px 0 0 52px}
-.thread{background:var(--note);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:35vh;overflow:auto}
-.nt{border-bottom:1px solid var(--line);padding:6px 0}.nt:last-of-type{border:0}
-.nt small{color:var(--mute)}.nt audio{width:100%;height:34px;margin-top:4px}
+.thread{background:var(--bg);padding:18px;overflow-y:auto;overscroll-behavior:contain}
+.nt{align-self:flex-start;max-width:min(82%,490px);min-width:0;background:hsl(var(--chat-hue) 65% 94%);border:1px solid hsl(var(--chat-hue) 42% 85%);border-radius:5px 16px 16px 16px;padding:8px 11px;overflow-wrap:anywhere;box-shadow:0 1px 2px #0001}
+.nt.mine{align-self:flex-end;border-radius:16px 5px 16px 16px}
+.nt-head,.nt-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nt-head strong{color:hsl(var(--chat-hue) 66% 22%);font-size:14px}
+.nt-foot{justify-content:flex-end;color:hsl(var(--chat-hue) 22% 30%);font:12px/1.5 sans-serif;margin-top:5px}
+.nt-action{border:0;background:transparent;color:inherit;text-decoration:underline;padding:2px;cursor:pointer}
+.nt-action:disabled{opacity:.5;cursor:not-allowed}
+.nt-body{white-space:pre-wrap;overflow-wrap:anywhere}
+.nt-reply{display:block;border-inline-start:3px solid var(--acc);padding:2px 7px;margin:4px 0;background:#ffffff80;border-radius:4px;color:hsl(var(--chat-hue) 22% 30%)}
+.nt audio{width:100%;height:34px;margin-top:4px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nt{background:hsl(var(--chat-hue) 30% 22%);border-color:hsl(var(--chat-hue) 28% 32%)}
+ :root:not([data-theme="light"]) .nt-head strong{color:hsl(var(--chat-hue) 80% 80%)}
+ :root:not([data-theme="light"]) .nt-foot,:root:not([data-theme="light"]) .nt-reply{color:hsl(var(--chat-hue) 20% 77%)}
+ :root:not([data-theme="light"]) .nt-reply{background:#0003}}
 .fl{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
-.fl a{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:14px;color:var(--acc);text-decoration:none;background:var(--card)}
-.fl img{height:70px;border-radius:6px;display:block}
-.comp{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
-.comp textarea{flex:1;min-width:160px}
+.fl a{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:14px;color:var(--acc);text-decoration:none;background:var(--card);max-width:100%;min-width:0;overflow-wrap:anywhere}
+.fl img{max-width:100%;max-height:200px;border-radius:6px;display:block}
 .comment-files{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .comment-file{border:1px solid var(--line);border-radius:8px;padding:6px;max-width:180px;overflow-wrap:anywhere}
 .comment-file img{display:block;max-width:100%;max-height:100px;border-radius:6px}
 .comment-file button{margin-top:4px}
-.comment-box .row{flex-wrap:wrap}
 .comment-box audio{max-width:100%}
 .mention{color:var(--acc);background:var(--acc2);border-radius:5px;padding:0 4px;font-weight:700}
 .mention-picker{border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}
@@ -114,6 +123,31 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .modal.show{display:flex}
 .box{background:var(--card);border-radius:16px;padding:18px;width:min(640px,100%);max-height:92vh;overflow:auto}
 .box h3{margin:0 0 8px}
+#commentM .comment-box{width:min(720px,100%);height:min(780px,calc(100vh - 28px));height:min(780px,calc(100dvh - 28px));max-height:none;padding:0;display:flex;flex-direction:column;overflow:hidden}
+.chat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);flex:none}
+.chat-head .mobile-back{margin:0}.chat-heading{flex:1;min-width:0}
+.chat-heading h3{margin:0}.chat-heading p{margin:0;color:var(--mute);font-size:14px;line-height:1.35;max-height:2.7em;overflow:auto;overflow-wrap:anywhere;scrollbar-width:thin}
+.chat-close{flex:none}
+.chat-thread{flex:1;min-height:0;display:flex;flex-direction:column;gap:9px}
+.chat-empty{margin:auto;text-align:center;color:var(--mute);background:var(--card);border-radius:12px;padding:10px 15px}
+.chat-composer{flex:none;max-height:55%;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--line);padding:10px 14px;background:var(--card)}
+.chat-composer label{margin:3px 0}
+.chat-composer textarea{resize:vertical;min-height:54px;max-height:150px}
+.chat-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.chat-tools .btn{font-size:14px;padding:5px 10px}
+.chat-tools #commentSend{margin-inline-start:auto}
+.chat-reply{border-inline-start:3px solid var(--acc);background:var(--acc2);border-radius:8px;padding:6px 9px;margin-bottom:8px}
+.chat-reply:not([hidden]){display:flex;align-items:center;justify-content:space-between;gap:8px}
+.chat-reply .btn{font-size:13px;padding:3px 8px}
+.chat-composer .comment-files:not(:empty){max-height:120px;overflow-y:auto;margin-bottom:8px}
+.voice-settings{font-size:14px;color:var(--mute);margin-top:7px}
+.voice-settings summary{cursor:pointer;color:var(--acc)}
+.voice-settings select{margin-top:4px}
+.voice-settings small{display:block}
+.chat-status{display:block;color:var(--mute);font-size:13px;margin-top:4px}
+.chat-hint{display:block;color:var(--mute);font-size:13px;line-height:1.4;margin-top:6px}
+@media (max-width:800px){#commentM .comment-box{width:100%;height:100%;border-radius:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+ .chat-head{padding:10px 12px}.chat-thread{padding:12px}.chat-composer{padding:8px 10px}.nt{max-width:90%}}
 .gallery-box{width:min(980px,100%);display:flex;flex-direction:column;overflow:hidden}
 .gallery-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .gallery-head h3{margin:0}.gallery-head p{margin:0;color:var(--mute);font-size:14px}
@@ -238,37 +272,42 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 </div></div>
 
 <div class="modal" id="commentM" role="dialog" aria-modal="true" aria-labelledby="commentTitle"><div class="box comment-box">
- <button class="btn mobile-back" id="commentBack">← Back</button>
- <h3 id="commentTitle">Comments</h3>
- <p id="commentPoint" dir="auto"></p>
- <small>Responses are shared with tracker members. Voice recording requires microphone permission and a secure connection.</small>
- <div class="thread" id="commentThread" aria-live="polite"></div>
- <div id="replyDraft" hidden><small id="replyDraftText"></small> <button class="btn" type="button" id="replyCancel">Cancel reply</button></div>
- <label for="commentText">Your response (paste images here)</label>
- <textarea id="commentText" rows="4" dir="auto" placeholder="Write a response or type @ to tag someone…" aria-controls="mentionPicker"></textarea>
- <div class="mention-picker" id="mentionPicker" hidden>
-  <div id="mentionSearchGroup"><label for="mentionSearch">Find a member</label>
-   <input type="search" id="mentionSearch" placeholder="Search by name or email" autocomplete="off"></div>
-  <small class="notification-hint" id="mentionTypingHelp" hidden>Choose a member, or press Down to select using the keyboard.</small>
-  <div class="mention-options" id="mentionOptions" aria-live="polite"></div>
+ <div class="chat-head">
+  <button class="btn mobile-back" id="commentBack" aria-label="Back to page">←</button>
+  <div class="chat-heading"><h3 id="commentTitle">Comments</h3><p id="commentPoint" dir="auto"></p></div>
+  <button class="btn chat-close" id="commentClose" aria-label="Close comments">✕</button>
  </div>
- <small class="notification-hint">Type @ or use “Tag a member” to notify someone. Tags display as names after sending.</small><br>
- <button class="btn" id="mentionBtn" type="button" aria-expanded="false" aria-controls="mentionPicker">@ Tag a member</button>
- <div class="comment-files" id="commentFiles"></div>
- <small class="notification-hint">Image attachments are automatically optimized when sent; animations are preserved.</small>
- <label for="commentMic">Microphone</label>
- <select id="commentMic"><option value="">System default</option></select>
- <small id="micHelp">Microphones become available after permission is granted.</small>
- <div class="mic-level"><label for="micLevel">Input level</label><meter id="micLevel" min="0" max="1" value="0">0</meter></div>
- <small id="micFeedback" role="status"></small>
- <input type="file" id="commentInput" accept="image/*,.pdf,.txt,.csv,.md,.json" multiple hidden>
- <div class="row">
-  <button class="btn" id="commentAttach">📎 Attach files</button>
-  <button class="btn" id="commentRec">🎙 Voice</button>
-  <button class="btn" id="commentClose">Close</button>
-  <button class="btn pri" id="commentSend">Send</button>
+ <div class="thread chat-thread" id="commentThread" aria-live="polite" aria-label="Comment conversation"></div>
+ <div class="chat-composer">
+  <div class="chat-reply" id="replyDraft" hidden><small id="replyDraftText"></small> <button class="btn" type="button" id="replyCancel">Cancel reply</button></div>
+  <div class="comment-files" id="commentFiles"></div>
+  <label for="commentText">Your message</label>
+  <textarea id="commentText" rows="2" dir="auto" placeholder="Write a message or type @ to tag someone…" aria-controls="mentionPicker"></textarea>
+  <div class="mention-picker" id="mentionPicker" hidden>
+   <div id="mentionSearchGroup"><label for="mentionSearch">Find a member</label>
+    <input type="search" id="mentionSearch" placeholder="Search by name or email" autocomplete="off"></div>
+   <small class="notification-hint" id="mentionTypingHelp" hidden>Choose a member, or press Down to select using the keyboard.</small>
+   <div class="mention-options" id="mentionOptions" aria-live="polite"></div>
+  </div>
+  <input type="file" id="commentInput" accept="image/*,.pdf,.txt,.csv,.md,.json" multiple hidden>
+  <div id="chatMonitor" hidden><div class="mic-level"><label for="micLevel">Input level</label><meter id="micLevel" min="0" max="1" value="0">0</meter></div></div>
+  <small id="micFeedback" class="chat-status" role="status"></small>
+  <div class="chat-tools">
+   <button class="btn" id="commentAttach" type="button">📎 Attach</button>
+   <button class="btn" id="commentRec" type="button">🎙 Voice</button>
+   <button class="btn" id="mentionBtn" type="button" aria-expanded="false" aria-controls="mentionPicker">@ Tag</button>
+   <button class="btn pri" id="commentSend" type="button">Send</button>
+  </div>
+  <details class="voice-settings" id="voiceSettings">
+   <summary>Microphone settings</summary>
+   <label for="commentMic">Microphone</label>
+   <select id="commentMic"><option value="">System default</option></select>
+   <small id="micHelp">Microphones become available after permission is granted.</small>
+   <small>Voice recording requires microphone permission and HTTPS or localhost.</small>
+  </details>
+  <small id="commentStatus" class="chat-status" role="status"></small>
+  <small class="chat-hint">Shared with tracker members. Paste images or use Attach; images are optimized automatically. Type @ to notify a member.</small>
  </div>
- <small id="commentStatus" role="status"></small>
 </div></div>
 
 <div id="lb"><button class="btn mobile-back">← Back</button><img id="lbi" alt=""></div>
@@ -806,14 +845,22 @@ function renderMentionText(text){
  }
  return html+esc(text.slice(offset));
 }
-function renderCommentThread(){
- const L=notes.filter(n=>n.item_id===commentItem);
- $("commentThread").innerHTML=L.map(n=>'<div class="nt" data-note="'+esc(n.id)+'"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
-  ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+esc(n.id)+'">delete</a>':'')+
-  (canReplyToTaggedComment(n)?' · <button class="btn" type="button" data-reply="'+esc(n.id)+'"'+(!notificationsReady||commentSending?' disabled':'')+'>Reply</button>':'')+'</small>'+
-  (n.reply_to?'<small>'+esc(replyDescription(n,L))+'</small>':'')+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+renderMentionText(n.body)+'</div>':'')+
+function renderCommentThread(scrollToLatest=false){
+ const L=notes.filter(n=>n.item_id===commentItem),thread=$("commentThread");
+ const atBottom=thread.scrollHeight-thread.scrollTop-thread.clientHeight<40,scrollTop=thread.scrollTop;
+ const authors=[...new Set([...members.map(m=>String(m.email||"").toLowerCase()),...L.map(n=>String(n.author||"").toLowerCase())])].filter(Boolean).sort();
+ thread.innerHTML=L.map(n=>{
+  const author=String(n.author||"").toLowerCase(),mine=!!author&&author===me,hue=Math.max(0,authors.indexOf(author))*137.5%360;
+  return '<div class="nt'+(mine?' mine':'')+'" style="--chat-hue:'+hue+'" data-note="'+esc(n.id)+'">'+
+  '<div class="nt-head"><strong dir="auto">'+esc(nm(n.author))+'</strong></div>'+
+  (n.reply_to?'<small class="nt-reply">'+esc(replyDescription(n,L))+'</small>':'')+(n.body?'<div class="nt-body" dir="auto">'+renderMentionText(n.body)+'</div>':'')+
   (n.voice_path?'<audio controls preload="metadata" aria-label="Play voice note" data-p="'+esc(n.voice_path)+'"></audio>':'')+
-  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':/^audio\//.test(f.type)?'<audio controls preload="metadata" aria-label="'+esc(f.name||"Play voice note")+'" data-p="'+esc(f.path)+'"></audio>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet.</small>';
+  ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':/^audio\//.test(f.type)?'<audio controls preload="metadata" aria-label="'+esc(f.name||"Play voice note")+'" data-p="'+esc(f.path)+'"></audio>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+
+  '<div class="nt-foot">'+(canReplyToTaggedComment(n)?'<button class="nt-action" type="button" data-reply="'+esc(n.id)+'"'+(!notificationsReady||commentSending?' disabled':'')+'>Reply</button>':'')+
+  ((mine||isAdmin)?'<a class="nt-action" href="#" data-dn="'+esc(n.id)+'">Delete</a>':'')+
+  '<time>'+esc(new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</time></div></div>';
+ }).join("")||'<div class="chat-empty">No messages yet. Start the conversation below.</div>';
+ thread.scrollTop=scrollToLatest||atBottom?thread.scrollHeight:scrollTop;
 }
 function canReplyToTaggedComment(note){
  return !!note.author&&note.author.toLowerCase()!==me&&[...(note.body||"").matchAll(/@\[(\S+?)\]/g)].some(match=>match[1].toLowerCase()===me);
@@ -933,6 +980,7 @@ function renderCommentDraft(){
   d.voices.map((v,i)=>'<div class="comment-file"><span>Voice note '+(i+1)+'</span><audio controls preload="metadata" aria-label="Play voice note '+(i+1)+' before sending" src="'+v.url+'"></audio>'+
    (v.warning?'<small>'+esc(v.warning)+'</small>':"")+'<button class="btn" data-remove-voice="'+i+'">Remove voice</button></div>').join("");
  const recording=!!rec&&recFor===commentItem,stopping=recording&&rec.state==="inactive";
+ $("chatMonitor").hidden=!(recording||recStarting);
  $("commentRec").textContent=recording?"⏹ Stop recording":"🎙 Voice";
  $("commentRec").classList.toggle("rec",recording);
  $("commentRec").disabled=commentSending||recStarting||stopping||(!!rec&&!recording);
@@ -955,7 +1003,7 @@ function openComments(id,track=true){
  hideMentionPicker();
  $("commentM").classList.add("show");
  if(track)pushMobileLayer("comments",dismissComments,()=>openComments(id,false));
- renderCommentThread();renderCommentDraft();hydrate();listMicrophones();if(!mobile.matches)$("commentText").focus();
+ renderCommentThread(true);renderCommentDraft();hydrate();listMicrophones();if(!mobile.matches)$("commentText").focus();
 }
 function dismissComments(){
  const id=commentItem;hideMentionPicker();$("commentM").classList.remove("show");commentItem=null;commentPage=null;
@@ -1093,7 +1141,7 @@ $("commentSend").onclick=async()=>{
   saved=true;
   d.files.forEach(f=>{if(f.url)URL.revokeObjectURL(f.url)});d.voices.forEach(v=>URL.revokeObjectURL(v.url));
   delete pend[id];$("commentText").value="";toast("Response shared");
-  await loadNotes();draw(true);
+  await loadNotes();draw(true);$("commentThread").scrollTop=$("commentThread").scrollHeight;
  }catch(er){
   if(!saved&&uploaded.length){const{error}=await sb.storage.from(B).remove(uploaded);if(error){toast("Couldn’t save: "+er.message+"; upload cleanup failed: "+error.message);return}}
   if(saved)toast("Response saved, but couldn’t refresh: "+er.message);else fail(er);

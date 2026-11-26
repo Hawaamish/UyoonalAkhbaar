@@ -122,6 +122,7 @@ test("reply controls appear only for comments that tag the signed-in member", ()
   const thread = { innerHTML: "" };
   const context = vm.createContext({
     commentItem: "item", me: "bob@example.com", isAdmin: false,
+    members: [{ email: "alice@example.com" }, { email: "bob@example.com" }],
     notificationsReady: true, commentSending: false,
     notes: [
       { id: "1", item_id: "item", author: "alice@example.com", body: "Hi @[BOB@example.com]", created_at: "2026-01-01" },
@@ -142,7 +143,7 @@ test("reply controls appear only for comments that tag the signed-in member", ()
 });
 
 test("sending a tagged reply links it to the original and refuses unavailable targets", async () => {
-  const sent = [], messages = [], elements = { commentSend: {}, commentText: { value: "" } };
+  const sent = [], messages = [], elements = { commentSend: {}, commentText: { value: "" }, commentThread: { scrollHeight: 300 } };
   const draft = { text: "Thanks", files: [], voices: [], replyTo: "original" };
   const context = vm.createContext({
     commentSending: false, recStarting: false, rec: null, commentItem: "item", commentPage: "page",
@@ -159,6 +160,8 @@ test("sending a tagged reply links it to the original and refuses unavailable ta
   assert.equal(sent[0].reply_to, "original");
   assert.equal(sent[0].body, "Thanks");
   assert.equal(context.pend.item, undefined);
+  assert.equal(elements.commentThread.scrollTop, 300);
+  assert.doesNotMatch(messages.join(" "), /couldn’t refresh/i);
   context.notificationsReady = false;
   await elements.commentSend.onclick();
   assert.equal(sent.length, 1);
@@ -168,6 +171,36 @@ test("sending a tagged reply links it to the original and refuses unavailable ta
   await elements.commentSend.onclick();
   assert.equal(sent.length, 1);
   assert.match(messages.at(-1), /tagged comment is unavailable/i);
+});
+
+test("chat bubbles use consistent member colors and preserve reading position", () => {
+  const thread = { innerHTML: "", scrollTop: 100, scrollHeight: 600, clientHeight: 200 };
+  const context = vm.createContext({
+    commentItem: "item", me: "bob@example.com", isAdmin: false,
+    members: [{ email: "bob@example.com" }, { email: "alice@example.com" }],
+    notificationsReady: true, commentSending: false,
+    notes: [
+      { id: "1", item_id: "item", author: "alice@example.com", body: "First", created_at: "2026-01-01" },
+      { id: "2", item_id: "item", author: "BOB@example.com", body: "Mine", created_at: "2026-01-01" },
+      { id: "3", item_id: "item", author: "alice@example.com", body: "Again", created_at: "2026-01-01" },
+    ],
+    $: () => thread, nm: email => email, esc: value => String(value),
+    renderMentionText: value => value,
+  });
+  vm.runInContext(section("function renderCommentThread(", "function renderMain("), context);
+  context.renderCommentThread();
+  const bubbles = [...thread.innerHTML.matchAll(/class="nt( mine)?" style="--chat-hue:([\d.]+)" data-note="(\d)"/g)];
+  assert.equal(bubbles.length, 3);
+  assert.equal(bubbles[0][2], bubbles[2][2]);
+  assert.notEqual(bubbles[0][2], bubbles[1][2]);
+  assert.equal(bubbles[1][1], " mine");
+  assert.equal(thread.scrollTop, 100);
+  thread.scrollTop = 390;
+  context.renderCommentThread();
+  assert.equal(thread.scrollTop, 600);
+  thread.scrollTop = 100;
+  context.renderCommentThread(true);
+  assert.equal(thread.scrollTop, 600);
 });
 
 test("reply alerts identify the response rather than a mention", () => {
