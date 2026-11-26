@@ -24,6 +24,12 @@ h1{font-size:19px;margin:0}
 #live{font-size:13px;color:var(--mute)}
 .presence-btn{white-space:nowrap}.presence-dot{color:var(--comment)}
 .presence-list .mrow{justify-content:space-between}.presence-list small{color:var(--mute)}
+.notification-badge{background:var(--acc);color:#fff;border-radius:99px;min-width:22px;text-align:center;padding:0 6px;font:700 12px/22px sans-serif}
+.notification-list{display:grid;gap:8px;margin-top:12px}
+.notification-item{width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card)}
+.notification-item.unread{border-color:var(--acc);background:var(--acc2)}
+.notification-item small{display:block;color:var(--mute)}
+.notification-hint{color:var(--mute);font-size:14px}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
 @media (max-width:800px){.app{grid-template-columns:1fr}}
 .mobile-back{display:none}
@@ -84,6 +90,12 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .comment-file button{margin-top:4px}
 .comment-box .row{flex-wrap:wrap}
 .comment-box audio{max-width:100%}
+.mention{color:var(--acc);background:var(--acc2);border-radius:5px;padding:0 4px;font-weight:700}
+.mention-picker{border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}
+.mention-options{max-height:180px;overflow:auto;display:grid;gap:4px;margin-top:6px}
+.mention-option{border:0;background:transparent;text-align:left;border-radius:7px;padding:5px 8px}
+.mention-option:hover,.mention-option:focus-visible{background:var(--acc2)}
+.mention-option small{display:block;color:var(--mute)}
 .mic-level{display:flex;gap:8px;align-items:center;margin-top:8px}
 .mic-level meter{flex:1}
 .add{display:flex;gap:8px;margin-top:10px}
@@ -130,6 +142,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <div class="tools">
   <span id="live">Connecting…</span>
   <button class="btn presence-btn" id="presenceBtn" aria-haspopup="dialog">Online members: connecting…</button>
+  <button class="btn" id="notificationsBtn" aria-haspopup="dialog" aria-label="Notifications">🔔 Notifications <span class="notification-badge" id="notificationBadge" hidden>0</span></button>
   <button class="btn pri" id="addBtn">＋ Add page</button>
   <button class="btn" id="printAll">🖨 Print all</button>
   <button class="btn" id="exp">⬇ Backup</button>
@@ -178,6 +191,15 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <div class="row"><button class="btn" id="presenceClose">Close</button></div>
 </div></div>
 
+<div class="modal" id="notificationsM" role="dialog" aria-modal="true" aria-labelledby="notificationsTitle"><div class="box">
+ <button class="btn mobile-back" id="notificationsBack">← Back</button>
+ <h3 id="notificationsTitle">Notifications</h3>
+ <p class="notification-hint" id="notificationStatus" role="status">Loading notifications…</p>
+ <button class="btn" id="notificationPermission">Enable browser alerts</button>
+ <div id="notificationList" class="notification-list" aria-live="polite"></div>
+ <div class="row"><button class="btn" id="notificationsClose">Close</button></div>
+</div></div>
+
 <div class="modal" id="commentM" role="dialog" aria-modal="true" aria-labelledby="commentTitle"><div class="box comment-box">
  <button class="btn mobile-back" id="commentBack">← Back</button>
  <h3 id="commentTitle">Comments</h3>
@@ -186,6 +208,13 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <div class="thread" id="commentThread" aria-live="polite"></div>
  <label for="commentText">Your response (paste images here)</label>
  <textarea id="commentText" rows="4" dir="auto" placeholder="Write a response or paste images…"></textarea>
+ <small class="notification-hint">Use “Tag a member” to notify someone. Tags display as names after sending.</small><br>
+ <button class="btn" id="mentionBtn" type="button" aria-expanded="false" aria-controls="mentionPicker">@ Tag a member</button>
+ <div class="mention-picker" id="mentionPicker" hidden>
+  <label for="mentionSearch">Find a member</label>
+  <input type="search" id="mentionSearch" placeholder="Search by name or email" autocomplete="off">
+  <div class="mention-options" id="mentionOptions"></div>
+ </div>
  <div class="comment-files" id="commentFiles"></div>
  <label for="commentMic">Microphone</label>
  <select id="commentMic"><option value="">System default</option></select>
@@ -214,6 +243,7 @@ let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=
 let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
 let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pageSaving=false;
 let loadVersion=0,itemsVersion=0,notesVersion=0;
+let notifications=[],notificationsVersion=0,notificationsReady=false,notificationsError="";
 let presenceUser="",presenceConnected=false,presenceReady=false,presenceError=false,presenceEpoch=0,presenceRunning=false,presenceSent="",presenceRetry=null;
 const syncTables=new Set();
 const pendingChecks=new Map();
@@ -295,7 +325,7 @@ async function enter(u){
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
  presenceUser=u.id;
  $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
- await loadAll();draw(true);
+ loadNotifications();await loadAll();draw(true);
  signedOut=false;connectLive();
 }
 /* realtime connection that heals itself */
@@ -381,12 +411,23 @@ mobile.addEventListener("change",publishPresence);
 /* ---------- data ---------- */
 function scheduleSync(change){
  if(!change||!change.table)change={table:"all"};
- syncTables.add(change.table==="items"||change.table==="notes"?change.table:"all");
+ if(change.table==="tracker_notifications"&&change.eventType==="INSERT")receiveNotification(change.new);
+ if(change.table==="items"&&change.eventType==="UPDATE"){
+  const row=change.new,it=row&&itemsById.get(row.id);
+  if(it&&typeof row.done==="boolean"&&"done_by" in row&&"done_at" in row){
+   ++itemsVersion;
+   if(!pendingChecks.has(row.id)){
+    updateItem(it,{done:row.done,done_by:row.done_by,done_at:row.done_at});
+    if(filter==="all")refreshChecks();else draw();
+   }
+  }
+ }
+ syncTables.add(["items","notes","tracker_notifications"].includes(change.table)?change.table:"all");
  clearTimeout(syncT);syncT=setTimeout(async()=>{
   const tables=new Set(syncTables);syncTables.clear();
   try{
-   if(tables.has("all"))await loadAll();
-   else await Promise.all([tables.has("items")?loadItems():null,tables.has("notes")?loadNotes():null]);
+   if(tables.has("all"))await Promise.all([loadAll(),loadNotifications()]);
+   else await Promise.all([tables.has("items")?loadItems():null,tables.has("notes")?loadNotes():null,tables.has("tracker_notifications")?loadNotifications():null]);
    lastSync=Date.now();draw();
   }catch(er){toast("Couldn’t update tracker: "+er.message)}
  },120);
@@ -458,6 +499,94 @@ async function loadNotes(){
  if(version!==notesVersion||pid!==cur)return;
  if(error){if(notesFor!==pid)notes=[];toast("Couldn’t load comments: "+error.message);return}
  notesFor=pid;notes=data||[];
+}
+async function loadNotifications(){
+ const version=++notificationsVersion;
+ let data,error;
+ try{({data,error}=await allRows(count=>sb.from("tracker_notifications").select("*",count?{count:"exact"}:undefined)
+  .eq("recipient",me).order("created_at",{ascending:false}).order("id",{ascending:false})))}
+ catch(er){error=er}
+ if(version!==notificationsVersion)return;
+ if(error){
+  const message="Couldn’t load notifications: "+error.message;
+  notificationsReady=false;if(message!==notificationsError)toast(message);notificationsError=message;renderNotifications();return;
+ }
+ const known=new Set(notifications.map(n=>n.id)),wasReady=notificationsReady;
+ notifications=data;notificationsReady=true;notificationsError="";
+ if(wasReady)notifications.filter(n=>!n.read_at&&!known.has(n.id)).forEach(announceNotification);
+ renderNotifications();
+}
+function receiveNotification(row){
+ if(!notificationsReady||!row||row.recipient!==me||notifications.some(n=>n.id===row.id))return;
+ ++notificationsVersion;notifications.unshift(row);renderNotifications();announceNotification(row);
+}
+function announceNotification(row){
+ toast(nm(row.sender)+" mentioned you in a comment");
+ if("Notification" in window&&Notification.permission==="granted"){
+  try{
+   const alert=new Notification("You were mentioned",{body:nm(row.sender)+" mentioned you in the Page Review Tracker.",tag:"tracker-mention-"+row.id});
+   alert.onclick=()=>{window.focus();openNotification(row.id)};
+  }catch(er){console.error("Couldn’t show browser notification:",er)}
+ }
+}
+function renderNotifications(){
+ const unread=notifications.filter(n=>!n.read_at).length,badge=$("notificationBadge");
+ badge.hidden=!unread;badge.textContent=unread>99?"99+":String(unread);
+ $("notificationsBtn").setAttribute("aria-label","Notifications"+(unread?", "+unread+" unread":""));
+ $("notificationStatus").textContent=notificationsError||(!notificationsReady?"Loading notifications…":unread?unread+" unread mention"+(unread===1?"":"s"):"You’re all caught up.");
+ $("mentionBtn").disabled=commentSending||!notificationsReady;
+ $("mentionBtn").title=notificationsReady?"Tag a member":"Notifications must be available to tag members";
+ if(!notificationsReady)hideMentionPicker();
+ const permission=$("notificationPermission");
+ if(!("Notification" in window)||!window.isSecureContext){permission.disabled=true;permission.textContent="Browser alerts unavailable"}
+ else if(Notification.permission==="granted"){permission.disabled=true;permission.textContent="Browser alerts enabled"}
+ else if(Notification.permission==="denied"){permission.disabled=true;permission.textContent="Browser alerts blocked in browser settings"}
+ else{permission.disabled=false;permission.textContent="Enable browser alerts"}
+ $("notificationList").innerHTML=notifications.map(n=>{
+  const page=pages.find(p=>String(p.id)===n.page_id);
+  return '<button class="notification-item'+(n.read_at?"":" unread")+'" data-notification="'+esc(n.id)+'">'+
+   '<b>'+esc(nm(n.sender))+'</b> mentioned you · '+esc(page?.label||"Page")+
+   (n.read_at?"":' <b>· New</b>')+'<small>'+esc(new Date(n.created_at).toLocaleString())+'</small></button>';
+ }).join("")||(!notificationsError&&notificationsReady?'<div class="notification-hint">No mentions yet.</div>':"");
+}
+function hideNotifications(){$("notificationsM").classList.remove("show");$("notificationsBtn").focus()}
+function showNotifications(){renderNotifications();$("notificationsM").classList.add("show");$("notificationsClose").focus()}
+$("notificationsBtn").onclick=()=>{showNotifications();pushMobileLayer("notifications",hideNotifications,showNotifications)};
+$("notificationsClose").onclick=$("notificationsBack").onclick=()=>closeMobileLayer("notifications",hideNotifications);
+$("notificationsM").onkeydown=e=>{if(e.key==="Escape")closeMobileLayer("notifications",hideNotifications)};
+$("notificationPermission").onclick=async()=>{
+ try{await Notification.requestPermission();renderNotifications()}
+ catch(er){toast("Couldn’t enable browser alerts: "+er.message)}
+};
+$("notificationList").onclick=e=>{const b=e.target.closest("[data-notification]");if(b)openNotification(b.dataset.notification)};
+async function openNotification(id){
+ const notification=notifications.find(n=>String(n.id)===String(id));if(!notification)return;
+ if(commentItem){toast("Close the current comment before opening a mention");return}
+ if(!pages.some(p=>String(p.id)===notification.page_id)||!itemsById.has(notification.item_id))await loadAll();
+ const page=pages.find(p=>String(p.id)===notification.page_id),item=itemsById.get(notification.item_id);
+ if(!page||!item||String(item.page_id)!==notification.page_id){toast("This comment is no longer available");return}
+ const open=async()=>{
+  cur=page.id;filter="all";await loadNotes();
+  if(!notes.some(n=>String(n.id)===notification.note_id)){toast("This comment is no longer available");return}
+  if(mobile.matches)showMobileDetail(page.id);
+  draw(true);openComments(item.id);
+  const target=[...$("commentThread").querySelectorAll("[data-note]")].find(el=>el.dataset.note===notification.note_id);
+  if(target)target.scrollIntoView({block:"nearest"});
+  if(!notification.read_at){
+   const{data,error}=await sb.from("tracker_notifications").update({read_at:new Date().toISOString()}).eq("id",notification.id).select("id,read_at").maybeSingle();
+   if(error||!data){toast("Couldn’t mark notification read: "+(error?.message||"notification not found"));return}
+   ++notificationsVersion;const current=notifications.find(n=>n.id===notification.id);
+   if(current)current.read_at=data.read_at;renderNotifications();
+  }
+ };
+ if($("notificationsM").classList.contains("show")){
+  if(mobile.matches&&mobileDepth&&mobileLayers[mobileDepth-1].key==="notifications"){
+   window.addEventListener("popstate",()=>{open().catch(er=>toast("Couldn’t open mention: "+er.message))},{once:true});
+   closeMobileLayer("notifications",hideNotifications);return;
+  }
+  hideNotifications();
+ }
+ try{await open()}catch(er){toast("Couldn’t open mention: "+er.message)}
 }
 async function hydrate(){
  const els=[...document.querySelectorAll("[data-p]")];
@@ -539,10 +668,20 @@ function refreshChecks(){
  hydrate();
 }
 function pd(id){return pend[id]||(pend[id]={text:"",files:[],voices:[]})}
+function renderMentionText(text){
+ let html="",offset=0;
+ for(const match of text.matchAll(/@\[(\S+?)\]/g)){
+  html+=esc(text.slice(offset,match.index));
+  const member=members.find(m=>m.email.toLowerCase()===match[1].toLowerCase());
+  html+=member?'<span class="mention">@'+esc(nm(member.email))+'</span>':esc(match[0]);
+  offset=match.index+match[0].length;
+ }
+ return html+esc(text.slice(offset));
+}
 function renderCommentThread(){
  const L=notes.filter(n=>n.item_id===commentItem);
- $("commentThread").innerHTML=L.map(n=>'<div class="nt"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
-  ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+n.id+'">delete</a>':'')+'</small>'+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+esc(n.body)+'</div>':'')+
+ $("commentThread").innerHTML=L.map(n=>'<div class="nt" data-note="'+esc(n.id)+'"><small><b>'+esc(nm(n.author))+'</b> · '+new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
+  ((n.author===me||isAdmin)?' · <a href="#" data-dn="'+n.id+'">delete</a>':'')+'</small>'+(n.body?'<div dir="auto" style="white-space:pre-wrap">'+renderMentionText(n.body)+'</div>':'')+
   (n.voice_path?'<audio controls preload="metadata" aria-label="Play voice note" data-p="'+esc(n.voice_path)+'"></audio>':'')+
   ((n.attachments||[]).length?'<div class="fl">'+n.attachments.map(f=>/^image\//.test(f.type)?'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener"><img data-p="'+esc(f.path)+'" alt="'+esc(f.name||"Attached image")+'"></a>':/^audio\//.test(f.type)?'<audio controls preload="metadata" aria-label="'+esc(f.name||"Play voice note")+'" data-p="'+esc(f.path)+'"></audio>':'<a data-p="'+esc(f.path)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+'</a>').join("")+'</div>':'')+'</div>').join("")||'<small style="color:var(--mute)">No responses yet.</small>';
 }
@@ -635,6 +774,8 @@ function renderCommentDraft(){
  $("commentAttach").disabled=commentSending;
  $("commentMic").disabled=commentSending||recStarting||recording;
  $("commentText").disabled=commentSending;
+ $("mentionBtn").disabled=commentSending||!notificationsReady;
+ $("mentionBtn").title=notificationsReady?"Tag a member":"Notifications must be available to tag members";
  $("commentFiles").querySelectorAll("button").forEach(b=>b.disabled=commentSending);
  $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 2 minutes). Speak and check the input level.":"Record multiple voice notes; play each one before sending. Drafts remain until this page is reloaded.";
 }
@@ -643,12 +784,13 @@ function openComments(id,track=true){
  commentItem=id;commentPage=it.page_id;
  $("commentPoint").textContent=it.text;
  $("commentText").value=pd(id).text;
+ hideMentionPicker();
  $("commentM").classList.add("show");
  if(track)pushMobileLayer("comments",dismissComments,()=>openComments(id,false));
  renderCommentThread();renderCommentDraft();hydrate();listMicrophones();if(!mobile.matches)$("commentText").focus();
 }
 function dismissComments(){
- const id=commentItem;$("commentM").classList.remove("show");commentItem=null;commentPage=null;
+ const id=commentItem;hideMentionPicker();$("commentM").classList.remove("show");commentItem=null;commentPage=null;
  const button=[...$("main").querySelectorAll("[data-th]")].find(b=>b.dataset.th===id);if(button)button.focus();
 }
 function closeComments(){
@@ -660,6 +802,27 @@ $("commentClose").onclick=closeComments;
 $("commentBack").onclick=closeComments;
 $("commentM").onkeydown=e=>{if(e.key==="Escape")closeComments()};
 $("commentText").oninput=e=>{pd(commentItem).text=e.target.value};
+function hideMentionPicker(){$("mentionPicker").hidden=true;$("mentionBtn").setAttribute("aria-expanded","false")}
+function renderMentionOptions(){
+ const query=$("mentionSearch").value.trim().toLowerCase();
+ const available=members.filter(m=>m.email&&m.email.toLowerCase()!==me&&!/[\]\s]/.test(m.email)&&
+  ((m.name||"").toLowerCase().includes(query)||m.email.toLowerCase().includes(query)));
+ $("mentionOptions").innerHTML=available.map(m=>'<button type="button" class="mention-option" data-mention="'+esc(m.email)+'">'+
+  '<b>'+esc(m.name||m.email.split("@")[0])+'</b><small>'+esc(m.email)+'</small></button>').join("")||
+  '<span class="notification-hint">No matching members.</span>';
+}
+$("mentionBtn").onclick=()=>{
+ if(!$("mentionPicker").hidden){hideMentionPicker();$("commentText").focus();return}
+ $("mentionSearch").value="";renderMentionOptions();$("mentionPicker").hidden=false;
+ $("mentionBtn").setAttribute("aria-expanded","true");$("mentionSearch").focus();
+};
+$("mentionSearch").oninput=renderMentionOptions;
+$("mentionOptions").onclick=e=>{
+ const button=e.target.closest("[data-mention]");if(!button||!commentItem)return;
+ const text=$("commentText"),start=text.selectionStart,end=text.selectionEnd;
+ text.setRangeText("@["+button.dataset.mention+"] ",start,end,"end");
+ pd(commentItem).text=text.value;hideMentionPicker();text.focus();
+};
 function addCommentFiles(files){
  const d=pd(commentItem);
  for(const file of files)d.files.push({file,url:file.type.startsWith("image/")?URL.createObjectURL(file):null});
@@ -690,6 +853,7 @@ $("commentSend").onclick=async()=>{
  if(commentSending||recStarting||rec)return;
  const id=commentItem,pid=commentPage,d=pd(id),text=d.text.trim(),uploaded=[];let saved=false;
  if(!text&&!d.files.length&&!d.voices.length){toast("Write something or attach a file first");return}
+ if(/@\[(\S+?)\]/.test(text)&&!notificationsReady){toast("Notifications are unavailable. Try again before sending a mention.");return}
  commentSending=true;renderCommentDraft();
  try{
   const attachments=[];
