@@ -31,6 +31,15 @@ h1{font-size:19px;margin:0}
 .notification-item small{display:block;color:var(--mute)}
 .notification-hint{color:var(--mute);font-size:14px}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
+@media screen and (min-width:801px){
+ #app{height:calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;overflow:hidden}
+ #app header{flex:none}
+ .app{flex:1;min-height:0;width:100%}
+ .app aside{display:flex;flex-direction:column;min-height:0}
+ .app .plist{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 3px 4px 2px}
+ .app .main{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ .app .shot{top:0}
+}
 @media (max-width:800px){.app{grid-template-columns:1fr}}
 .mobile-back{display:none}
 @media (max-width:800px){
@@ -45,6 +54,8 @@ h1{font-size:19px;margin:0}
 }
 aside,.main{min-width:0}
 .overall{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.page-nav-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.page-nav-head strong{font-size:19px}
 .bar{height:7px;background:var(--line);border-radius:9px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
 input[type=search],input[type=text],input[type=email],input[type=password],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;font:inherit}
@@ -103,6 +114,21 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .modal.show{display:flex}
 .box{background:var(--card);border-radius:16px;padding:18px;width:min(640px,100%);max-height:92vh;overflow:auto}
 .box h3{margin:0 0 8px}
+.gallery-box{width:min(980px,100%);display:flex;flex-direction:column;overflow:hidden}
+.gallery-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.gallery-head h3{margin:0}.gallery-head p{margin:0;color:var(--mute);font-size:14px}
+.gallery-search{margin:12px 0}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-rows:max-content;align-content:start;gap:12px;overflow:auto;min-height:0;padding:3px;overscroll-behavior:contain}
+.gallery-card{min-width:0;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;padding:0;transition:border-color .15s,transform .15s}
+.gallery-card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.gallery-card:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.gallery-card.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+.gallery-preview{height:155px;background:var(--acc2);display:flex;align-items:center;justify-content:center;color:var(--mute)}
+.gallery-preview img{width:100%;height:100%;object-fit:contain}
+.gallery-info{display:block;padding:8px 10px}.gallery-info strong{display:block;overflow-wrap:anywhere}
+.gallery-info small{color:var(--mute)}
+.gallery-info .bar{display:block}
+@media (max-width:800px){.modal .gallery-box{display:flex;overflow:hidden}.gallery-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
 label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .drop{border:2px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--mute);cursor:pointer}
 .drop.hot{border-color:var(--acc);background:var(--acc2)}.drop img{max-width:100%;max-height:200px;border-radius:8px}
@@ -155,12 +181,22 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 <div class="app">
  <aside>
   <div class="overall"><b id="ovT">0 of 0 points done</b><div class="bar"><i id="ovB" style="width:0"></i></div></div>
+  <div class="page-nav-head"><strong>Pages</strong><button class="btn" id="galleryBtn" aria-haspopup="dialog">▦ Gallery</button></div>
   <input type="search" id="q" placeholder="Search pages or points…">
   <div class="plist" id="plist"></div>
  </aside>
  <div class="main" id="main"></div>
 </div>
 </div>
+
+<div class="modal" id="galleryM" role="dialog" aria-modal="true" aria-labelledby="galleryTitle"><div class="box gallery-box">
+ <button class="btn mobile-back" id="galleryBack">← Back</button>
+ <div class="gallery-head"><div><h3 id="galleryTitle">Page gallery</h3><p>Choose a page to open its checklist.</p></div><button class="btn" id="galleryClose" aria-label="Close page gallery">✕</button></div>
+ <label for="gallerySearch">Search pages or points</label>
+ <input class="gallery-search" type="search" id="gallerySearch" placeholder="Search pages or points…" autocomplete="off">
+ <div id="galleryCount" class="notification-hint" aria-live="polite"></div>
+ <div class="gallery-grid" id="galleryGrid"></div>
+</div></div>
 
 <div class="modal" id="modal"><div class="box">
  <button class="btn mobile-back" id="mBack">← Back</button>
@@ -641,12 +677,27 @@ function busy(){const a=document.activeElement;return rec||[...document.querySel
 function draw(force){publishPresence();renderPresence();if(!force&&busy()){dirty=true;refreshChecks();return}dirty=false;renderList();renderMain();if(commentItem)renderCommentThread();hydrate()}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250));
 document.addEventListener("pause",()=>setTimeout(()=>{if(dirty&&!busy())draw()},250),true);
+function matchingPages(query){
+ const q=query.toLowerCase();
+ return pages.filter(p=>!q||(p.label||"").toLowerCase().includes(q)||its(p.id).some(i=>i.text.toLowerCase().includes(q)));
+}
 function renderList(){
- const q=$("q").value.toLowerCase();let D=0,N=0;pages.forEach(p=>{const s=stat(p);D+=s.d;N+=s.n});
+ let D=0,N=0;pages.forEach(p=>{const s=stat(p);D+=s.d;N+=s.n});
  $("ovT").textContent=D+" of "+N+" points done";$("ovB").style.width=(N?D/N*100:0)+"%";
- const L=pages.filter(p=>!q||(p.label||"").toLowerCase().includes(q)||its(p.id).some(i=>i.text.toLowerCase().includes(q)));
+ const L=matchingPages($("q").value);
  $("plist").innerHTML=L.map(p=>{const s=stat(p);return '<button class="pi'+(p.id===cur?" on":"")+'" data-id="'+p.id+'">'+
   (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<div><div class="nm" dir="auto">'+esc(p.label||"Untitled")+'</div><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><div class="bar"><i style="width:'+s.pc+'%"></i></div></div></button>'}).join("")||'<div class="empty">No pages yet</div>';
+ if($("galleryM").classList.contains("show"))renderGallery();
+}
+function renderGallery(){
+ const list=matchingPages($("gallerySearch").value);
+ $("galleryCount").textContent=list.length+" of "+pages.length+" pages";
+ $("galleryGrid").innerHTML=list.map(p=>{const s=stat(p),selected=p.id===cur;
+  return '<button class="gallery-card'+(selected?" on":"")+'" data-gallery-page="'+esc(p.id)+'"'+(selected?' aria-current="page"':'')+'>'+
+   '<span class="gallery-preview">'+(p.image_path?'<img data-p="'+esc(p.image_path)+'" loading="lazy" decoding="async" alt="">':'No image')+'</span>'+
+   '<span class="gallery-info"><strong dir="auto">'+esc(p.label||"Untitled")+'</strong><small>'+s.d+'/'+s.n+' done · '+s.pc+'%</small>'+
+   '<span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>';
+ }).join("")||'<div class="empty">No matching pages</div>';
 }
 const commentIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H6l-3 3v-6a8.5 8.5 0 1 1 18-3.5Z"/></svg>';
 function commentCounts(){const counts=new Map();notes.forEach(n=>counts.set(n.item_id,(counts.get(n.item_id)||0)+1));return counts}
@@ -690,7 +741,7 @@ function renderMain(){
  if(!p){m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button><div class="panel empty"><div style="font-size:40px">🗂️</div><p>Add your first page: paste a page image and its list of points.</p></div>';return}
  const A=its(p.id),s=stat(p),counts=commentCounts();
  const list=A.map((it,i)=>({it,i})).filter(({it})=>filter==="all"||(filter==="open"?!it.done:it.done));
- m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button><div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
+ m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button> <button class="btn mobile-back" id="bGallery">▦ Gallery</button><div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
  '<div class="tools"><button class="btn" id="bShare">↗ Share</button><button class="btn" id="bPrint">🖨 Print</button><button class="btn" id="bEdit">✎ Edit</button><button class="btn danger" id="bDel">🗑</button></div></div>'+
  '<div class="split">'+(p.image_path?'<div><img class="shot" id="shot" data-p="'+esc(p.image_path)+'" alt="Page image"></div>':'<div class="empty">No image</div>')+
  '<div><div class="chips">'+["all","open","done"].map(f=>'<button class="chip'+(filter===f?" on":"")+'" data-f="'+f+'">'+f[0].toUpperCase()+f.slice(1)+'</button>').join("")+'</div><div>'+
@@ -706,13 +757,39 @@ function renderMain(){
 function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+"px"}
 
 /* ---------- actions ---------- */
-$("plist").onclick=async e=>{const b=e.target.closest(".pi");if(b){
- const id=b.dataset.id;if(cur!==id){notes=[];notesFor=null}cur=id;showMobileDetail(id);draw(true);
- await loadNotes();if(cur===id)draw(true)
-}};
+async function selectPage(id){
+ if(cur!==id){notes=[];notesFor=null}cur=id;
+ if(mobile.matches&&!document.body.classList.contains("mobile-detail"))showMobileDetail(id);
+ $("main").scrollTop=0;draw(true);
+ await loadNotes();if(cur===id)draw(true);
+}
+$("plist").onclick=e=>{const b=e.target.closest(".pi");if(b)selectPage(b.dataset.id).catch(er=>toast("Couldn’t open page: "+er.message))};
 $("q").oninput=()=>{renderList();hydrate()};
+function hideGallery(){
+ $("galleryM").classList.remove("show");
+ const button=mobile.matches&&document.body.classList.contains("mobile-detail")?$("bGallery"):$("galleryBtn");
+ if(button)button.focus();
+}
+function showGallery(){renderGallery();$("galleryM").classList.add("show");hydrate();$("gallerySearch").focus()}
+function openGallery(){$("gallerySearch").value="";showGallery();pushMobileLayer("gallery",hideGallery,showGallery)}
+function closeGallery(){closeMobileLayer("gallery",hideGallery)}
+$("galleryBtn").onclick=openGallery;
+$("galleryClose").onclick=$("galleryBack").onclick=closeGallery;
+$("galleryM").onkeydown=e=>{if(e.key==="Escape")closeGallery()};
+$("gallerySearch").oninput=()=>{renderGallery();hydrate()};
+let gallerySelecting=false;
+$("galleryGrid").onclick=e=>{
+ const button=e.target.closest("[data-gallery-page]");if(!button||gallerySelecting)return;
+ const id=button.dataset.galleryPage;
+ const open=()=>{gallerySelecting=false;selectPage(id).catch(er=>toast("Couldn’t open page: "+er.message))};
+ if(mobile.matches&&mobileDepth&&mobileLayers[mobileDepth-1].key==="gallery"){
+  gallerySelecting=true;window.addEventListener("popstate",open,{once:true});closeGallery();return;
+ }
+ hideGallery();open();
+};
 $("main").onclick=async e=>{
  const t=e.target.closest("button")||e.target,d=t.dataset;if(t.id==="mobileBack"){backToPages();return}
+ if(t.id==="bGallery"){openGallery();return}
  const p=P();if(!p)return;
  try{
  if(d.f){filter=d.f;draw(true);return}
