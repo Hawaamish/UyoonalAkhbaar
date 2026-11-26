@@ -103,3 +103,84 @@ test("a rejected notification request reports the error without breaking the tra
   assert.equal(context.notificationsReady, false);
   assert.match(messages[0], /network unavailable/);
 });
+
+test("an outdated notification schema prompts the database upgrade", async () => {
+  const messages = [];
+  const context = vm.createContext({
+    me: "me@example.com", notificationsReady: true, notifications: [], notificationsVersion: 0,
+    notificationsError: "",
+    allRows: async () => ({ data: null, error: { code: "42703", message: "column kind does not exist" } }),
+    renderNotifications() {}, toast: message => messages.push(message),
+  });
+  vm.runInContext(section("async function loadNotifications(", "function receiveNotification("), context);
+  await context.loadNotifications();
+  assert.equal(context.notificationsReady, false);
+  assert.match(messages[0], /updated tracker-mentions\.sql/);
+});
+
+test("reply controls appear only for comments that tag the signed-in member", () => {
+  const thread = { innerHTML: "" };
+  const context = vm.createContext({
+    commentItem: "item", me: "bob@example.com", isAdmin: false,
+    notificationsReady: true, commentSending: false,
+    notes: [
+      { id: "1", item_id: "item", author: "alice@example.com", body: "Hi @[BOB@example.com]", created_at: "2026-01-01" },
+      { id: "2", item_id: "item", author: "alice@example.com", body: "No tag", created_at: "2026-01-01", reply_to: "missing" },
+      { id: "3", item_id: "item", author: "bob@example.com", body: "@[bob@example.com]", created_at: "2026-01-01" },
+    ],
+    $: () => thread, nm: email => email, esc: value => String(value),
+    renderMentionText: value => value,
+  });
+  vm.runInContext(section("function renderCommentThread(", "function renderMain("), context);
+  context.renderCommentThread();
+  assert.match(thread.innerHTML, /data-reply="1"/);
+  assert.doesNotMatch(thread.innerHTML, /data-reply="2"|data-reply="3"/);
+  assert.match(thread.innerHTML, /Reply to a deleted comment/);
+  context.notificationsReady = false;
+  context.renderCommentThread();
+  assert.match(thread.innerHTML, /data-reply="1" disabled/);
+});
+
+test("sending a tagged reply links it to the original and refuses unavailable targets", async () => {
+  const sent = [], messages = [], elements = { commentSend: {}, commentText: { value: "" } };
+  const draft = { text: "Thanks", files: [], voices: [], replyTo: "original" };
+  const context = vm.createContext({
+    commentSending: false, recStarting: false, rec: null, commentItem: "item", commentPage: "page",
+    notificationsReady: true, notes: [{ id: "original", item_id: "item" }],
+    pend: { item: draft }, pd: () => draft, $: id => elements[id],
+    canReplyToTaggedComment: () => true,
+    renderCommentDraft() {}, toast: message => messages.push(message),
+    sb: { from: () => ({ insert: async note => { sent.push(note); return { error: null }; } }) },
+    loadNotes: async () => {}, draw() {}, fail: error => { throw error; },
+  });
+  vm.runInContext(section('$("commentSend").onclick=async()=>{', '$("commentRec").onclick='), context);
+  await elements.commentSend.onclick();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].reply_to, "original");
+  assert.equal(sent[0].body, "Thanks");
+  assert.equal(context.pend.item, undefined);
+  context.notificationsReady = false;
+  await elements.commentSend.onclick();
+  assert.equal(sent.length, 1);
+  assert.match(messages.at(-1), /Notifications are unavailable/);
+  context.notificationsReady = true;
+  context.notes = [];
+  await elements.commentSend.onclick();
+  assert.equal(sent.length, 1);
+  assert.match(messages.at(-1), /tagged comment is unavailable/i);
+});
+
+test("reply alerts identify the response rather than a mention", () => {
+  const alerts = [], messages = [];
+  function Notification(title, options) { alerts.push({ title, ...options }); }
+  Notification.permission = "granted";
+  const context = vm.createContext({
+    window: { Notification }, Notification, nm: () => "Bob", toast: message => messages.push(message),
+  });
+  vm.runInContext(section("function announceNotification(", "function renderNotifications("), context);
+  context.announceNotification({ id: 1, sender: "bob@example.com", kind: "reply" });
+  assert.match(messages[0], /Bob replied to your tagged comment/);
+  assert.match(alerts[0].title, /Reply/);
+  context.announceNotification({ id: 2, sender: "bob@example.com", kind: "mention" });
+  assert.match(alerts[1].title, /mentioned/);
+});

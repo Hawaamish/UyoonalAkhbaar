@@ -13,6 +13,10 @@ create table if not exists public.tracker_notifications (
   unique (note_id, recipient)
 );
 
+alter table public.notes add column if not exists reply_to text;
+alter table public.tracker_notifications
+  add column if not exists kind text not null default 'mention';
+
 create index if not exists tracker_notifications_recipient_created_idx
   on public.tracker_notifications (recipient, created_at desc, id desc);
 
@@ -49,13 +53,35 @@ set search_path = pg_catalog, public
 as $$
 declare
   sender_email text := lower(auth.jwt() ->> 'email');
+  original_author text;
 begin
-  if new.body is null or new.body !~ '@\[([^]]+)\]' then
+  if new.reply_to is null and (new.body is null or new.body !~ '@\[([^]]+)\]') then
     return new;
   end if;
   if sender_email is null or lower(new.author::text) is distinct from sender_email
      or not exists (select 1 from public.members m where lower(m.email) = sender_email) then
-    raise exception 'Only a tracker member can send mentions as themselves';
+    raise exception 'Only a tracker member can send mentions or replies as themselves';
+  end if;
+
+  if new.reply_to is not null then
+    select lower(n.author::text) into original_author
+    from public.notes n
+    where n.id::text = new.reply_to
+      and n.page_id::text = new.page_id::text
+      and n.item_id::text = new.item_id::text
+      and lower(n.author::text) <> sender_email
+      and exists (
+        select 1 from regexp_matches(coalesce(n.body, ''), '@\[([^]]+)\]', 'g') as mention(parts)
+        where lower((mention.parts)[1]) = sender_email
+      );
+    if original_author is null
+       or not exists (select 1 from public.members m where lower(m.email) = original_author) then
+      raise exception 'The tagged comment is unavailable or its author is no longer a member';
+    end if;
+
+    insert into public.tracker_notifications (note_id, page_id, item_id, recipient, sender, kind)
+    values (new.id::text, new.page_id::text, new.item_id::text, original_author, sender_email, 'reply')
+    on conflict (note_id, recipient) do nothing;
   end if;
 
   insert into public.tracker_notifications (note_id, page_id, item_id, recipient, sender)
