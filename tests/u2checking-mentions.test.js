@@ -37,6 +37,15 @@ test("mention rendering escapes names and ordinary comment text", () => {
   );
 });
 
+test("member labels use display names, including for the signed-in member", () => {
+  const context = vm.createContext({
+    members: [{ email: "alice@example.com", name: "Alice Example" }],
+  });
+  vm.runInContext(section("const nm=e=>", "const pageCollator="), context);
+  assert.equal(vm.runInContext('nm("ALICE@example.com")', context), "Alice Example");
+  assert.equal(vm.runInContext('nm("unknown@example.com")', context), "unknown");
+});
+
 test("realtime notification accepts only new mentions for the signed-in member", () => {
   const calls = [];
   const context = vm.createContext({
@@ -56,14 +65,17 @@ test("realtime notification accepts only new mentions for the signed-in member",
 test("notification refresh announces only newly discovered unread mentions", async () => {
   const announced = [];
   const incoming = [
-    { id: 1, read_at: null },
-    { id: 2, read_at: null },
-    { id: 3, read_at: "2026-01-01" },
+    { id: 1, note_id: "note-1", read_at: null },
+    { id: 2, note_id: "note-2", read_at: null },
+    { id: 3, note_id: "note-3", read_at: "2026-01-01" },
   ];
   const context = vm.createContext({
     me: "me@example.com", notificationsReady: true, notifications: [{ id: 1 }], notificationsVersion: 0,
     notificationsError: "",
     allRows: async () => ({ data: incoming, error: null }),
+    sb: { from: () => ({ select: () => ({ in: async (_column, ids) => ({
+      data: ids.map(id => ({ id, body: "Please review this point" })), error: null,
+    }) }) }) },
     announceNotification: row => announced.push(row.id),
     renderNotifications() {},
     toast(message) { throw new Error(message); },
@@ -72,6 +84,7 @@ test("notification refresh announces only newly discovered unread mentions", asy
   await context.loadNotifications();
   assert.deepEqual(announced, [2]);
   assert.equal(context.notifications.length, 3);
+  assert.equal(context.notifications[1].comment_preview, "Please review this point");
 });
 
 test("notification loading failure disables mentions and reports the error", async () => {
@@ -209,6 +222,7 @@ test("reply alerts identify the response rather than a mention", () => {
   Notification.permission = "granted";
   const context = vm.createContext({
     window: { Notification }, Notification, nm: () => "Bob", toast: message => messages.push(message),
+    pages: [],
   });
   vm.runInContext(section("function announceNotification(", "function renderNotifications("), context);
   context.announceNotification({ id: 1, sender: "bob@example.com", kind: "reply" });
@@ -216,4 +230,36 @@ test("reply alerts identify the response rather than a mention", () => {
   assert.match(alerts[0].title, /Reply/);
   context.announceNotification({ id: 2, sender: "bob@example.com", kind: "mention" });
   assert.match(alerts[1].title, /mentioned/);
+});
+
+test("notification cards highlight the page number and show an escaped comment preview", () => {
+  const elements = {
+    notificationBadge: {},
+    notificationsBtn: { setAttribute() {} },
+    notificationStatus: {},
+    mentionBtn: {},
+    commentThread: { querySelectorAll: () => [] },
+    notificationPermission: {},
+    notificationList: {},
+  };
+  const context = vm.createContext({
+    notifications: [{
+      id: 1, page_id: "page-1", item_id: "item-1", sender: "bob@example.com",
+      kind: "mention", created_at: "2026-01-01T00:00:00Z", read_at: null,
+      comment_preview: "<please review>",
+    }],
+    notificationsError: "", notificationsReady: true, commentSending: false,
+    pages: [{ id: "page-1", label: "ص204" }],
+    window: { isSecureContext: true },
+    Notification: { permission: "granted" },
+    nm: () => "Bob",
+    esc: value => String(value).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[c]),
+    $: id => elements[id],
+  });
+  vm.runInContext(section("function renderNotifications(", "function hideNotifications("), context);
+  context.renderNotifications();
+  assert.match(elements.notificationList.innerHTML, /class="notification-page">Page ص204<\/span>/);
+  assert.match(elements.notificationList.innerHTML, /class="notification-comment">&lt;please review&gt;<\/span>/);
 });

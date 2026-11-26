@@ -9,15 +9,19 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap">
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
---bg:#f6f3ee;--card:#fff;--ink:#1f2a37;--mute:#6b7280;--line:#e5dfd5;--acc:#0f766e;--acc2:#e6f4f1;--note:#fff8e6;--comment:#15803d}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181c;--card:#1d2328;--ink:#e8ecef;--mute:#98a2ad;--line:#2c343b;--acc:#2dd4bf;--acc2:#16312e;--note:#2b2718;--comment:#4ade80}}
+--bg:#f5f6fb;--card:#fff;--ink:#293248;--mute:#707b91;--line:#e4e7f0;--acc:#6978b8;--acc2:#eef0ff;--note:#fff5e3;--comment:#638d7b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171a24;--card:#222634;--ink:#e9ebf4;--mute:#a3a9ba;--line:#353a4a;--acc:#b4baf0;--acc2:#30334c;--note:#383225;--comment:#a3d0b8}}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Amiri","Scheherazade New","Traditional Arabic",Georgia,serif}
 button{font:inherit;color:inherit;cursor:pointer}
-.btn{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:9px;display:inline-flex;gap:6px;align-items:center}
-.btn:hover{border-color:var(--acc)}.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
-.btn.rec{background:#dc2626;color:#fff;border-color:#dc2626}.btn.danger:hover{border-color:#dc2626;color:#dc2626}
+.btn{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:10px;display:inline-flex;gap:6px;align-items:center;transition:transform .16s ease,border-color .16s ease,background-color .16s ease,box-shadow .16s ease,color .16s ease}
+.btn:hover{border-color:var(--acc);box-shadow:0 3px 10px #29324812;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn:focus-visible,.notification-item:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.btn.pri:hover{box-shadow:0 4px 12px #6978b833}
+.btn.rec{background:#c96f7d;color:#fff;border-color:#c96f7d}.btn.danger:hover{border-color:#cb7380;color:#cb7380}
 header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
 h1{font-size:19px;margin:0}
 .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -26,9 +30,16 @@ h1{font-size:19px;margin:0}
 .presence-list .mrow{justify-content:space-between}.presence-list small{color:var(--mute)}
 .notification-badge{background:var(--acc);color:#fff;border-radius:99px;min-width:22px;text-align:center;padding:0 6px;font:700 12px/22px sans-serif}
 .notification-list{display:grid;gap:8px;margin-top:12px}
-.notification-item{width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card)}
+.notification-item{width:100%;text-align:left;border:1px solid var(--line);border-radius:13px;padding:12px 14px;background:var(--card);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.notification-item:hover{transform:translateY(-1px);border-color:var(--acc);box-shadow:0 5px 16px #29324812}
 .notification-item.unread{border-color:var(--acc);background:var(--acc2)}
-.notification-item small{display:block;color:var(--mute)}
+.notification-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;font:14px/1.35 sans-serif}
+.notification-heading b{color:var(--ink)}
+.notification-new{flex:none;padding:2px 7px;border-radius:99px;background:var(--acc);color:#fff;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.notification-time{display:block;margin-top:4px;color:var(--mute);font:11px/1.4 sans-serif}
+.notification-context{font:12px/1.4 sans-serif;margin-top:5px}
+.notification-page{display:inline-block;color:var(--acc);background:var(--acc2);border-radius:7px;padding:3px 8px;font-weight:700}
+.notification-comment{display:block;margin-top:6px;padding:6px 9px;border-inline-start:3px solid var(--comment);border-radius:5px;background:var(--note);color:var(--ink);overflow-wrap:anywhere}
 .notification-hint{color:var(--mute);font-size:14px}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
 @media screen and (min-width:801px){
@@ -60,7 +71,8 @@ aside,.main{min-width:0}
 .bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
 input[type=search],input[type=text],input[type=email],input[type=password],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;font:inherit}
 .plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.pi{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:left;width:100%}
+.pi{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:left;width:100%;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.pi:hover{transform:translateY(-1px);border-color:var(--acc)}
 .pi.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
 .pi img{width:44px;height:56px;object-fit:cover;border-radius:6px;background:var(--line);flex:none}
 .pi .nm{font-weight:700}.pi small{color:var(--mute)}.pi>div{flex:1;min-width:0}
@@ -88,8 +100,8 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .ib svg{width:18px;height:18px;vertical-align:middle}
 .by{font-size:13px;color:var(--mute);margin:-2px 0 0 52px}
 .thread{background:var(--bg);padding:18px;overflow-y:auto;overscroll-behavior:contain}
-.nt{align-self:flex-start;max-width:min(82%,490px);min-width:0;background:hsl(var(--chat-hue) 65% 94%);border:1px solid hsl(var(--chat-hue) 42% 85%);border-radius:5px 16px 16px 16px;padding:8px 11px;overflow-wrap:anywhere;box-shadow:0 1px 2px #0001}
-.nt.mine{align-self:flex-end;border-radius:16px 5px 16px 16px}
+.nt{align-self:flex-start;max-width:min(82%,490px);min-width:0;background:hsl(var(--chat-hue) 68% 96%);border:1px solid hsl(var(--chat-hue) 42% 87%);border-radius:6px 16px 16px 16px;padding:9px 12px;overflow-wrap:anywhere;box-shadow:0 2px 5px #2932480d}
+.nt.mine{align-self:flex-end;border-radius:16px 6px 16px 16px;background:hsl(var(--chat-hue) 58% 93%);border-color:hsl(var(--chat-hue) 42% 85%)}
 .nt-head,.nt-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .nt-head strong{color:hsl(var(--chat-hue) 66% 22%);font-size:14px}
 .nt-foot{justify-content:flex-end;color:hsl(var(--chat-hue) 22% 30%);font:12px/1.5 sans-serif;margin-top:5px}
@@ -97,6 +109,8 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .nt-action:disabled{opacity:.5;cursor:not-allowed}
 .nt-body{white-space:pre-wrap;overflow-wrap:anywhere}
 .nt-reply{display:block;border-inline-start:3px solid var(--acc);padding:2px 7px;margin:4px 0;background:#ffffff80;border-radius:4px;color:hsl(var(--chat-hue) 22% 30%)}
+.nt.notification-target{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+.nt.notification-target .nt-body{font-size:14px}
 .nt audio{width:100%;height:34px;margin-top:4px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nt{background:hsl(var(--chat-hue) 30% 22%);border-color:hsl(var(--chat-hue) 28% 32%)}
  :root:not([data-theme="light"]) .nt-head strong{color:hsl(var(--chat-hue) 80% 80%)}
@@ -124,7 +138,7 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .box{background:var(--card);border-radius:16px;padding:18px;width:min(640px,100%);max-height:92vh;overflow:auto}
 .box h3{margin:0 0 8px}
 #commentM .comment-box{width:min(720px,100%);height:min(780px,calc(100vh - 28px));height:min(780px,calc(100dvh - 28px));max-height:none;padding:0;display:flex;flex-direction:column;overflow:hidden}
-.chat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);flex:none}
+.chat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(120deg,var(--card),var(--acc2));flex:none}
 .chat-head .mobile-back{margin:0}.chat-heading{flex:1;min-width:0}
 .chat-heading h3{margin:0}.chat-heading p{margin:0;color:var(--mute);font-size:14px;line-height:1.35;max-height:2.7em;overflow:auto;overflow-wrap:anywhere;scrollbar-width:thin}
 .chat-close{flex:none}
@@ -146,6 +160,15 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .voice-settings small{display:block}
 .chat-status{display:block;color:var(--mute);font-size:13px;margin-top:4px}
 .chat-hint{display:block;color:var(--mute);font-size:13px;line-height:1.4;margin-top:6px}
+.chat-tools .btn{border-radius:11px}
+.chat-tools #commentSend{box-shadow:0 3px 10px #6978b822}
+.modal.show{animation:modal-fade-in .16s ease-out both}
+.modal.show>.box{animation:modal-rise-in .18s ease-out both}
+@keyframes modal-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes modal-rise-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){
+ *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
 @media (max-width:800px){#commentM .comment-box{width:100%;height:100%;border-radius:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
  .chat-head{padding:10px 12px}.chat-thread{padding:12px}.chat-composer{padding:8px 10px}.nt{max-width:90%}}
 .gallery-box{width:min(980px,100%);display:flex;flex-direction:column;overflow:hidden}
@@ -349,7 +372,7 @@ function updateItem(item,fields){
  const done=!!item.done;Object.assign(item,fields);
  if(done!==!!item.done){const s=pageStats.get(item.page_id);if(s)s.d+=item.done?1:-1}
 }
-const nm=e=>{if(!e)return"Someone";const m=members.find(x=>x.email.toLowerCase()===e.toLowerCase());return e===me?"You":(m&&m.name)||e.split("@")[0]};
+const nm=e=>{if(!e)return"Someone";const email=String(e),m=members.find(x=>x.email.toLowerCase()===email.toLowerCase());return String(m&&m.name||"").trim()||email.split("@")[0]};
 const pageCollator=new Intl.Collator(undefined,{numeric:true,sensitivity:"base"});
 function pageNumber(label){
  const normalized=String(label||"").replace(/[٠-٩۰-۹]/g,c=>String(c.charCodeAt(0)-(c<="٩"?0x660:0x6f0)));
@@ -457,13 +480,12 @@ function renderPresence(){
  list.innerHTML=people.map(([id,person])=>{
   const locations=[...person.pageIds].map(pid=>pages.find(p=>p.id===pid)?.label||"Page unavailable");
   if(person.browsing)locations.push("Browsing pages");
-  return '<div class="mrow"><span><b>'+esc(id===presenceUser?"You":person.name)+'</b><br><small>'+esc(locations.join(" · "))+'</small></span><span class="presence-dot">● Online</span></div>';
+  return '<div class="mrow"><span><b>'+esc(person.name)+'</b><br><small>'+esc(locations.join(" · "))+'</small></span><span class="presence-dot">● Online</span></div>';
  }).join("")||"No members online.";
 }
 function publishPresence(){
  if(!presenceConnected||!chan||!presenceUser||presenceRunning||presenceRetry)return;
- const member=members.find(m=>m.email.toLowerCase()===me);
- const payload={user_id:presenceUser,name:((member&&member.name)||me.split("@")[0]||"Member").slice(0,100),
+ const payload={user_id:presenceUser,name:(nm(me)||"Member").slice(0,100),
   page_id:mobile.matches&&!document.body.classList.contains("mobile-detail")?null:cur};
  const sent=JSON.stringify(payload);if(sent===presenceSent)return;
  const channel=chan,epoch=presenceEpoch;presenceRunning=true;
@@ -582,8 +604,24 @@ async function loadNotes(){
 async function loadNotifications(){
  const version=++notificationsVersion;
  let data,error;
- try{({data,error}=await allRows(count=>sb.from("tracker_notifications").select("id,note_id,page_id,item_id,recipient,sender,created_at,read_at,kind",count?{count:"exact"}:undefined)
-  .eq("recipient",me).order("created_at",{ascending:false}).order("id",{ascending:false})))}
+ try{
+  ({data,error}=await allRows(count=>sb.from("tracker_notifications").select("id,note_id,page_id,item_id,recipient,sender,created_at,read_at,kind",count?{count:"exact"}:undefined)
+   .eq("recipient",me).order("created_at",{ascending:false}).order("id",{ascending:false})));
+  if(!error&&data.length){
+   const noteIds=[...new Set(data.map(n=>n.note_id).filter(id=>id!=null&&id!=="").map(String))];
+   if(noteIds.length){
+    const comments=await sb.from("notes").select("id,body,voice_path,attachments").in("id",noteIds);
+    if(comments.error)error=comments.error;
+    else{
+     const byId=new Map((comments.data||[]).map(note=>[String(note.id),note]));
+     data=data.map(n=>{
+      const note=byId.get(String(n.note_id));
+      return {...n,comment_preview:note?(note.body||((note.voice_path||(note.attachments||[]).length)?"Voice or attachment comment":"No text comment")):"Comment unavailable"};
+     });
+    }
+   }
+  }
+ }
  catch(er){error=er}
  if(version!==notificationsVersion)return;
  if(error){
@@ -605,7 +643,9 @@ function announceNotification(row){
  toast(message);
  if("Notification" in window&&Notification.permission==="granted"){
   try{
-   const alert=new Notification(reply?"Reply to your tagged comment":"You were mentioned",{body:message+" in the Page Review Tracker.",tag:"tracker-notification-"+row.id});
+   const page=pages.find(p=>String(p.id)===String(row.page_id));
+   const context=[page?.label,row.comment_preview].filter(Boolean).join(" · ");
+   const alert=new Notification(reply?"Reply to your tagged comment":"You were mentioned",{body:[message+" in the Page Review Tracker.",context].filter(Boolean).join(" "),tag:"tracker-notification-"+row.id});
    alert.onclick=()=>{window.focus();openNotification(row.id)};
   }catch(er){console.error("Couldn’t show browser notification:",er)}
  }
@@ -627,8 +667,11 @@ function renderNotifications(){
  $("notificationList").innerHTML=notifications.map(n=>{
   const page=pages.find(p=>String(p.id)===n.page_id);
   return '<button class="notification-item'+(n.read_at?"":" unread")+'" data-notification="'+esc(n.id)+'">'+
-   '<b>'+esc(nm(n.sender))+'</b> '+(n.kind==="reply"?"replied to your tagged comment":"mentioned you")+' · '+esc(page?.label||"Page")+
-   (n.read_at?"":' <b>· New</b>')+'<small>'+esc(new Date(n.created_at).toLocaleString())+'</small></button>';
+   '<span class="notification-heading"><span><b>'+esc(nm(n.sender))+'</b> '+(n.kind==="reply"?"replied to your tagged comment":"mentioned you")+'</span>'+
+   (n.read_at?"":'<span class="notification-new">New</span>')+'</span>'+
+   '<span class="notification-time">'+esc(new Date(n.created_at).toLocaleString())+'</span>'+
+   '<span class="notification-context"><span class="notification-page">Page '+esc(page?.label||"Page")+'</span>'+
+   '<span class="notification-comment">'+esc(n.comment_preview||"Loading comment…")+'</span></span></button>';
  }).join("")||(!notificationsError&&notificationsReady?'<div class="notification-hint">No notifications yet.</div>':"");
 }
 function hideNotifications(){$("notificationsM").classList.remove("show");$("notificationsBtn").focus()}
@@ -653,7 +696,7 @@ async function openNotification(id){
   if(mobile.matches)showMobileDetail(page.id);
   draw(true);openComments(item.id);
   const target=[...$("commentThread").querySelectorAll("[data-note]")].find(el=>el.dataset.note===notification.note_id);
-  if(target)target.scrollIntoView({block:"nearest"});
+  if(target){target.classList.add("notification-target");target.scrollIntoView({block:"nearest"})}
   if(!notification.read_at){
    const{data,error}=await sb.from("tracker_notifications").update({read_at:new Date().toISOString()}).eq("id",notification.id).select("id,read_at").maybeSingle();
    if(error||!data){toast("Couldn’t mark notification read: "+(error?.message||"notification not found"));return}
@@ -1035,7 +1078,7 @@ function renderMentionOptions(query=$("mentionSearch").value){
  const available=members.filter(m=>m.email&&m.email.toLowerCase()!==me&&!/[\]\s]/.test(m.email)&&
   ((m.name||"").toLowerCase().includes(query)||m.email.toLowerCase().includes(query)));
  $("mentionOptions").innerHTML=available.map(m=>'<button type="button" class="mention-option" data-mention="'+esc(m.email)+'">'+
-  '<b>'+esc(m.name||m.email.split("@")[0])+'</b><small>'+esc(m.email)+'</small></button>').join("")||
+  '<b>'+esc(nm(m.email))+'</b></button>').join("")||
   '<span class="notification-hint">No matching members.</span>';
 }
 function updateTypingMention(){
@@ -1379,7 +1422,7 @@ $("impF").onchange=async e=>{
   await loadAll();draw(true);toast("Imported "+d.length+" pages")}catch(er){fail(er)}e.target.value=""};
 
 /* ---------- members (admin) ---------- */
-function drawMem(){$("memL").innerHTML=members.map(m=>'<div class="mrow"><span><b>'+esc(m.name||m.email)+'</b><br><small>'+esc(m.email)+' · '+m.role+'</small></span>'+
+function drawMem(){$("memL").innerHTML=members.map(m=>'<div class="mrow"><span><b>'+esc(nm(m.email))+'</b><br><small>'+esc(m.role)+'</small></span>'+
  (m.email.toLowerCase()===me?'':'<button class="btn danger" data-rm="'+esc(m.email)+'">Remove</button>')+'</div>').join("")}
 function hideMembers(){$("memM").classList.remove("show")}
 function showMembers(){drawMem();$("memM").classList.add("show")}
