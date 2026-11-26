@@ -9,6 +9,19 @@ function section(start, end) {
   return html.slice(html.indexOf(start), html.indexOf(end));
 }
 
+test("typing a mention detects its query at the caret without matching email addresses", () => {
+  const context = vm.createContext({});
+  vm.runInContext(section("function findMentionQuery(", "function hideMentionPicker("), context);
+  const mention = context.findMentionQuery("Hello @Al, please check", 9, 9);
+  assert.equal(mention.start, 6);
+  assert.equal(mention.end, 9);
+  assert.equal(mention.query, "Al");
+  assert.equal(context.findMentionQuery("alice@example.com", 6, 6), null);
+  assert.equal(context.findMentionQuery("@[alice@example.com]", 20, 20), null);
+  assert.equal(context.findMentionQuery("@Ali", 1, 4), null);
+  assert.equal(context.findMentionQuery("مرحبا @علي", 10, 10).query, "علي");
+});
+
 test("mention rendering escapes names and ordinary comment text", () => {
   const context = vm.createContext({
     members: [{ email: "alice@example.com", name: "<Alice>" }],

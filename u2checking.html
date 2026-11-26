@@ -243,14 +243,15 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <small>Responses are shared with tracker members. Voice recording requires microphone permission and a secure connection.</small>
  <div class="thread" id="commentThread" aria-live="polite"></div>
  <label for="commentText">Your response (paste images here)</label>
- <textarea id="commentText" rows="4" dir="auto" placeholder="Write a response or paste images…"></textarea>
- <small class="notification-hint">Use “Tag a member” to notify someone. Tags display as names after sending.</small><br>
- <button class="btn" id="mentionBtn" type="button" aria-expanded="false" aria-controls="mentionPicker">@ Tag a member</button>
+ <textarea id="commentText" rows="4" dir="auto" placeholder="Write a response or type @ to tag someone…" aria-controls="mentionPicker"></textarea>
  <div class="mention-picker" id="mentionPicker" hidden>
-  <label for="mentionSearch">Find a member</label>
-  <input type="search" id="mentionSearch" placeholder="Search by name or email" autocomplete="off">
-  <div class="mention-options" id="mentionOptions"></div>
+  <div id="mentionSearchGroup"><label for="mentionSearch">Find a member</label>
+   <input type="search" id="mentionSearch" placeholder="Search by name or email" autocomplete="off"></div>
+  <small class="notification-hint" id="mentionTypingHelp" hidden>Choose a member, or press Down to select using the keyboard.</small>
+  <div class="mention-options" id="mentionOptions" aria-live="polite"></div>
  </div>
+ <small class="notification-hint">Type @ or use “Tag a member” to notify someone. Tags display as names after sending.</small><br>
+ <button class="btn" id="mentionBtn" type="button" aria-expanded="false" aria-controls="mentionPicker">@ Tag a member</button>
  <div class="comment-files" id="commentFiles"></div>
  <label for="commentMic">Microphone</label>
  <select id="commentMic"><option value="">System default</option></select>
@@ -877,27 +878,72 @@ function closeComments(){
 }
 $("commentClose").onclick=closeComments;
 $("commentBack").onclick=closeComments;
-$("commentM").onkeydown=e=>{if(e.key==="Escape")closeComments()};
-$("commentText").oninput=e=>{pd(commentItem).text=e.target.value};
-function hideMentionPicker(){$("mentionPicker").hidden=true;$("mentionBtn").setAttribute("aria-expanded","false")}
-function renderMentionOptions(){
- const query=$("mentionSearch").value.trim().toLowerCase();
+$("commentM").onkeydown=e=>{if(e.key==="Escape"){
+ if(!$("mentionPicker").hidden){e.preventDefault();hideMentionPicker();$("commentText").focus()}
+ else closeComments();
+}};
+let mentionMode="",mentionRange=null;
+function findMentionQuery(value,start,end){
+ if(start!==end)return null;
+ const match=value.slice(0,start).match(/(?:^|[\s([{])@([^\s@\[\]]*)$/);
+ return match?{start:start-match[1].length-1,end:start,query:match[1]}:null;
+}
+function hideMentionPicker(){
+ $("mentionPicker").hidden=true;$("mentionBtn").setAttribute("aria-expanded","false");mentionMode="";mentionRange=null;
+}
+function renderMentionOptions(query=$("mentionSearch").value){
+ query=query.trim().toLowerCase();
+ if(!notificationsReady){$("mentionOptions").innerHTML='<span class="notification-hint">Notifications are unavailable. Try again before tagging.</span>';return}
  const available=members.filter(m=>m.email&&m.email.toLowerCase()!==me&&!/[\]\s]/.test(m.email)&&
   ((m.name||"").toLowerCase().includes(query)||m.email.toLowerCase().includes(query)));
  $("mentionOptions").innerHTML=available.map(m=>'<button type="button" class="mention-option" data-mention="'+esc(m.email)+'">'+
   '<b>'+esc(m.name||m.email.split("@")[0])+'</b><small>'+esc(m.email)+'</small></button>').join("")||
   '<span class="notification-hint">No matching members.</span>';
 }
+function updateTypingMention(){
+ const text=$("commentText"),range=findMentionQuery(text.value,text.selectionStart,text.selectionEnd);
+ if(!range){if(mentionMode==="typing")hideMentionPicker();return}
+ mentionMode="typing";mentionRange=range;
+ $("mentionSearchGroup").hidden=true;$("mentionTypingHelp").hidden=false;
+ $("mentionPicker").hidden=false;$("mentionBtn").setAttribute("aria-expanded","true");
+ renderMentionOptions(range.query);
+}
+$("commentText").oninput=e=>{pd(commentItem).text=e.target.value;if(!e.isComposing)updateTypingMention()};
+$("commentText").oncompositionend=updateTypingMention;
+$("commentText").onclick=updateTypingMention;
+$("commentText").onkeyup=e=>{if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(e.key))updateTypingMention()};
+$("commentText").onkeydown=e=>{
+ if(e.key==="ArrowDown"&&mentionMode==="typing"&&!$("mentionPicker").hidden){
+  const first=$("mentionOptions").querySelector("button");if(first){e.preventDefault();first.focus()}
+ }
+};
 $("mentionBtn").onclick=()=>{
  if(!$("mentionPicker").hidden){hideMentionPicker();$("commentText").focus();return}
+ mentionMode="button";mentionRange=null;$("mentionSearchGroup").hidden=false;$("mentionTypingHelp").hidden=true;
  $("mentionSearch").value="";renderMentionOptions();$("mentionPicker").hidden=false;
  $("mentionBtn").setAttribute("aria-expanded","true");$("mentionSearch").focus();
 };
-$("mentionSearch").oninput=renderMentionOptions;
+$("mentionSearch").oninput=()=>renderMentionOptions();
+$("mentionSearch").onkeydown=e=>{
+ if(e.key==="ArrowDown"){const first=$("mentionOptions").querySelector("button");if(first){e.preventDefault();first.focus()}}
+};
+$("mentionOptions").onkeydown=e=>{
+ if(e.key!=="ArrowDown"&&e.key!=="ArrowUp")return;
+ const buttons=[...$("mentionOptions").querySelectorAll("button")],index=buttons.indexOf(e.target);
+ if(index<0)return;e.preventDefault();
+ if(e.key==="ArrowUp"&&index===0)(mentionMode==="typing"?$("commentText"):$("mentionSearch")).focus();
+ else buttons[Math.max(0,Math.min(buttons.length-1,index+(e.key==="ArrowDown"?1:-1)))].focus();
+};
 $("mentionOptions").onclick=e=>{
  const button=e.target.closest("[data-mention]");if(!button||!commentItem)return;
- const text=$("commentText"),start=text.selectionStart,end=text.selectionEnd;
- text.setRangeText("@["+button.dataset.mention+"] ",start,end,"end");
+ const text=$("commentText");let start=text.selectionStart,end=text.selectionEnd;
+ if(mentionMode==="typing"){
+  if(!mentionRange||text.value.slice(mentionRange.start,mentionRange.end)!=="@"+mentionRange.query||
+     start!==mentionRange.end||end!==mentionRange.end){hideMentionPicker();text.focus();toast("Mention changed. Type @ again to select a member.");return}
+  start=mentionRange.start;end=mentionRange.end;
+ }
+ const next=text.value.charAt(end),space=next&&/[\s.,!?;:)\]}]/.test(next)?"":" ";
+ text.setRangeText("@["+button.dataset.mention+"]"+space,start,end,"end");
  pd(commentItem).text=text.value;hideMentionPicker();text.focus();
 };
 function addCommentFiles(files){
