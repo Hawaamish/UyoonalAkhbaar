@@ -57,6 +57,11 @@ The recipient can choose **Enable browser alerts** in Notifications and grant
 permission. These alerts work only while the tracker is open, on a supported
 secure origin (HTTPS or localhost). They are not email or background push
 notifications and will not alert a user while the site is closed.
+New notifications play the supplied default tone while the tracker is open.
+Browser autoplay policies can block the tone until the user interacts with the
+tracker; **Test sound** in Notifications can be used to retry. Muted tabs,
+device audio settings, notification permissions, and operating-system settings
+also affect alerts. The operating system controls where desktop alerts appear.
 
 ## Tracker menu
 

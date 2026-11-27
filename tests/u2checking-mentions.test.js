@@ -219,20 +219,43 @@ test("chat bubbles use consistent member colors and preserve reading position", 
   assert.equal(thread.scrollTop, 600);
 });
 
-test("reply alerts identify the response rather than a mention", () => {
-  const alerts = [], messages = [];
+test("desktop alerts use the tracker logo and distinguish replies from mentions", () => {
+  const alerts = [], messages = [], sounds = [];
   function Notification(title, options) { alerts.push({ title, ...options }); }
   Notification.permission = "granted";
   const context = vm.createContext({
     window: { Notification }, Notification, nm: () => "Bob", toast: message => messages.push(message),
-    pages: [],
+    pages: [], playNotificationSound: () => sounds.push("play"),
+    document: { querySelector: () => ({ href: "data:image/svg+xml,tracker-logo" }) },
   });
   vm.runInContext(section("function announceNotification(", "function renderNotifications("), context);
   context.announceNotification({ id: 1, sender: "bob@example.com", kind: "reply" });
   assert.match(messages[0], /Bob replied to your tagged comment/);
-  assert.match(alerts[0].title, /Reply/);
+  assert.equal(alerts[0].title, "You have received a notification");
+  assert.match(alerts[0].body, /replied to your tagged comment/);
+  assert.equal(alerts[0].icon, "data:image/svg+xml,tracker-logo");
+  assert.equal(alerts[0].silent, true);
   context.announceNotification({ id: 2, sender: "bob@example.com", kind: "mention" });
-  assert.match(alerts[1].title, /mentioned/);
+  assert.match(alerts[1].body, /mentioned you/);
+  assert.deepEqual(sounds, ["play", "play"]);
+});
+
+test("notification sound plays from the beginning and reports playback failures", async () => {
+  const status = {}, messages = [], errors = [];
+  const audio = { currentTime: 9, play: async () => {} };
+  const context = vm.createContext({
+    notificationSound: audio, $: () => status,
+    toast: message => messages.push(message), console: { error: (...args) => errors.push(args) },
+  });
+  vm.runInContext(section("async function playNotificationSound(", "function announceNotification("), context);
+  await context.playNotificationSound();
+  assert.equal(audio.currentTime, 0);
+  assert.equal(status.textContent, "");
+  audio.play = async () => { throw new Error("blocked"); };
+  await context.playNotificationSound();
+  assert.match(status.textContent, /unavailable.*Test sound/);
+  assert.match(messages[0], /sound unavailable/);
+  assert.equal(errors.length, 1);
 });
 
 test("notification cards highlight the page number and show an escaped comment preview", () => {

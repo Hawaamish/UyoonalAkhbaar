@@ -4,27 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Page Review Tracker</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236978b8'/%3E%3Cpath d='M6 8c4-1 7 0 10 2 3-2 6-3 10-2v15c-4-1-7 0-10 2-3-2-6-3-10-2z' fill='%23fff5e3'/%3E%3Cpath d='M16 10v15' stroke='%236978b8' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23017374'/%3E%3Cpath d='M6 8c4-1 7 0 10 2 3-2 6-3 10-2v15c-4-1-7 0-10 2-3-2-6-3-10-2z' fill='%23fff5dc'/%3E%3Cpath d='M16 10v15' stroke='%23017374' stroke-width='1.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap">
 <style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
---bg:#f5f6fb;--card:#fff;--ink:#293248;--mute:#707b91;--line:#e4e7f0;--acc:#6978b8;--acc2:#eef0ff;--note:#fff5e3;--comment:#638d7b}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171a24;--card:#222634;--ink:#e9ebf4;--mute:#a3a9ba;--line:#353a4a;--acc:#b4baf0;--acc2:#30334c;--note:#383225;--comment:#a3d0b8}}
+:root{box-sizing:border-box;color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f3f9f7;--card:#fff;--ink:#183b39;--mute:#526b67;--line:#d3e4de;--acc:#017374;--acc2:#e2f2ed;--soft:#8dc8ba;--amber:#e5771e;--sun:#fdb617;--note:#fff5dc;--comment:#006966}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Amiri","Scheherazade New","Traditional Arabic",Georgia,serif}
 button{font:inherit;color:inherit;cursor:pointer}
 .btn{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:10px;display:inline-flex;gap:6px;align-items:center;transition:transform .16s ease,border-color .16s ease,background-color .16s ease,box-shadow .16s ease,color .16s ease}
-.btn:hover{border-color:var(--acc);box-shadow:0 3px 10px #29324812;transform:translateY(-1px)}
+.btn:hover{border-color:var(--acc);box-shadow:0 3px 10px #01737418;transform:translateY(-1px)}
 .btn:active{transform:translateY(0)}
 .btn:focus-visible,.notification-item:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
-.btn.pri:hover{box-shadow:0 4px 12px #6978b833}
-.btn.rec{background:#c96f7d;color:#fff;border-color:#c96f7d}.btn.danger:hover{border-color:#cb7380;color:#cb7380}
-header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
-h1{font-size:19px;margin:0}
+.btn.pri:hover{box-shadow:0 4px 12px #01737433}
+.btn.rec{background:#a83c31;color:#fff;border-color:#a83c31}.btn.danger:hover{border-color:#a83c31;color:#a83c31}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:2px solid var(--soft);background:var(--card);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+h1{font-size:19px;margin:0;color:var(--acc)}
 .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #live{font-size:13px;color:var(--mute)}
 .presence-btn{white-space:nowrap}.presence-dot{color:var(--comment)}
@@ -37,19 +36,19 @@ h1{font-size:19px;margin:0}
 .side-panel .side-action{display:flex;width:100%;justify-content:flex-start;margin:7px 0;padding:10px 12px}
 .side-panel [hidden]{display:none}
 .presence-list .mrow{justify-content:space-between}.presence-list small{color:var(--mute)}
-.notification-badge{background:var(--acc);color:#fff;border-radius:99px;min-width:22px;text-align:center;padding:0 6px;font:700 12px/22px sans-serif}
+.notification-badge{background:var(--sun);color:var(--ink);border-radius:99px;min-width:22px;text-align:center;padding:0 6px;font:700 12px/22px sans-serif}
 .notification-list{display:grid;gap:8px;margin-top:12px}
 .notification-item{width:100%;text-align:left;border:1px solid var(--line);border-radius:13px;padding:12px 14px;background:var(--card);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
-.notification-item:hover{transform:translateY(-1px);border-color:var(--acc);box-shadow:0 5px 16px #29324812}
+.notification-item:hover{transform:translateY(-1px);border-color:var(--acc);box-shadow:0 5px 16px #01737418}
 .notification-item.unread{border-color:var(--acc);background:var(--acc2)}
 .notification-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;font:14px/1.35 sans-serif}
 .notification-heading b{color:var(--ink)}
-.notification-new{flex:none;padding:2px 7px;border-radius:99px;background:var(--acc);color:#fff;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.notification-new{flex:none;padding:2px 7px;border-radius:99px;background:var(--sun);color:var(--ink);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .notification-time{display:block;margin-top:4px;color:var(--mute);font:11px/1.4 sans-serif}
 .notification-context{font:12px/1.4 sans-serif;margin-top:5px}
 .notification-page{display:inline-block;color:var(--acc);background:var(--acc2);border-radius:7px;padding:3px 8px;font-weight:700}
 .notification-scope{display:inline-block;margin-inline-start:6px;border-radius:7px;padding:3px 8px;background:var(--note);color:var(--ink);font-weight:700}
-.notification-item.page-discussion{border-inline-start:4px solid var(--comment)}
+.notification-item.page-discussion{border-inline-start:4px solid var(--amber)}
 .notification-comment{display:block;margin-top:6px;padding:6px 9px;border-inline-start:3px solid var(--comment);border-radius:5px;background:var(--note);color:var(--ink);overflow-wrap:anywhere}
 .notification-hint{color:var(--mute);font-size:14px}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
@@ -75,16 +74,16 @@ h1{font-size:19px;margin:0}
  .modal .box{width:100%;height:100%;max-height:none;border-radius:0;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
 }
 aside,.main{min-width:0}
-.overall{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.overall{background:linear-gradient(135deg,var(--card),var(--acc2));border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
 .page-nav-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
 .page-nav-head strong{font-size:19px}
 .bar{height:7px;background:var(--line);border-radius:9px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--soft));transition:width .3s}
 input[type=search],input[type=text],input[type=email],input[type=password],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;font:inherit}
 .plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .pi{display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;width:100%;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .pi:hover{transform:translateY(-1px);border-color:var(--acc)}
-.pi.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+.pi.on{background:var(--acc2);border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
 .pi-select{display:flex;gap:10px;align-items:center;flex:1;min-width:0;text-align:left;border:0;padding:0;background:transparent}
 .pi-select:focus-visible,.page-comment-btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .pi img{width:44px;height:56px;object-fit:cover;border-radius:6px;background:var(--line);flex:none}
@@ -92,7 +91,7 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .pi .bar{display:block}
 .page-comment-btn{flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--mute);font:700 12px/1 sans-serif}
 .page-comment-btn svg{width:18px;height:18px}
-.page-comment-btn.has{color:var(--comment);border-color:var(--comment);background:var(--acc2)}
+.page-comment-btn.has{color:var(--ink);border-color:var(--amber);background:var(--note)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .empty{text-align:center;color:var(--mute);padding:40px 16px}
 .ph{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
@@ -117,7 +116,7 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .ib svg{width:18px;height:18px;vertical-align:middle}
 .by{font-size:13px;color:var(--mute);margin:-2px 0 0 52px}
 .thread{background:var(--bg);padding:18px;overflow-y:auto;overscroll-behavior:contain}
-.nt{align-self:flex-start;max-width:min(82%,490px);min-width:0;background:hsl(var(--chat-hue) 68% 96%);border:1px solid hsl(var(--chat-hue) 42% 87%);border-radius:6px 16px 16px 16px;padding:9px 12px;overflow-wrap:anywhere;box-shadow:0 2px 5px #2932480d}
+.nt{align-self:flex-start;max-width:min(82%,490px);min-width:0;background:hsl(var(--chat-hue) 68% 96%);border:1px solid hsl(var(--chat-hue) 42% 87%);border-radius:6px 16px 16px 16px;padding:9px 12px;overflow-wrap:anywhere;box-shadow:0 2px 5px #01737412}
 .nt.mine{align-self:flex-end;border-radius:16px 6px 16px 16px;background:hsl(var(--chat-hue) 58% 93%);border-color:hsl(var(--chat-hue) 42% 85%)}
 .nt-head,.nt-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .nt-head strong{color:hsl(var(--chat-hue) 66% 22%);font-size:14px}
@@ -129,10 +128,6 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .nt.notification-target{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
 .nt.notification-target .nt-body{font-size:14px}
 .nt audio{width:100%;height:34px;margin-top:4px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nt{background:hsl(var(--chat-hue) 30% 22%);border-color:hsl(var(--chat-hue) 28% 32%)}
- :root:not([data-theme="light"]) .nt-head strong{color:hsl(var(--chat-hue) 80% 80%)}
- :root:not([data-theme="light"]) .nt-foot,:root:not([data-theme="light"]) .nt-reply{color:hsl(var(--chat-hue) 20% 77%)}
- :root:not([data-theme="light"]) .nt-reply{background:#0003}}
 .fl{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
 .fl a{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:14px;color:var(--acc);text-decoration:none;background:var(--card);max-width:100%;min-width:0;overflow-wrap:anywhere}
 .fl img{max-width:100%;max-height:200px;border-radius:6px;display:block}
@@ -177,7 +172,7 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .voice-settings small{display:block}
 .chat-status{display:block;color:var(--mute);font-size:13px;margin-top:4px}
 .chat-tools .btn{border-radius:11px}
-.chat-tools #commentSend{box-shadow:0 3px 10px #6978b822}
+.chat-tools #commentSend{box-shadow:0 3px 10px #01737422}
 .modal.show{animation:modal-fade-in .16s ease-out both}
 .modal.show>.box{animation:modal-rise-in .18s ease-out both}
 @keyframes modal-fade-in{from{opacity:0}to{opacity:1}}
@@ -211,7 +206,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 #auth .panel{text-align:left}#auth .btn{justify-content:center;width:100%;margin-top:8px}
 #lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;overflow:auto;z-index:30;padding:20px;text-align:center}
 #lb img{max-width:100%;cursor:zoom-out}
-#toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
+#toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
 #toast.show{opacity:1}
 #printArea{display:none}
 @media print{
@@ -315,6 +310,8 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <h3 id="notificationsTitle">Notifications</h3>
  <p class="notification-hint" id="notificationStatus" role="status">Loading notifications…</p>
  <button class="btn" id="notificationPermission">Enable browser alerts</button>
+ <button class="btn" id="notificationSoundTest" type="button">Test sound</button>
+ <small class="notification-hint" id="notificationSoundStatus" role="status"></small>
  <div id="notificationList" class="notification-list" aria-live="polite"></div>
  <div class="row"><button class="btn" id="notificationsClose">Close</button></div>
 </div></div>
@@ -369,6 +366,8 @@ let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pag
 let loadVersion=0,itemsVersion=0,notesVersion=0,pageCommentCountsVersion=0;
 let pageCommentCounts=null,pageCommentCountsError=false;
 let notifications=[],notificationsVersion=0,notificationsReady=false,notificationsError="";
+const notificationSound=new Audio("assets/notification-tone.wav");
+notificationSound.preload="auto";
 let presenceUser="",presenceConnected=false,presenceReady=false,presenceError=false,presenceEpoch=0,presenceRunning=false,presenceSent="",presenceRetry=null;
 const syncTables=new Set();
 const pendingChecks=new Map();
@@ -691,16 +690,28 @@ function receiveNotification(row){
  if(!notificationsReady||!row||row.recipient!==me||notifications.some(n=>n.id===row.id))return;
  ++notificationsVersion;notifications.unshift(row);renderNotifications();announceNotification(row);
 }
+async function playNotificationSound(){
+ try{
+  notificationSound.currentTime=0;
+  await notificationSound.play();
+  $("notificationSoundStatus").textContent="";
+ }catch(er){
+  console.error("Couldn’t play notification sound:",er);
+  $("notificationSoundStatus").textContent="Notification sound unavailable. Select Test sound or check your browser audio settings.";
+  toast("Notification sound unavailable");
+ }
+}
 function announceNotification(row){
  const reply=row.kind==="reply",message=nm(row.sender)+(reply?" replied to your tagged comment":" mentioned you in a comment");
- toast(message);
+ toast(message);playNotificationSound();
  if("Notification" in window&&Notification.permission==="granted"){
   try{
    const page=pages.find(p=>String(p.id)===String(row.page_id));
    const context=[page?.label,row.item_id===null?"Page comment":null,row.comment_preview].filter(Boolean).join(" · ");
-   const alert=new Notification(reply?"Reply to your tagged comment":"You were mentioned",{body:[message+" in the Page Review Tracker.",context].filter(Boolean).join(" "),tag:"tracker-notification-"+row.id});
+   const alert=new Notification("You have received a notification",{body:[message+" in the Page Review Tracker.",context].filter(Boolean).join(" "),icon:document.querySelector('link[rel="icon"]').href,silent:true,tag:"tracker-notification-"+row.id});
    alert.onclick=()=>{window.focus();openNotification(row.id)};
-  }catch(er){console.error("Couldn’t show browser notification:",er)}
+   alert.onerror=()=>{console.error("Couldn’t show browser notification");toast("Couldn’t show browser alert")};
+  }catch(er){console.error("Couldn’t show browser notification:",er);toast("Couldn’t show browser alert: "+er.message)}
  }
 }
 function renderNotifications(){
@@ -736,6 +747,7 @@ $("notificationPermission").onclick=async()=>{
  try{await Notification.requestPermission();renderNotifications()}
  catch(er){toast("Couldn’t enable browser alerts: "+er.message)}
 };
+$("notificationSoundTest").onclick=playNotificationSound;
 $("notificationList").onclick=e=>{const b=e.target.closest("[data-notification]");if(b)openNotification(b.dataset.notification)};
 async function openNotification(id){
  const notification=notifications.find(n=>String(n.id)===String(id));if(!notification)return;
@@ -951,7 +963,8 @@ function renderCommentThread(scrollToLatest=false){
  const atBottom=thread.scrollHeight-thread.scrollTop-thread.clientHeight<40,scrollTop=thread.scrollTop;
  const authors=[...new Set([...members.map(m=>String(m.email||"").toLowerCase()),...L.map(n=>String(n.author||"").toLowerCase())])].filter(Boolean).sort();
  thread.innerHTML=L.map(n=>{
-  const author=String(n.author||"").toLowerCase(),mine=!!author&&author===me,hue=Math.max(0,authors.indexOf(author))*137.5%360;
+  const author=String(n.author||"").toLowerCase(),mine=!!author&&author===me,index=Math.max(0,authors.indexOf(author));
+  const hue=index%2?25+(index*7%25):160+(index*7%30);
   return '<div class="nt'+(mine?' mine':'')+'" style="--chat-hue:'+hue+'" data-note="'+esc(n.id)+'">'+
   '<div class="nt-head"><strong dir="auto">'+esc(nm(n.author))+'</strong></div>'+
   (n.reply_to?'<small class="nt-reply">'+esc(replyDescription(n,L))+'</small>':'')+(n.body?'<div class="nt-body" dir="auto">'+renderMentionText(n.body)+'</div>':'')+
