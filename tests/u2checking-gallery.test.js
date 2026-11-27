@@ -57,3 +57,44 @@ test("selecting a gallery page keeps mobile detail history when already open", a
   assert.equal(main.scrollTop, 0);
   assert.deepEqual(calls, ["draw", "notes", "draw"]);
 });
+
+test("page list highlights general comments for each page independently", () => {
+  const elements = {
+    ovT: {}, ovB: { style: {} }, q: { value: "" }, plist: {},
+    galleryM: { classList: { contains: () => false } },
+  };
+  const pages = [{ id: "1", label: "Page 1" }, { id: "2", label: "Page 2" }];
+  const context = vm.createContext({
+    $: id => elements[id], pages, cur: "1", pageCommentCounts: new Map([["2", 2]]),
+    pageCommentCountsError: false, matchingPages: () => pages, stat: () => ({ d: 0, n: 0, pc: 0 }),
+    esc: value => String(value), commentIcon: "<svg></svg>",
+  });
+  vm.runInContext(section("function renderList(", "function renderGallery("), context);
+  context.renderList();
+  assert.match(elements.plist.innerHTML, /class="page-comment-btn" data-page-comments="1"[^>]*no comments/);
+  assert.match(elements.plist.innerHTML, /class="page-comment-btn has" data-page-comments="2"[^>]*2 comments/);
+  assert.match(elements.plist.innerHTML, /<\/button><button class="page-comment-btn/);
+});
+
+test("page comment counts discard stale results and report loading failures", async () => {
+  const pending = [], messages = [];
+  const context = vm.createContext({
+    pageCommentCountsVersion: 0, pageCommentCounts: null, pageCommentCountsError: false,
+    allRows: () => new Promise(resolve => pending.push(resolve)),
+    toast: message => messages.push(message),
+  });
+  vm.runInContext(section("async function loadPageCommentCounts(", "async function loadNotifications("), context);
+  const first = context.loadPageCommentCounts(), second = context.loadPageCommentCounts();
+  pending[1]({ data: [{ page_id: "2" }, { page_id: "2" }], error: null });
+  await second;
+  pending[0]({ data: [{ page_id: "1" }], error: null });
+  await first;
+  assert.equal(context.pageCommentCounts.get("2"), 2);
+  assert.equal(context.pageCommentCounts.has("1"), false);
+  const failed = context.loadPageCommentCounts();
+  pending[2]({ data: null, error: new Error("offline") });
+  await failed;
+  assert.equal(context.pageCommentCounts, null);
+  assert.equal(context.pageCommentCountsError, true);
+  assert.match(messages[0], /offline/);
+});

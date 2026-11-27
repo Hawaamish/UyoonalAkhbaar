@@ -14,6 +14,8 @@ create table if not exists public.tracker_notifications (
 );
 
 alter table public.notes add column if not exists reply_to text;
+alter table public.notes alter column item_id drop not null;
+alter table public.tracker_notifications alter column item_id drop not null;
 alter table public.tracker_notifications
   add column if not exists kind text not null default 'mention';
 
@@ -68,7 +70,7 @@ begin
     from public.notes n
     where n.id::text = new.reply_to
       and n.page_id::text = new.page_id::text
-      and n.item_id::text = new.item_id::text
+      and n.item_id::text is not distinct from new.item_id::text
       and lower(n.author::text) <> sender_email
       and exists (
         select 1 from regexp_matches(coalesce(n.body, ''), '@\[([^]]+)\]', 'g') as mention(parts)

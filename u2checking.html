@@ -28,6 +28,14 @@ h1{font-size:19px;margin:0}
 .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #live{font-size:13px;color:var(--mute)}
 .presence-btn{white-space:nowrap}.presence-dot{color:var(--comment)}
+.side-backdrop{position:fixed;inset:0;background:#1118;opacity:0;visibility:hidden;transition:opacity .25s,visibility 0s linear .25s;z-index:10}
+.side-backdrop.open{opacity:1;visibility:visible;transition:opacity .25s,visibility 0s}
+.side-panel{position:fixed;top:0;right:0;bottom:0;width:min(330px,90vw);padding:calc(20px + env(safe-area-inset-top,0px)) 18px calc(20px + env(safe-area-inset-bottom,0px));background:var(--card);border-left:1px solid var(--line);box-shadow:-12px 0 35px #1113;z-index:11;transform:translateX(100%);visibility:hidden;transition:transform .25s ease,visibility 0s linear .25s;overflow-y:auto}
+.side-panel.open{transform:translateX(0);visibility:visible;transition:transform .25s ease,visibility 0s}
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.side-head h2{margin:0;font-size:21px}.side-section{margin:18px 0 8px;color:var(--mute);font:700 11px/1.4 sans-serif;text-transform:uppercase;letter-spacing:.08em}
+.side-panel .side-action{display:flex;width:100%;justify-content:flex-start;margin:7px 0;padding:10px 12px}
+.side-panel [hidden]{display:none}
 .presence-list .mrow{justify-content:space-between}.presence-list small{color:var(--mute)}
 .notification-badge{background:var(--acc);color:#fff;border-radius:99px;min-width:22px;text-align:center;padding:0 6px;font:700 12px/22px sans-serif}
 .notification-list{display:grid;gap:8px;margin-top:12px}
@@ -40,6 +48,8 @@ h1{font-size:19px;margin:0}
 .notification-time{display:block;margin-top:4px;color:var(--mute);font:11px/1.4 sans-serif}
 .notification-context{font:12px/1.4 sans-serif;margin-top:5px}
 .notification-page{display:inline-block;color:var(--acc);background:var(--acc2);border-radius:7px;padding:3px 8px;font-weight:700}
+.notification-scope{display:inline-block;margin-inline-start:6px;border-radius:7px;padding:3px 8px;background:var(--note);color:var(--ink);font-weight:700}
+.notification-item.page-discussion{border-inline-start:4px solid var(--comment)}
 .notification-comment{display:block;margin-top:6px;padding:6px 9px;border-inline-start:3px solid var(--comment);border-radius:5px;background:var(--note);color:var(--ink);overflow-wrap:anywhere}
 .notification-hint{color:var(--mute);font-size:14px}
 .app{display:grid;grid-template-columns:290px 1fr;gap:18px;padding:18px;max-width:1250px;margin:0 auto}
@@ -72,11 +82,17 @@ aside,.main{min-width:0}
 .bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
 input[type=search],input[type=text],input[type=email],input[type=password],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;font:inherit}
 .plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.pi{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:left;width:100%;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.pi{display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;width:100%;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .pi:hover{transform:translateY(-1px);border-color:var(--acc)}
 .pi.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+.pi-select{display:flex;gap:10px;align-items:center;flex:1;min-width:0;text-align:left;border:0;padding:0;background:transparent}
+.pi-select:focus-visible,.page-comment-btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .pi img{width:44px;height:56px;object-fit:cover;border-radius:6px;background:var(--line);flex:none}
-.pi .nm{font-weight:700}.pi small{color:var(--mute)}.pi>div{flex:1;min-width:0}
+.pi .nm{font-weight:700}.pi small{color:var(--mute)}.pi-select>span{flex:1;min-width:0}
+.pi .bar{display:block}
+.page-comment-btn{flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--mute);font:700 12px/1 sans-serif}
+.page-comment-btn svg{width:18px;height:18px}
+.page-comment-btn.has{color:var(--comment);border-color:var(--comment);background:var(--acc2)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .empty{text-align:center;color:var(--mute);padding:40px 16px}
 .ph{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
@@ -160,7 +176,6 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .voice-settings select{margin-top:4px}
 .voice-settings small{display:block}
 .chat-status{display:block;color:var(--mute);font-size:13px;margin-top:4px}
-.chat-hint{display:block;color:var(--mute);font-size:13px;line-height:1.4;margin-top:6px}
 .chat-tools .btn{border-radius:11px}
 .chat-tools #commentSend{box-shadow:0 3px 10px #6978b822}
 .modal.show{animation:modal-fade-in .16s ease-out both}
@@ -228,14 +243,24 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   <button class="btn presence-btn" id="presenceBtn" aria-haspopup="dialog">Online members: connecting…</button>
   <button class="btn" id="notificationsBtn" aria-haspopup="dialog" aria-label="Notifications">🔔 Notifications <span class="notification-badge" id="notificationBadge" hidden>0</span></button>
   <button class="btn pri" id="addBtn">＋ Add page</button>
-  <button class="btn" id="printAll">🖨 Print all</button>
-  <button class="btn" id="exp">⬇ Backup</button>
-  <button class="btn" id="impB">⬆ Import old backup</button>
-  <button class="btn" id="memB" style="display:none">👥 Members</button>
-  <button class="btn" id="out">Sign out</button>
-  <input type="file" id="impF" accept=".json" hidden>
+  <button class="btn" id="sideToggle" aria-label="Open menu" aria-controls="sidePanel" aria-expanded="false">☰ Menu</button>
  </div>
 </header>
+<div class="side-backdrop" id="sideBackdrop"></div>
+<nav class="side-panel" id="sidePanel" aria-label="Tracker menu" aria-hidden="true" inert>
+ <div class="side-head"><h2>Tracker menu</h2><button class="btn" id="sideClose" aria-label="Close menu">✕</button></div>
+ <div class="side-section">Workspace</div>
+ <button class="btn side-action" id="printAll">🖨 Print all</button>
+ <div id="adminActions" hidden>
+  <div class="side-section">Administration</div>
+  <button class="btn side-action" id="exp">⬇ Backup</button>
+  <button class="btn side-action" id="impB">⬆ Import old backup</button>
+  <button class="btn side-action" id="memB">👥 Members</button>
+ </div>
+ <div class="side-section">Account</div>
+ <button class="btn side-action" id="out">Sign out</button>
+ <input type="file" id="impF" accept=".json" hidden>
+</nav>
 <div class="app">
  <aside>
   <div class="overall"><b id="ovT">0 of 0 points done</b><div class="bar"><i id="ovB" style="width:0"></i></div></div>
@@ -249,7 +274,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 
 <div class="modal" id="galleryM" role="dialog" aria-modal="true" aria-labelledby="galleryTitle"><div class="box gallery-box">
  <button class="btn mobile-back" id="galleryBack">← Back</button>
- <div class="gallery-head"><div><h3 id="galleryTitle">Page gallery</h3><p>Choose a page to open its checklist.</p></div><button class="btn" id="galleryClose" aria-label="Close page gallery">✕</button></div>
+ <div class="gallery-head"><div><h3 id="galleryTitle">Page gallery</h3></div><button class="btn" id="galleryClose" aria-label="Close page gallery">✕</button></div>
  <label for="gallerySearch">Search pages or points</label>
  <input class="gallery-search" type="search" id="gallerySearch" placeholder="Search pages or points…" autocomplete="off">
  <div id="galleryCount" class="notification-hint" aria-live="polite"></div>
@@ -259,13 +284,12 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 <div class="modal" id="modal"><div class="box">
  <button class="btn mobile-back" id="mBack">← Back</button>
  <h3 id="mT">Add page</h3>
- <label>Page label (e.g. ص204)</label>
+ <label>Page label</label>
  <input type="text" id="mLabel" dir="auto" placeholder="ص204">
- <label>Page image: paste (Ctrl/Cmd+V), drop, or click to choose</label>
- <div class="drop" id="drop"><span>📋 Paste image here</span></div>
- <small class="notification-hint">Images are automatically optimized when saved; animations are preserved.</small>
+ <label>Page image</label>
+ <div class="drop" id="drop"><span>📋 Page image</span></div>
  <input type="file" id="file" accept="image/*" hidden>
- <label id="mTxtL">Paste your points (numbered lines become checklist items)</label>
+ <label id="mTxtL">Points</label>
  <textarea id="mTxt" rows="8" dir="auto"></textarea>
  <div class="row"><button class="btn" id="mCancel">Cancel</button><button class="btn pri" id="mOk">Save page</button></div>
 </div></div>
@@ -273,7 +297,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 <div class="modal" id="memM"><div class="box">
  <button class="btn mobile-back" id="memBack">← Back</button>
  <h3>Members</h3><div id="memL"></div>
- <label>Add a person (they then create an account with this email)</label>
+ <label>Add a person</label>
  <input type="email" id="mmE" placeholder="email"><input type="text" id="mmN" placeholder="Display name" style="margin-top:6px">
  <select id="mmR" style="margin-top:6px"><option value="member">Member</option><option value="admin">Admin</option></select>
  <div class="row"><button class="btn" id="memX">Close</button><button class="btn pri" id="memAdd">Add</button></div>
@@ -306,11 +330,10 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   <div class="chat-reply" id="replyDraft" hidden><small id="replyDraftText"></small> <button class="btn" type="button" id="replyCancel">Cancel reply</button></div>
   <div class="comment-files" id="commentFiles"></div>
   <label for="commentText">Your message</label>
-  <textarea id="commentText" rows="2" dir="auto" placeholder="Write a message or type @ to tag someone…" aria-controls="mentionPicker"></textarea>
+  <textarea id="commentText" rows="2" dir="auto" placeholder="Message…" aria-controls="mentionPicker"></textarea>
   <div class="mention-picker" id="mentionPicker" hidden>
    <div id="mentionSearchGroup"><label for="mentionSearch">Find a member</label>
     <input type="search" id="mentionSearch" placeholder="Search by name or email" autocomplete="off"></div>
-   <small class="notification-hint" id="mentionTypingHelp" hidden>Choose a member, or press Down to select using the keyboard.</small>
    <div class="mention-options" id="mentionOptions" aria-live="polite"></div>
   </div>
   <input type="file" id="commentInput" accept="image/*,.pdf,.txt,.csv,.md,.json" multiple hidden>
@@ -326,11 +349,9 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
    <summary>Microphone settings</summary>
    <label for="commentMic">Microphone</label>
    <select id="commentMic"><option value="">System default</option></select>
-   <small id="micHelp">Microphones become available after permission is granted.</small>
-   <small>Voice recording requires microphone permission and HTTPS or localhost.</small>
+   <small id="micHelp" role="status"></small>
   </details>
   <small id="commentStatus" class="chat-status" role="status"></small>
-  <small class="chat-hint">Shared with tracker members. Paste images or use Attach; images are optimized automatically. Type @ to notify a member.</small>
  </div>
 </div></div>
 
@@ -345,7 +366,8 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=null,filter="all",editId=null,tmpBlob=null,tmpUrl=null;
 let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
 let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pageSaving=false;
-let loadVersion=0,itemsVersion=0,notesVersion=0;
+let loadVersion=0,itemsVersion=0,notesVersion=0,pageCommentCountsVersion=0;
+let pageCommentCounts=null,pageCommentCountsError=false;
 let notifications=[],notificationsVersion=0,notificationsReady=false,notificationsError="";
 let presenceUser="",presenceConnected=false,presenceReady=false,presenceError=false,presenceEpoch=0,presenceRunning=false,presenceSent="",presenceRetry=null;
 const syncTables=new Set();
@@ -414,6 +436,24 @@ function showMobileDetail(id){
 }
 function backToPages(){closeMobileLayer("detail",()=>{document.body.classList.remove("mobile-detail");publishPresence()})}
 
+/* ---------- menu ---------- */
+function setSideOpen(open){
+ $("sidePanel").classList.toggle("open",open);$("sideBackdrop").classList.toggle("open",open);
+ $("sidePanel").inert=!open;$("sidePanel").setAttribute("aria-hidden",String(!open));
+ $("sideToggle").setAttribute("aria-expanded",String(open));$("sideToggle").setAttribute("aria-label",open?"Close menu":"Open menu");
+ if(open)requestAnimationFrame(()=>{if($("sidePanel").classList.contains("open"))$("sideClose").focus()});
+ else $("sideToggle").focus();
+}
+$("sideToggle").onclick=()=>setSideOpen(!$("sidePanel").classList.contains("open"));
+$("sideClose").onclick=$("sideBackdrop").onclick=()=>setSideOpen(false);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("sidePanel").classList.contains("open")){e.preventDefault();setSideOpen(false)}});
+$("sidePanel").onkeydown=e=>{
+ if(e.key!=="Tab")return;
+ const buttons=[...$("sidePanel").querySelectorAll("button")].filter(b=>b.offsetParent!==null&&!b.disabled);
+ if(e.shiftKey&&document.activeElement===buttons[0]){e.preventDefault();buttons[buttons.length-1].focus()}
+ else if(!e.shiftKey&&document.activeElement===buttons[buttons.length-1]){e.preventDefault();buttons[0].focus()}
+};
+
 /* ---------- auth ---------- */
 function showAuth(msg){$("app").style.display="none";$("auth").style.display="";$("aMsg").textContent=msg||""}
 $("aIn").onclick=async()=>{$("aMsg").textContent="Signing in…";const{error}=await sb.auth.signInWithPassword({email:$("aE").value.trim(),password:$("aP").value});if(error)$("aMsg").textContent=error.message};
@@ -427,7 +467,7 @@ async function enter(u){
  if(error||!data||!data.some(m=>m.email.toLowerCase()===me)){showAuth("This email ("+me+") isn’t on the access list yet. Ask an admin to add it, then sign in again.");me="";await sb.auth.signOut();return}
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
  presenceUser=u.id;
- $("memB").style.display=isAdmin?"":"none";$("auth").style.display="none";$("app").style.display="";
+ $("adminActions").hidden=!isAdmin;$("auth").style.display="none";$("app").style.display="";
  loadNotifications();await loadAll();draw(true);
  signedOut=false;connectLive();
 }
@@ -529,7 +569,7 @@ function scheduleSync(change){
   const tables=new Set(syncTables);syncTables.clear();
   try{
    if(tables.has("all"))await Promise.all([loadAll(),loadNotifications()]);
-   else await Promise.all([tables.has("items")?loadItems():null,tables.has("notes")?loadNotes():null,tables.has("tracker_notifications")?loadNotifications():null]);
+   else await Promise.all([tables.has("items")?loadItems():null,tables.has("notes")?loadNotes():null,tables.has("notes")?loadPageCommentCounts():null,tables.has("tracker_notifications")?loadNotifications():null]);
    lastSync=Date.now();draw();
   }catch(er){toast("Couldn’t update tracker: "+er.message)}
  },120);
@@ -591,9 +631,10 @@ async function loadAll(){
  if(version!==loadVersion)return;
  if(a.error)return fail(a.error);
  if(itemVersion===itemsVersion&&b.error)return toast("Couldn’t load points: "+b.error.message);
- pages=a.data.sort(comparePages);if(itemVersion===itemsVersion)replaceItems(b.data);members=m.data||members;
+ pages=a.data.sort(comparePages);if(itemVersion===itemsVersion)replaceItems(b.data);
+ if(!m.error&&m.data){members=m.data;isAdmin=members.some(member=>member.email.toLowerCase()===me&&member.role==="admin");$("adminActions").hidden=!isAdmin}
  if(!cur||!P())cur=pages[0]?.id||null;
- await loadNotes();
+ await Promise.all([loadNotes(),loadPageCommentCounts()]);
 }
 async function loadNotes(){
  const version=++notesVersion,pid=cur;if(!pid){notesFor=null;notes=[];return}
@@ -601,6 +642,17 @@ async function loadNotes(){
  if(version!==notesVersion||pid!==cur)return;
  if(error){if(notesFor!==pid)notes=[];toast("Couldn’t load comments: "+error.message);return}
  notesFor=pid;notes=data||[];
+}
+async function loadPageCommentCounts(){
+ const version=++pageCommentCountsVersion;
+ let data,error;
+ try{({data,error}=await allRows(count=>sb.from("notes").select("id,page_id",count?{count:"exact"}:undefined).is("item_id",null).order("id")))}
+ catch(er){error=er}
+ if(version!==pageCommentCountsVersion)return;
+ if(error){pageCommentCounts=null;pageCommentCountsError=true;toast("Couldn’t load page comment indicators: "+error.message);return}
+ const counts=new Map();
+ for(const note of data)counts.set(note.page_id,(counts.get(note.page_id)||0)+1);
+ pageCommentCounts=counts;pageCommentCountsError=false;
 }
 async function loadNotifications(){
  const version=++notificationsVersion;
@@ -645,7 +697,7 @@ function announceNotification(row){
  if("Notification" in window&&Notification.permission==="granted"){
   try{
    const page=pages.find(p=>String(p.id)===String(row.page_id));
-   const context=[page?.label,row.comment_preview].filter(Boolean).join(" · ");
+   const context=[page?.label,row.item_id===null?"Page comment":null,row.comment_preview].filter(Boolean).join(" · ");
    const alert=new Notification(reply?"Reply to your tagged comment":"You were mentioned",{body:[message+" in the Page Review Tracker.",context].filter(Boolean).join(" "),tag:"tracker-notification-"+row.id});
    alert.onclick=()=>{window.focus();openNotification(row.id)};
   }catch(er){console.error("Couldn’t show browser notification:",er)}
@@ -667,11 +719,11 @@ function renderNotifications(){
  else{permission.disabled=false;permission.textContent="Enable browser alerts"}
  $("notificationList").innerHTML=notifications.map(n=>{
   const page=pages.find(p=>String(p.id)===n.page_id);
-  return '<button class="notification-item'+(n.read_at?"":" unread")+'" data-notification="'+esc(n.id)+'">'+
+  return '<button class="notification-item'+(n.read_at?"":" unread")+(n.item_id===null?" page-discussion":"")+'" data-notification="'+esc(n.id)+'">'+
    '<span class="notification-heading"><span><b>'+esc(nm(n.sender))+'</b> '+(n.kind==="reply"?"replied to your tagged comment":"mentioned you")+'</span>'+
    (n.read_at?"":'<span class="notification-new">New</span>')+'</span>'+
    '<span class="notification-time">'+esc(new Date(n.created_at).toLocaleString())+'</span>'+
-   '<span class="notification-context"><span class="notification-page">Page '+esc(page?.label||"Page")+'</span>'+
+   '<span class="notification-context"><span class="notification-page">Page '+esc(page?.label||"Page")+'</span><span class="notification-scope">'+(n.item_id===null?"Page comment":"Point comment")+'</span>'+
    '<span class="notification-comment">'+esc(n.comment_preview||"Loading comment…")+'</span></span></button>';
  }).join("")||(!notificationsError&&notificationsReady?'<div class="notification-hint">No notifications yet.</div>':"");
 }
@@ -688,15 +740,15 @@ $("notificationList").onclick=e=>{const b=e.target.closest("[data-notification]"
 async function openNotification(id){
  const notification=notifications.find(n=>String(n.id)===String(id));if(!notification)return;
  if(commentItem){toast("Close the current comment before opening a notification");return}
- if(!pages.some(p=>String(p.id)===notification.page_id)||!itemsById.has(notification.item_id))await loadAll();
+ if(!pages.some(p=>String(p.id)===notification.page_id)||(notification.item_id!==null&&!itemsById.has(notification.item_id)))await loadAll();
  const page=pages.find(p=>String(p.id)===notification.page_id),item=itemsById.get(notification.item_id);
- if(!page||!item||String(item.page_id)!==notification.page_id){toast("This comment is no longer available");return}
+ if(!page||(notification.item_id!==null&&(!item||String(item.page_id)!==notification.page_id))){toast("This comment is no longer available");return}
  const open=async()=>{
   cur=page.id;filter="all";await loadNotes();
-  if(!notes.some(n=>String(n.id)===notification.note_id)){toast("This comment is no longer available");return}
+  if(!notes.some(n=>String(n.id)===String(notification.note_id)&&n.item_id===notification.item_id)){toast("This comment is no longer available");return}
   if(mobile.matches)showMobileDetail(page.id);
-  draw(true);openComments(item.id);
-  const target=[...$("commentThread").querySelectorAll("[data-note]")].find(el=>el.dataset.note===notification.note_id);
+  draw(true);openComments(notification.item_id===null?pageThreadKey(page.id):item.id);
+  const target=[...$("commentThread").querySelectorAll("[data-note]")].find(el=>el.dataset.note===String(notification.note_id));
   if(target){target.classList.add("notification-target");target.scrollIntoView({block:"nearest"})}
   if(!notification.read_at){
    const{data,error}=await sb.from("tracker_notifications").update({read_at:new Date().toISOString()}).eq("id",notification.id).select("id,read_at").maybeSingle();
@@ -845,8 +897,11 @@ function renderList(){
  let D=0,N=0;pages.forEach(p=>{const s=stat(p);D+=s.d;N+=s.n});
  $("ovT").textContent=D+" of "+N+" points done";$("ovB").style.width=(N?D/N*100:0)+"%";
  const L=matchingPages($("q").value);
- $("plist").innerHTML=L.map(p=>{const s=stat(p);return '<button class="pi'+(p.id===cur?" on":"")+'" data-id="'+p.id+'">'+
-  (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<div><div class="nm" dir="auto">'+esc(p.label||"Untitled")+'</div><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><div class="bar"><i style="width:'+s.pc+'%"></i></div></div></button>'}).join("")||'<div class="empty">No pages yet</div>';
+ $("plist").innerHTML=L.map(p=>{const s=stat(p),count=pageCommentCounts?.get(p.id)||0;
+  const label="Page comments for "+(p.label||"Untitled")+(pageCommentCounts?(count?" ("+count+" comment"+(count===1?"":"s")+")":" (no comments)"):(pageCommentCountsError?" (status unavailable)":" (loading)"));
+  return '<div class="pi'+(p.id===cur?" on":"")+'"><button class="pi-select" data-id="'+esc(p.id)+'"'+(p.id===cur?' aria-current="page"':'')+'>'+
+  (p.image_path?'<img data-p="'+esc(p.image_path)+'" alt="">':'<img alt="">')+'<span><span class="nm" dir="auto">'+esc(p.label||"Untitled")+'</span><br><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>'+
+  '<button class="page-comment-btn'+(count?" has":"")+'" data-page-comments="'+esc(p.id)+'" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+commentIcon+(count?' <span>'+count+'</span>':"")+'</button></div>'}).join("")||'<div class="empty">No pages yet</div>';
  if($("galleryM").classList.contains("show"))renderGallery();
 }
 function renderGallery(){
@@ -861,6 +916,8 @@ function renderGallery(){
 }
 const commentIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H6l-3 3v-6a8.5 8.5 0 1 1 18-3.5Z"/></svg>';
 function commentCounts(){const counts=new Map();notes.forEach(n=>counts.set(n.item_id,(counts.get(n.item_id)||0)+1));return counts}
+const pageThreadKey=pid=>"page:"+pid;
+const threadItemId=id=>id.startsWith("page:")?null:id;
 function commentLabel(number,count){return "Open comments for point "+number+(count?" ("+count+" comment"+(count===1?"":"s")+")":" (no comments)")}
 function checkStatus(it){return it.done?(it.done_by?"Checked · cleared by "+nm(it.done_by):"Checked"):"Unchecked"}
 function refreshChecks(){
@@ -890,7 +947,7 @@ function renderMentionText(text){
  return html+esc(text.slice(offset));
 }
 function renderCommentThread(scrollToLatest=false){
- const L=notes.filter(n=>n.item_id===commentItem),thread=$("commentThread");
+ const L=notes.filter(n=>n.item_id===threadItemId(commentItem)),thread=$("commentThread");
  const atBottom=thread.scrollHeight-thread.scrollTop-thread.clientHeight<40,scrollTop=thread.scrollTop;
  const authors=[...new Set([...members.map(m=>String(m.email||"").toLowerCase()),...L.map(n=>String(n.author||"").toLowerCase())])].filter(Boolean).sort();
  thread.innerHTML=L.map(n=>{
@@ -903,7 +960,7 @@ function renderCommentThread(scrollToLatest=false){
   '<div class="nt-foot">'+(canReplyToTaggedComment(n)?'<button class="nt-action" type="button" data-reply="'+esc(n.id)+'"'+(!notificationsReady||commentSending?' disabled':'')+'>Reply</button>':'')+
   ((mine||isAdmin)?'<a class="nt-action" href="#" data-dn="'+esc(n.id)+'">Delete</a>':'')+
   '<time>'+esc(new Date(n.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+'</time></div></div>';
- }).join("")||'<div class="chat-empty">No messages yet. Start the conversation below.</div>';
+ }).join("")||'<div class="chat-empty">No messages yet.</div>';
  thread.scrollTop=scrollToLatest||atBottom?thread.scrollHeight:scrollTop;
 }
 function canReplyToTaggedComment(note){
@@ -915,7 +972,7 @@ function replyDescription(note,thread){
 }
 function renderMain(){
  const p=P(),m=$("main");
- if(!p){m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button><div class="panel empty"><div style="font-size:40px">🗂️</div><p>Add your first page: paste a page image and its list of points.</p></div>';return}
+ if(!p){m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button><div class="panel empty"><div style="font-size:40px">🗂️</div><p>No pages yet.</p></div>';return}
  const A=its(p.id),s=stat(p),counts=commentCounts();
  const list=A.map((it,i)=>({it,i})).filter(({it})=>filter==="all"||(filter==="open"?!it.done:it.done));
  m.innerHTML='<button class="btn mobile-back" id="mobileBack">← Pages</button> <button class="btn mobile-back" id="bGallery">▦ Gallery</button><div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
@@ -926,7 +983,7 @@ function renderMain(){
   return '<div class="it'+(it.done?" done":"")+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'" aria-label="Mark point '+(i+1)+' as checked"'+(it.done?" checked":"")+(pendingChecks.has(it.id)?" disabled":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
   '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" data-count="'+c+'" title="Open comments" aria-label="'+commentLabel(i+1,c)+'">'+commentIcon+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
   '<div class="by">'+esc(checkStatus(it))+'</div></div>'}).join("")||'<div class="empty">Nothing here</div>')+
- '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="Add a point and press Enter"><button class="btn" id="newBtn">Add</button></div></div></div></div>';
+ '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="New point"><button class="btn" id="newBtn">Add</button></div></div></div></div>';
  const fields=[...m.querySelectorAll("textarea[data-t]")];
  fields.forEach(t=>{t.style.height="auto"});const heights=fields.map(t=>t.scrollHeight);
  fields.forEach((t,i)=>{t.style.height=heights[i]+"px"});
@@ -940,7 +997,13 @@ async function selectPage(id){
  $("main").scrollTop=0;draw(true);
  await loadNotes();if(cur===id)draw(true);
 }
-$("plist").onclick=e=>{const b=e.target.closest(".pi");if(b)selectPage(b.dataset.id).catch(er=>toast("Couldn’t open page: "+er.message))};
+$("plist").onclick=e=>{
+ const comments=e.target.closest("[data-page-comments]"),page=e.target.closest("[data-id]");
+ if(comments){
+  const id=comments.dataset.pageComments;
+  selectPage(id).then(()=>{if(cur===id)openComments(pageThreadKey(id))}).catch(er=>toast("Couldn’t open page comments: "+er.message));
+ }else if(page)selectPage(page.dataset.id).catch(er=>toast("Couldn’t open page: "+er.message));
+};
 $("q").oninput=()=>{renderList();hydrate()};
 function hideGallery(){
  $("galleryM").classList.remove("show");
@@ -1014,9 +1077,9 @@ $("lb").onclick=()=>closeMobileLayer("image",hideLightbox);
 function renderCommentDraft(){
  if(!commentItem)return;
  const d=pd(commentItem);
- const reply=notes.find(n=>String(n.id)===d.replyTo&&n.item_id===commentItem);
+ const reply=notes.find(n=>String(n.id)===d.replyTo&&n.item_id===threadItemId(commentItem));
  $("replyDraft").hidden=!d.replyTo;
- $("replyDraftText").textContent=reply?"Replying to "+nm(reply.author)+". They will be notified.":"The tagged comment is no longer available. Cancel this reply.";
+ $("replyDraftText").textContent=reply?"Replying to "+nm(reply.author):"The tagged comment is no longer available. Cancel this reply.";
  $("replyCancel").disabled=commentSending;
  $("commentThread").querySelectorAll("[data-reply]").forEach(button=>button.disabled=commentSending||!notificationsReady);
  $("commentFiles").innerHTML=d.files.map((f,i)=>'<div class="comment-file">'+(f.url?'<img src="'+f.url+'" alt="">':"")+
@@ -1037,12 +1100,13 @@ function renderCommentDraft(){
  $("mentionBtn").disabled=commentSending||!notificationsReady;
  $("mentionBtn").title=notificationsReady?"Tag a member":"Notifications must be available to tag members";
  $("commentFiles").querySelectorAll("button").forEach(b=>b.disabled=commentSending);
- $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording (maximum 2 minutes). Speak and check the input level.":"Record multiple voice notes; play each one before sending. Drafts remain until this page is reloaded.";
+ $("commentStatus").textContent=commentSending?"Sending…":recStarting?"Starting microphone…":stopping?"Finishing recording…":recording?"Recording…":"";
 }
 function openComments(id,track=true){
- const it=itemsById.get(id);if(!it)return;
- commentItem=id;commentPage=it.page_id;
- $("commentPoint").textContent=it.text;
+ const pageDiscussion=id===pageThreadKey(cur),it=itemsById.get(id);if(!pageDiscussion&&!it)return;
+ commentItem=id;commentPage=pageDiscussion?cur:it.page_id;
+ $("commentTitle").textContent=pageDiscussion?"Page comments":"Point comments";
+ $("commentPoint").textContent=pageDiscussion?(P()?.label||"Page"):it.text;
  $("commentText").value=pd(id).text;
  hideMentionPicker();
  $("commentM").classList.add("show");
@@ -1051,7 +1115,7 @@ function openComments(id,track=true){
 }
 function dismissComments(){
  const id=commentItem;hideMentionPicker();$("commentM").classList.remove("show");commentItem=null;commentPage=null;
- const button=[...$("main").querySelectorAll("[data-th]")].find(b=>b.dataset.th===id);if(button)button.focus();
+ const button=id===pageThreadKey(cur)?(mobile.matches&&document.body.classList.contains("mobile-detail")?$("mobileBack"):[...$("plist").querySelectorAll("[data-page-comments]")].find(b=>b.dataset.pageComments===cur)):[...$("main").querySelectorAll("[data-th]")].find(b=>b.dataset.th===id);if(button)button.focus();
 }
 function closeComments(){
  if(commentSending||recStarting)return;
@@ -1086,7 +1150,7 @@ function updateTypingMention(){
  const text=$("commentText"),range=findMentionQuery(text.value,text.selectionStart,text.selectionEnd);
  if(!range){if(mentionMode==="typing")hideMentionPicker();return}
  mentionMode="typing";mentionRange=range;
- $("mentionSearchGroup").hidden=true;$("mentionTypingHelp").hidden=false;
+ $("mentionSearchGroup").hidden=true;
  $("mentionPicker").hidden=false;$("mentionBtn").setAttribute("aria-expanded","true");
  renderMentionOptions(range.query);
 }
@@ -1101,7 +1165,7 @@ $("commentText").onkeydown=e=>{
 };
 $("mentionBtn").onclick=()=>{
  if(!$("mentionPicker").hidden){hideMentionPicker();$("commentText").focus();return}
- mentionMode="button";mentionRange=null;$("mentionSearchGroup").hidden=false;$("mentionTypingHelp").hidden=true;
+ mentionMode="button";mentionRange=null;$("mentionSearchGroup").hidden=false;
  $("mentionSearch").value="";renderMentionOptions();$("mentionPicker").hidden=false;
  $("mentionBtn").setAttribute("aria-expanded","true");$("mentionSearch").focus();
 };
@@ -1151,7 +1215,7 @@ $("replyCancel").onclick=()=>{delete pd(commentItem).replyTo;renderCommentDraft(
 $("commentThread").onclick=async e=>{
  const reply=e.target.closest("[data-reply]");
  if(reply){
-  const n=notes.find(x=>String(x.id)===reply.dataset.reply&&x.item_id===commentItem);
+  const n=notes.find(x=>String(x.id)===reply.dataset.reply&&x.item_id===threadItemId(commentItem));
   if(!commentSending&&notificationsReady&&n&&canReplyToTaggedComment(n)){pd(commentItem).replyTo=String(n.id);renderCommentDraft();$("commentText").focus()}
   return;
  }
@@ -1159,7 +1223,7 @@ $("commentThread").onclick=async e=>{
  const n=notes.find(x=>x.id===a.dataset.dn);if(!n||!confirm("Delete this response for everyone?"))return;
  const{error}=await sb.from("notes").delete().eq("id",n.id);if(error){fail(error);return}
  try{await rmFiles(notePaths([n]))}catch(er){toast("Response deleted, but file cleanup failed: "+er.message)}
- await loadNotes();draw(true);
+ await Promise.all([loadNotes(),loadPageCommentCounts()]);draw(true);
 };
 $("commentSend").onclick=async()=>{
  if(commentSending||recStarting||rec)return;
@@ -1167,7 +1231,7 @@ $("commentSend").onclick=async()=>{
  if(!text&&!d.files.length&&!d.voices.length){toast("Write something or attach a file first");return}
  if(/@\[(\S+?)\]/.test(text)&&!notificationsReady){toast("Notifications are unavailable. Try again before sending a mention.");return}
  if(d.replyTo&&!notificationsReady){toast("Notifications are unavailable. Try again before sending a reply.");return}
- if(d.replyTo&&!notes.some(n=>String(n.id)===d.replyTo&&n.item_id===id&&canReplyToTaggedComment(n))){toast("The tagged comment is unavailable. Cancel this reply.");return}
+ if(d.replyTo&&!notes.some(n=>String(n.id)===d.replyTo&&n.item_id===threadItemId(id)&&canReplyToTaggedComment(n))){toast("The tagged comment is unavailable. Cancel this reply.");return}
  commentSending=true;renderCommentDraft();
  try{
   const attachments=[];
@@ -1179,13 +1243,13 @@ $("commentSend").onclick=async()=>{
   let vp=null;for(let i=0;i<d.voices.length;i++){const voice=d.voices[i],type=voice.blob.type,ext=type.includes("wav")?"wav":type.includes("mp4")?"mp4":type.includes("ogg")?"ogg":type.includes("webm")?"webm":"bin";
    const path=await up("voice/"+pid+"/"+uuid()+"."+ext,voice.blob,type);uploaded.push(path);
    if(i===0)vp=path;else attachments.push({path,name:"Voice note "+(i+1)+"."+ext,type})}
-  const note={page_id:pid,item_id:id,body:text,attachments,voice_path:vp};
+  const note={page_id:pid,item_id:threadItemId(id),body:text,attachments,voice_path:vp};
   if(d.replyTo)note.reply_to=d.replyTo;
   const{error}=await sb.from("notes").insert(note);if(error)throw error;
   saved=true;
   d.files.forEach(f=>{if(f.url)URL.revokeObjectURL(f.url)});d.voices.forEach(v=>URL.revokeObjectURL(v.url));
   delete pend[id];$("commentText").value="";toast("Response shared");
-  await loadNotes();draw(true);$("commentThread").scrollTop=$("commentThread").scrollHeight;
+  await Promise.all([loadNotes(),loadPageCommentCounts()]);draw(true);$("commentThread").scrollTop=$("commentThread").scrollHeight;
  }catch(er){
   if(!saved&&uploaded.length){const{error}=await sb.storage.from(B).remove(uploaded);if(error){toast("Couldn’t save: "+er.message+"; upload cleanup failed: "+error.message);return}}
   if(saved)toast("Response saved, but couldn’t refresh: "+er.message);else fail(er);
@@ -1200,7 +1264,7 @@ async function listMicrophones(){
   const selected=$("commentMic").value;
   $("commentMic").innerHTML='<option value="">System default</option>'+devices.map((d,i)=>'<option value="'+esc(d.deviceId)+'">'+esc(d.label||"Microphone "+(i+1))+'</option>').join("");
   if(devices.some(d=>d.deviceId===selected))$("commentMic").value=selected;
-  $("micHelp").textContent=devices.length?"Select a microphone before recording.":"Microphones become available after permission is granted.";
+  $("micHelp").textContent="";
  }catch(er){$("micHelp").textContent="Couldn’t list microphones: "+er.message}
 }
 function makeWav(chunks,count,rate){
@@ -1274,9 +1338,9 @@ async function toggleRec(iid){
    if(error||!blob||!blob.size){const message=error?error.message||String(error):"No audio was recorded. Check your microphone and try again.";
     $("micFeedback").textContent=message;toast(message)}
    else{
-    const warning=[reason,monitored&&peak<0.003?"Little or no sound detected. Check the microphone and play this recording before sending.":!monitored?"Input level unavailable. Play this recording before sending.":""].filter(Boolean).join(" ");
+    const warning=[reason,monitored&&peak<0.003?"Little or no sound detected.":!monitored?"Input level unavailable.":""].filter(Boolean).join(" ");
     pd(iid).voices.push({blob,url:URL.createObjectURL(blob),warning});
-    $("micFeedback").textContent=warning||"Recording ready. Play it back before sending.";
+    $("micFeedback").textContent=warning||"";
    }
    renderCommentDraft();if(dirty&&!busy())draw();
   };
@@ -1289,7 +1353,7 @@ async function toggleRec(iid){
   const levelFeedback=level=>{
    monitored=true;peak=Math.max(peak,level);$("micLevel").value=Math.min(1,level*5);
    $("micFeedback").textContent=tracks.every(t=>t.muted)?"Microphone is muted. Check your device settings.":
-    Date.now()-started>3000&&peak<0.003?"No sound detected. Select the correct microphone and check its permissions.":"Recording from "+(tracks[0].label||"the selected microphone")+".";
+    Date.now()-started>3000&&peak<0.003?"No sound detected. Select the correct microphone and check its permissions.":"";
   };
   if(ctx&&ctx.state==="running")source=ctx.createMediaStreamSource(st);
   if(type){
@@ -1316,7 +1380,7 @@ async function toggleRec(iid){
      for(const sample of samples)power+=((sample-128)/128)**2;levelFeedback(Math.sqrt(power/samples.length))}
      frame=requestAnimationFrame(tick)};
     tick();
-   }else $("micFeedback").textContent="Input level unavailable. Play the recording to check it.";
+   }else $("micFeedback").textContent="Input level unavailable.";
    recorder.start(1000);
   }else{
    processor=ctx.createScriptProcessor(4096,1,1);
@@ -1334,7 +1398,7 @@ async function toggleRec(iid){
    source.connect(processor);processor.connect(ctx.destination);
   }
   rec=recording;recFor=iid;listMicrophones();
-  tracks.forEach(track=>track.addEventListener("ended",()=>recording.stop("Microphone disconnected. Check the recording before sending.")));
+  tracks.forEach(track=>track.addEventListener("ended",()=>recording.stop("Microphone disconnected.")));
   recT=setTimeout(()=>recording.stop(),120000);
  }catch(er){
   if(frame)cancelAnimationFrame(frame);if(processor)processor.disconnect();if(source)source.disconnect();if(gain)gain.disconnect();if(st)st.getTracks().forEach(t=>t.stop());
@@ -1348,9 +1412,9 @@ async function toggleRec(iid){
 function openModal(p){
  editId=p?p.id:null;tmpBlob=null;if(tmpUrl)URL.revokeObjectURL(tmpUrl);tmpUrl=null;
  $("mT").textContent=p?"Edit page":"Add page";$("mLabel").value=p?p.label||"":"";$("mTxt").value="";
- $("mTxtL").textContent=p?"Add more points (optional, appended)":"Paste your points (numbered lines become checklist items)";
+ $("mTxtL").textContent=p?"Additional points":"Points";
  const im=p&&p.image_path&&urlC[p.image_path];
- $("drop").innerHTML=im?'<img src="'+im.u+'" alt="">':'<span>📋 Paste image here</span>';
+ $("drop").innerHTML=im?'<img src="'+im.u+'" alt="">':'<span>📋 Page image</span>';
  $("modal").classList.add("show");
  pushMobileLayer("page-modal",dismissModal,()=>$("modal").classList.add("show"));
 }
@@ -1403,13 +1467,15 @@ async function doPrint(list){
 }
 $("printAll").onclick=()=>pages.length?doPrint(pages):toast("Nothing to print");
 $("exp").onclick=async()=>{
+ if(!isAdmin){toast("Only admins can export backups");return}
  const{data:allN,error}=await allRows(count=>sb.from("notes").select("*",count?{count:"exact"}:undefined).order("created_at").order("id"));
  if(error){toast("Couldn’t load comments for backup: "+error.message);return}
- const out=pages.map(p=>({label:p.label,items:its(p.id).map(i=>({text:i.text,done:i.done,done_by:i.done_by,notes:allN.filter(n=>n.item_id===i.id).map(n=>({author:n.author,body:n.body,at:n.created_at}))}))}));
+ const out=pages.map(p=>({label:p.label,page_notes:allN.filter(n=>n.page_id===p.id&&n.item_id===null).map(n=>({author:n.author,body:n.body,at:n.created_at})),items:its(p.id).map(i=>({text:i.text,done:i.done,done_by:i.done_by,notes:allN.filter(n=>n.item_id===i.id).map(n=>({author:n.author,body:n.body,at:n.created_at}))}))}));
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"}));
  a.download="page-tracker-"+new Date().toISOString().slice(0,10)+".json";a.click()};
-$("impB").onclick=()=>$("impF").click();
+$("impB").onclick=()=>{if(!isAdmin){toast("Only admins can import backups");return}$("impF").click()};
 $("impF").onchange=async e=>{
+ if(!isAdmin){e.target.value="";toast("Only admins can import backups");return}
  try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d))throw new Error("Not a backup file");
   if(!confirm("Import "+d.length+" pages into the shared tracker?"))return;
   for(const p of d){const id=uuid();let ip=null;
@@ -1427,11 +1493,11 @@ function drawMem(){$("memL").innerHTML=members.map(m=>'<div class="mrow"><span><
  (m.email.toLowerCase()===me?'':'<button class="btn danger" data-rm="'+esc(m.email)+'">Remove</button>')+'</div>').join("")}
 function hideMembers(){$("memM").classList.remove("show")}
 function showMembers(){drawMem();$("memM").classList.add("show")}
-$("memB").onclick=()=>{showMembers();pushMobileLayer("members",hideMembers,showMembers)};
+$("memB").onclick=()=>{if(!isAdmin){toast("Only admins can manage members");return}setSideOpen(false);showMembers();pushMobileLayer("members",hideMembers,showMembers)};
 $("memX").onclick=()=>closeMobileLayer("members",hideMembers);
 $("memBack").onclick=()=>closeMobileLayer("members",hideMembers);
-$("memL").onclick=async e=>{const em=e.target.dataset.rm;if(!em||!confirm("Remove "+em+"?"))return;const{error}=await sb.from("members").delete().eq("email",em);if(error)return fail(error);await loadAll();drawMem()};
-$("memAdd").onclick=async()=>{const email=$("mmE").value.trim().toLowerCase();if(!email)return;
+$("memL").onclick=async e=>{if(!isAdmin){toast("Only admins can manage members");return}const em=e.target.dataset.rm;if(!em||!confirm("Remove "+em+"?"))return;const{error}=await sb.from("members").delete().eq("email",em);if(error)return fail(error);await loadAll();drawMem()};
+$("memAdd").onclick=async()=>{if(!isAdmin){toast("Only admins can manage members");return}const email=$("mmE").value.trim().toLowerCase();if(!email)return;
  const{error}=await sb.from("members").insert({email,name:$("mmN").value.trim(),role:$("mmR").value});if(error)return fail(error);
  $("mmE").value="";$("mmN").value="";await loadAll();drawMem();toast("Added "+email)};
 </script>

@@ -26,12 +26,21 @@ function tracker() {
     draw() { calls.push("draw"); },
     loadItems: async () => { calls.push("items"); },
     loadNotes: async () => { calls.push("notes"); },
+    loadPageCommentCounts: async () => { calls.push("page counts"); },
     loadAll: async () => { calls.push("all"); },
     toast(message) { calls.push(message); },
   });
+
   vm.runInContext(updateItem + scheduleSync, context);
   return { context, item, calls };
 }
+
+test("realtime comment changes refresh page indicators as well as the current thread", async () => {
+  const { context, calls } = tracker();
+  context.scheduleSync({ table: "notes", eventType: "DELETE", old: { id: "note" } });
+  await context.scheduled();
+  assert.deepEqual(calls, ["notes", "page counts", "draw"]);
+});
 
 test("realtime checkbox updates immediately and still reconciles from the server", async () => {
   const { context, item, calls } = tracker();

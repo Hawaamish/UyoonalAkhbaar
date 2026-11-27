@@ -145,6 +145,7 @@ test("reply controls appear only for comments that tag the signed-in member", ()
     $: () => thread, nm: email => email, esc: value => String(value),
     renderMentionText: value => value,
   });
+  vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
   vm.runInContext(section("function renderCommentThread(", "function renderMain("), context);
   context.renderCommentThread();
   assert.match(thread.innerHTML, /data-reply="1"/);
@@ -165,8 +166,9 @@ test("sending a tagged reply links it to the original and refuses unavailable ta
     canReplyToTaggedComment: () => true,
     renderCommentDraft() {}, toast: message => messages.push(message),
     sb: { from: () => ({ insert: async note => { sent.push(note); return { error: null }; } }) },
-    loadNotes: async () => {}, draw() {}, fail: error => { throw error; },
+    loadNotes: async () => {}, loadPageCommentCounts: async () => {}, draw() {}, fail: error => { throw error; },
   });
+  vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
   vm.runInContext(section('$("commentSend").onclick=async()=>{', '$("commentRec").onclick='), context);
   await elements.commentSend.onclick();
   assert.equal(sent.length, 1);
@@ -200,6 +202,7 @@ test("chat bubbles use consistent member colors and preserve reading position", 
     $: () => thread, nm: email => email, esc: value => String(value),
     renderMentionText: value => value,
   });
+  vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
   vm.runInContext(section("function renderCommentThread(", "function renderMain("), context);
   context.renderCommentThread();
   const bubbles = [...thread.innerHTML.matchAll(/class="nt( mine)?" style="--chat-hue:([\d.]+)" data-note="(\d)"/g)];
@@ -262,4 +265,58 @@ test("notification cards highlight the page number and show an escaped comment p
   context.renderNotifications();
   assert.match(elements.notificationList.innerHTML, /class="notification-page">Page ص204<\/span>/);
   assert.match(elements.notificationList.innerHTML, /class="notification-comment">&lt;please review&gt;<\/span>/);
+  context.notifications.push({ id: 2, page_id: "page-1", item_id: null, sender: "bob@example.com",
+    kind: "mention", created_at: "2026-01-01", read_at: null, comment_preview: "General discussion" });
+  context.renderNotifications();
+  assert.match(elements.notificationList.innerHTML, /notification-item unread page-discussion/);
+  assert.match(elements.notificationList.innerHTML, />Page comment<\/span>/);
+  assert.match(elements.notificationList.innerHTML, />Point comment<\/span>/);
+});
+
+test("page comments stay separate from points and send replies with a null item", async () => {
+  const sent = [], elements = { commentSend: {}, commentText: { value: "" }, commentThread: { innerHTML: "", scrollHeight: 0 } };
+  const draft = { text: "Thanks @[alice@example.com]", files: [], voices: [], replyTo: "general" };
+  const context = vm.createContext({
+    commentItem: "page:p1", commentPage: "p1", commentSending: false, recStarting: false, rec: null,
+    me: "bob@example.com", isAdmin: false, notificationsReady: true,
+    members: [{ email: "alice@example.com" }, { email: "bob@example.com" }],
+    notes: [
+      { id: "general", page_id: "p1", item_id: null, author: "alice@example.com", body: "Hi @[bob@example.com]", created_at: "2026-01-01" },
+      { id: "point", page_id: "p1", item_id: "i1", author: "alice@example.com", body: "Point comment", created_at: "2026-01-01" },
+    ],
+    pend: { "page:p1": draft }, pd: () => draft, $: id => elements[id],
+    nm: email => email, esc: value => String(value), renderMentionText: value => value,
+    renderCommentDraft() {}, toast() {}, loadNotes: async () => {}, loadPageCommentCounts: async () => {}, draw() {}, fail: error => { throw error; },
+    sb: { from: () => ({ insert: async note => { sent.push(note); return { error: null }; } }) },
+  });
+  vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
+  vm.runInContext(section("function renderCommentThread(", "function renderMain("), context);
+  vm.runInContext(section('$("commentSend").onclick=async()=>{', '$("commentRec").onclick='), context);
+  context.renderCommentThread();
+  assert.match(elements.commentThread.innerHTML, /data-note="general"/);
+  assert.doesNotMatch(elements.commentThread.innerHTML, /data-note="point"/);
+  await elements.commentSend.onclick();
+  assert.equal(sent[0].item_id, null);
+  assert.equal(sent[0].page_id, "p1");
+  assert.equal(sent[0].reply_to, "general");
+});
+
+test("opening a page-comment notification navigates to its discussion", async () => {
+  const opened = [], target = { classList: { add: name => opened.push(name) }, scrollIntoView: () => {} };
+  const elements = {
+    notificationsM: { classList: { contains: () => false } },
+    commentThread: { querySelectorAll: () => [{ ...target, dataset: { note: "n1" } }] },
+  };
+  const context = vm.createContext({
+    notifications: [{ id: 1, page_id: "p1", item_id: null, note_id: "n1", read_at: "already read" }],
+    commentItem: null, pages: [{ id: "p1" }], itemsById: new Map(), cur: null, filter: "all",
+    notes: [{ id: "n1", item_id: null }], mobile: { matches: false },
+    $: id => elements[id], loadAll: async () => { throw new Error("unnecessary reload"); },
+    loadNotes: async () => {}, draw() {}, openComments: id => opened.push(id),
+    toast: message => { throw new Error(message); },
+  });
+  vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
+  vm.runInContext(section("async function openNotification(", "async function hydrate("), context);
+  await context.openNotification(1);
+  assert.deepEqual(opened, ["page:p1", "notification-target"]);
 });
