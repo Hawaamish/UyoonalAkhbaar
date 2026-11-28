@@ -68,6 +68,7 @@ test("page list highlights general comments for each page independently", () => 
   const context = vm.createContext({
     $: id => elements[id], patchMarkup, pages, cur: "1", pageCommentCounts: new Map([["2", 2]]),
     pageCommentCountsError: false, matchingPages: () => pages, stat: () => ({ d: 0, n: 0, pc: 0 }),
+    pageThumbnailPath: path => path ? path + ".thumb-240-v1" : path,
     esc: value => String(value), commentIcon: "<svg></svg>",
   });
   vm.runInContext(section("function renderList(", "function renderGallery("), context);
@@ -75,7 +76,7 @@ test("page list highlights general comments for each page independently", () => 
   assert.match(elements.plist.innerHTML, /class="page-comment-btn" data-page-comments="1"[^>]*no comments/);
   assert.match(elements.plist.innerHTML, /class="page-comment-btn has" data-page-comments="2"[^>]*2 comments/);
   assert.match(elements.plist.innerHTML, /<\/button><button class="page-comment-btn/);
-  assert.match(elements.plist.innerHTML, /<img data-p="page.webp" loading="lazy"/);
+  assert.match(elements.plist.innerHTML, /<img data-p="page\.webp\.thumb-240-v1" data-original="page\.webp" loading="lazy"/);
 });
 
 test("page comment counts discard stale results and report loading failures", async () => {

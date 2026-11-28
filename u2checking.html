@@ -969,7 +969,11 @@ async function openNotification(id){
  try{await open()}catch(er){toast("Couldn’t open notification: "+er.message)}
 }
 let mediaCacheKey="";
+const imageBlobCache=new Map(),imageObjectUrls=new Map(),thumbnailPending=new Map(),thumbnailUnavailable=new Set();
+let imageCacheDbPromise=null,imageCacheUser="",thumbnailWarningShown=false,thumbnailObserver=null,thumbnailFallbackInstalled=false;
+const imageCacheLimit=64*1024*1024;
 function restoreMediaUrls(userId){
+ imageCacheUser=String(userId);
  mediaCacheKey="tracker-media-urls:"+userId;
  try{
   const saved=JSON.parse(sessionStorage.getItem(mediaCacheKey)||"{}");
@@ -993,49 +997,187 @@ function saveMediaUrls(){
  }catch(er){console.warn("Couldn’t cache media URLs:",er)}
 }
 function clearMediaUrls(){
- if(!mediaCacheKey)return;
- try{sessionStorage.removeItem(mediaCacheKey)}catch(er){console.warn("Couldn’t clear cached media URLs:",er)}
+ if(mediaCacheKey)try{sessionStorage.removeItem(mediaCacheKey)}catch(er){console.warn("Couldn’t clear cached media URLs:",er)}
+ Object.keys(urlC).forEach(path=>delete urlC[path]);urlPending.clear();
+ for(const objectUrl of imageObjectUrls.values())URL.revokeObjectURL(objectUrl);
+ imageObjectUrls.clear();imageBlobCache.clear();imageCacheUser="";
+ if(thumbnailObserver)thumbnailObserver.disconnect();thumbnailObserver=null;thumbnailFallbackInstalled=false;
+ thumbnailPending.clear();thumbnailUnavailable.clear();thumbnailWarningShown=false;
+}
+function openImageCache(){
+ if(typeof indexedDB==="undefined")return Promise.resolve(null);
+ if(!imageCacheDbPromise)imageCacheDbPromise=new Promise((resolve,reject)=>{
+  const request=indexedDB.open("tracker-image-cache-v1",1);
+  request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains("images"))db.createObjectStore("images",{keyPath:"id"})};
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error||new Error("Couldn’t open the local image cache"));
+ }).catch(error=>{imageCacheDbPromise=null;throw error});
+ return imageCacheDbPromise;
+}
+function imageCacheId(path){return imageCacheUser+"\n"+path}
+async function getCachedImage(path){
+ if(!imageCacheUser||!path)return null;
+ const id=imageCacheId(path);
+ if(imageBlobCache.has(id))return imageBlobCache.get(id);
+ const db=await openImageCache();if(!db)return null;
+ return new Promise((resolve,reject)=>{
+  const request=db.transaction("images","readonly").objectStore("images").get(id);
+  request.onsuccess=()=>{const blob=request.result?.blob||null;if(blob)imageBlobCache.set(id,blob);resolve(blob)};
+  request.onerror=()=>reject(request.error||new Error("Couldn’t read the local image cache"));
+ });
+}
+async function forgetCachedImage(path){
+ const id=imageCacheId(path);imageBlobCache.delete(id);
+ const objectUrl=imageObjectUrls.get(id);
+ if(objectUrl){URL.revokeObjectURL(objectUrl);imageObjectUrls.delete(id)}
+ const db=await openImageCache();if(!db)return;
+ await new Promise((resolve,reject)=>{
+  const transaction=db.transaction("images","readwrite");
+  transaction.objectStore("images").delete(id);
+  transaction.oncomplete=resolve;
+  transaction.onerror=()=>reject(transaction.error||new Error("Couldn’t clear a damaged cached image"));
+ });
+}
+async function cacheImage(path,blob){
+ if(!imageCacheUser||!path||!blob||!blob.size||blob.size>imageCacheLimit)return;
+ const id=imageCacheId(path);imageBlobCache.set(id,blob);
+ const db=await openImageCache();if(!db)return;
+ await new Promise((resolve,reject)=>{
+  const transaction=db.transaction("images","readwrite"),store=transaction.objectStore("images");
+  const request=store.getAll();
+  request.onsuccess=()=>{
+   const entries=request.result||[],existing=entries.find(entry=>entry.id===id);
+   let total=entries.reduce((sum,entry)=>sum+(entry.size||entry.blob?.size||0),0)-(existing?.size||existing?.blob?.size||0);
+   entries.filter(entry=>entry.id!==id).sort((a,b)=>(a.lastUsed||0)-(b.lastUsed||0)).some(entry=>{
+    if(total+blob.size<=imageCacheLimit)return true;
+    store.delete(entry.id);total-=entry.size||entry.blob?.size||0;
+    imageBlobCache.delete(entry.id);
+    const objectUrl=imageObjectUrls.get(entry.id);
+    if(objectUrl){URL.revokeObjectURL(objectUrl);imageObjectUrls.delete(entry.id)}
+    return false;
+   });
+   store.put({id,blob,size:blob.size,lastUsed:Date.now()});
+  };
+  request.onerror=()=>reject(request.error||new Error("Couldn’t update the local image cache"));
+  transaction.oncomplete=resolve;
+  transaction.onerror=()=>reject(transaction.error||new Error("Couldn’t update the local image cache"));
+ });
+}
+async function optionalCachedImage(path){
+ try{return await getCachedImage(path)}
+ catch(error){console.warn("Couldn’t read cached image:",error);return null}
+}
+async function optionalCacheImage(path,blob){
+ try{await cacheImage(path,blob)}
+ catch(error){console.warn("Couldn’t save image locally:",error)}
+}
+function cachedImageUrl(path,blob){
+ const id=imageCacheId(path);
+ if(!imageObjectUrls.has(id))imageObjectUrls.set(id,URL.createObjectURL(blob));
+ return imageObjectUrls.get(id);
 }
 function loadedImage(element){
  return element.tagName==="IMG"&&element.complete&&element.naturalWidth>0&&element.getAttribute("src");
 }
+function signMediaPaths(paths){
+ const need=[...new Set(paths.filter(path=>path&&(!urlC[path]||urlC[path].t<Date.now())))];
+ if(!need.length)return Promise.resolve();
+ const fresh=need.filter(path=>!urlPending.has(path));
+ if(fresh.length){
+  fresh.forEach(path=>delete urlC[path]);
+  const request=(async()=>{
+   try{
+    const legacy=fresh.filter(path=>!path.startsWith(B2_PREFIX));
+    const backblaze=fresh.filter(path=>path.startsWith(B2_PREFIX));
+    if(legacy.length){
+     const{data,error}=await sb.storage.from(B).createSignedUrls(legacy,3600);if(error)throw error;
+     (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});
+    }
+    for(let i=0;i<backblaze.length;i+=50){
+     const batch=backblaze.slice(i,i+50),{data,error}=await sb.functions.invoke("tracker-media",{
+      body:{action:"sign-download",paths:batch.map(path=>path.slice(B2_PREFIX.length))}
+     });
+     if(error)throw error;
+     if(!Array.isArray(data?.urls))throw new Error("Backblaze returned no signed media URLs");
+     const signed=new Set(data.urls.map(x=>x.path));
+     if(batch.some(path=>!signed.has(path.slice(B2_PREFIX.length))))throw new Error("Backblaze did not sign every requested media file");
+     data.urls.forEach(x=>{if(x.url)urlC[B2_PREFIX+x.path]={u:x.url,t:Date.now()+3000000}});
+    }
+    saveMediaUrls();return null;
+   }catch(error){return error}
+  })();
+  fresh.forEach(path=>urlPending.set(path,request));
+  request.then(()=>fresh.forEach(path=>{if(urlPending.get(path)===request)urlPending.delete(path)}));
+ }
+ return Promise.all([...new Set(need.map(path=>urlPending.get(path)).filter(Boolean))]).then(errors=>{
+  const error=errors.find(Boolean);if(error)throw error;
+ });
+}
+function watchImageCache(image){
+ if(typeof image.addEventListener!=="function"||image._trackerImageCacheWatching)return;
+ image._trackerImageCacheWatching=true;
+ image.addEventListener("load",()=>{
+  const path=image.dataset.p,entry=urlC[path];
+  if(!path||!entry||!imageCacheUser||String(image.currentSrc||image.src||"").startsWith("blob:"))return;
+  fetch(entry.u,{cache:"force-cache"}).then(response=>{
+   if(!response.ok)throw new Error("HTTP "+response.status);
+   return response.blob();
+  }).then(blob=>cacheImage(path,blob)).catch(error=>console.warn("Couldn’t cache image locally:",error));
+ });
+ if(image.dataset.original)image.addEventListener("error",()=>{
+  if(!image.isConnected)return;
+  forgetCachedImage(pageThumbnailStoragePath(image.dataset.original))
+   .catch(error=>console.warn("Couldn’t clear a damaged thumbnail cache entry:",error))
+   .finally(()=>repairPageThumbnail(image));
+ });
+}
+function pageThumbnailNearViewport(image){
+ if(typeof image.getBoundingClientRect!=="function")return false;
+ const rect=image.getBoundingClientRect(),height=typeof window==="undefined"?0:window.innerHeight;
+ return rect.bottom>=-200&&rect.top<=height+200;
+}
+function scanPageThumbnails(){
+ document.querySelectorAll("img[data-original]").forEach(image=>{
+  if(pageThumbnailNearViewport(image))repairPageThumbnail(image);
+ });
+}
+function observePageThumbnail(image){
+ if(typeof IntersectionObserver==="function"){
+  if(!thumbnailObserver)thumbnailObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{
+   if(entry.isIntersecting){thumbnailObserver.unobserve(entry.target);repairPageThumbnail(entry.target)}
+  }),{rootMargin:"200px"});
+  thumbnailObserver.observe(image);return;
+ }
+ if(!thumbnailFallbackInstalled){
+  thumbnailFallbackInstalled=true;
+  document.addEventListener("scroll",scanPageThumbnails,true);
+  window.addEventListener("resize",scanPageThumbnails);
+ }
+ if(pageThumbnailNearViewport(image))repairPageThumbnail(image);
+}
 async function hydrate(){
  const els=[...document.querySelectorAll("[data-p]")];
- const need=[...new Set(els.filter(e=>!loadedImage(e)).map(e=>e.dataset.p).filter(p=>!urlC[p]||urlC[p].t<Date.now()))];
- if(need.length){
-  const fresh=need.filter(p=>!urlPending.has(p));
-  if(fresh.length){
-   fresh.forEach(p=>delete urlC[p]);
-   const request=(async()=>{
-    try{
-     const legacy=fresh.filter(path=>!path.startsWith(B2_PREFIX));
-     const backblaze=fresh.filter(path=>path.startsWith(B2_PREFIX));
-     if(legacy.length){
-      const{data,error}=await sb.storage.from(B).createSignedUrls(legacy,3600);if(error)throw error;
-      (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});
-     }
-     for(let i=0;i<backblaze.length;i+=50){
-      const batch=backblaze.slice(i,i+50),{data,error}=await sb.functions.invoke("tracker-media",{
-       body:{action:"sign-download",paths:batch.map(path=>path.slice(B2_PREFIX.length))}
-      });
-      if(error)throw error;
-      if(!Array.isArray(data?.urls))throw new Error("Backblaze returned no signed media URLs");
-      const signed=new Set(data.urls.map(x=>x.path));
-      if(batch.some(path=>!signed.has(path.slice(B2_PREFIX.length))))throw new Error("Backblaze did not sign every requested media file");
-      data.urls.forEach(x=>{if(x.url)urlC[B2_PREFIX+x.path]={u:x.url,t:Date.now()+3000000}});
-     }
-     saveMediaUrls();return null;
-    }catch(er){return er}
-   })();
-   fresh.forEach(p=>urlPending.set(p,request));
-   request.then(()=>fresh.forEach(p=>{if(urlPending.get(p)===request)urlPending.delete(p)}));
-  }
-  const errors=await Promise.all([...new Set(need.map(p=>urlPending.get(p)).filter(Boolean))]),error=errors.find(Boolean);
-  if(error&&els.some(e=>e.isConnected&&e.tagName!=="AUDIO"))toast("Couldn’t load files: "+error.message);
-  els.filter(e=>e.isConnected&&e.tagName==="AUDIO"&&!urlC[e.dataset.p]).forEach(e=>showVoiceError(e,error?"Couldn’t load this voice note: "+error.message:"Couldn’t load this voice note. Check your access and connection."));
- }
- els.forEach(e=>{const c=urlC[e.dataset.p];if(!e.isConnected||!c||loadedImage(e))return;const k=e.tagName==="A"?"href":"src";
-  if(e.getAttribute(k)!==c.u){e.setAttribute(k,c.u);if(e.tagName==="AUDIO"&&e.nextElementSibling?.classList.contains("voice-error"))e.nextElementSibling.remove()}});
+ const cachedImages=new Set(),images=els.filter(e=>e.tagName==="IMG"&&!loadedImage(e));
+ els.filter(e=>e.tagName==="IMG").forEach(watchImageCache);
+ await Promise.all(images.map(async image=>{
+  try{
+   const blob=await getCachedImage(image.dataset.p);
+   if(blob&&image.isConnected){cachedImages.add(image);watchImageCache(image);image.setAttribute("src",cachedImageUrl(image.dataset.p,blob))}
+  }catch(error){console.warn("Couldn’t read cached image:",error)}
+ }));
+ images.filter(image=>image.isConnected&&image.dataset.original&&!cachedImages.has(image)).forEach(observePageThumbnail);
+ const need=[...new Set(els.filter(e=>!(e.tagName==="IMG"&&e.dataset.original)&&!loadedImage(e)&&!cachedImages.has(e)).map(e=>e.dataset.p).filter(path=>path&&(!urlC[path]||urlC[path].t<Date.now())))];
+ let error=null;
+ if(need.length)try{await signMediaPaths(need)}catch(er){error=er}
+ if(error&&els.some(e=>e.isConnected&&e.tagName!=="AUDIO"))toast("Couldn’t load files: "+error.message);
+ els.filter(e=>e.isConnected&&e.tagName==="AUDIO"&&(!urlC[e.dataset.p]||error)).forEach(e=>showVoiceError(e,error?"Couldn’t load this voice note: "+error.message:"Couldn’t load this voice note. Check your access and connection."));
+ els.forEach(e=>{
+  const c=urlC[e.dataset.p];
+  if(!e.isConnected||!c||loadedImage(e)||cachedImages.has(e))return;
+  const k=e.tagName==="A"?"href":"src";
+  if(e.getAttribute(k)!==c.u)e.setAttribute(k,c.u);
+  if(e.tagName==="AUDIO"&&e.nextElementSibling?.classList.contains("voice-error"))e.nextElementSibling.remove();
+ });
 }
 async function up(path,blob,type){
  const contentType=(type||blob.type||"application/octet-stream").split(";")[0];
@@ -1140,6 +1282,109 @@ function imageExtension(type){
  if(!extensions[type])throw new Error("Unsupported image format: "+type);
  return extensions[type];
 }
+function pageThumbnailStoragePath(path){return path?path+".thumb-240-v1":path}
+function pageThumbnailPath(path){
+ return path&&!thumbnailUnavailable.has(path)&&/\.(jpe?g|png|apng|webp|gif|avif)$/i.test(path)
+  ?pageThumbnailStoragePath(path):path;
+}
+async function makePageThumbnail(blob){
+ if(!blob||!["image/jpeg","image/png","image/apng","image/webp","image/gif","image/avif"].includes(blob.type.toLowerCase()))return null;
+ const objectUrl=URL.createObjectURL(blob),image=new Image();
+ try{
+  await new Promise((resolve,reject)=>{
+   image.onload=resolve;image.onerror=()=>reject(new Error("Couldn’t decode the page image for its thumbnail"));image.src=objectUrl;
+  });
+  const width=image.naturalWidth,height=image.naturalHeight;
+  if(!width||!height)throw new Error("The page image has no usable dimensions");
+  const scale=Math.min(1,240/Math.max(width,height)),canvas=document.createElement("canvas");
+  canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+  const context=canvas.getContext("2d");if(!context)throw new Error("Image processing is unavailable in this browser");
+  context.drawImage(image,0,0,canvas.width,canvas.height);
+  return await new Promise((resolve,reject)=>{
+   canvas.toBlob(output=>output?resolve(output):reject(new Error("Couldn’t create the page thumbnail")),"image/webp",.62);
+  });
+ }finally{URL.revokeObjectURL(objectUrl)}
+}
+async function fetchImageBlob(path){
+ const cached=await optionalCachedImage(path);if(cached)return cached;
+ await signMediaPaths([path]);
+ const entry=urlC[path];if(!entry)throw new Error("Couldn’t get a download link for "+path);
+ const response=await fetch(entry.u,{cache:"force-cache"});
+ if(!response.ok)throw new Error("Couldn’t download the image (HTTP "+response.status+")");
+ const blob=await response.blob();await optionalCacheImage(path,blob);return blob;
+}
+async function uploadThumbnail(path,blob){
+ const contentType=blob.type||"image/webp";
+ if(path.startsWith(B2_PREFIX)){
+  const key=path.slice(B2_PREFIX.length),{data,error}=await sb.functions.invoke("tracker-media",{
+   body:{action:"sign-upload",path:key,contentType,size:blob.size}
+  });
+  if(error)throw error;if(data?.exists)return;
+  if(typeof data?.url!=="string")throw new Error("Backblaze returned no thumbnail upload URL");
+  const response=await fetch(data.url,{method:"PUT",headers:{"Content-Type":contentType,"Cache-Control":"private, max-age=31536000, immutable"},body:blob});
+  if(!response.ok)throw new Error("Couldn’t upload the page thumbnail (HTTP "+response.status+")");
+  return;
+ }
+ const{error}=await sb.storage.from(B).upload(path,blob,{contentType,cacheControl:"31536000",upsert:true});
+ if(error)throw error;
+}
+async function pageThumbnailBlob(sourcePath){
+ const path=pageThumbnailStoragePath(sourcePath),cached=await optionalCachedImage(path);if(cached)return cached;
+ let signError=null;
+ try{await signMediaPaths([path])}catch(error){signError=error}
+ const entry=urlC[path];
+ if(entry){
+  const response=await fetch(entry.u,{cache:"force-cache"});
+  if(response.ok){const blob=await response.blob();await optionalCacheImage(path,blob);return blob}
+  let missing=response.status===404;
+  if(response.status===400){
+   try{
+    const body=await response.clone().json();
+    missing=body?.statusCode==="404"||body?.error==="not_found";
+   }catch{}
+  }
+  if(!missing)throw new Error("Couldn’t check the page thumbnail (HTTP "+response.status+")");
+ }
+ if(!entry&&path.startsWith(B2_PREFIX))throw signError||new Error("Couldn’t get a thumbnail check link");
+ const original=await fetchImageBlob(sourcePath),thumbnail=await makePageThumbnail(original);
+ if(!thumbnail)return null;
+ await uploadThumbnail(path,thumbnail);await optionalCacheImage(path,thumbnail);return thumbnail;
+}
+async function repairPageThumbnail(image){
+ const source=image.dataset.original;if(!source||image._thumbRepairing)return;
+ image._thumbRepairing=true;
+ try{
+  let pending=thumbnailPending.get(source);
+  if(!pending){pending=pageThumbnailBlob(source);thumbnailPending.set(source,pending)}
+  let blob;
+  try{blob=await pending}finally{if(thumbnailPending.get(source)===pending)thumbnailPending.delete(source)}
+  if(blob){image.setAttribute("src",cachedImageUrl(pageThumbnailStoragePath(source),blob));return}
+  thumbnailUnavailable.add(source);image.dataset.p=source;delete image.dataset.original;
+  await signMediaPaths([source]);if(urlC[source])image.setAttribute("src",urlC[source].u);
+ }catch(error){
+  thumbnailUnavailable.add(source);image.dataset.p=source;delete image.dataset.original;
+  try{await signMediaPaths([source]);if(urlC[source])image.setAttribute("src",urlC[source].u)}
+  catch(fallbackError){toast("Couldn’t load page image: "+fallbackError.message)}
+  if(!thumbnailWarningShown){thumbnailWarningShown=true;toast("Couldn’t create a page thumbnail: "+error.message)}
+ }finally{delete image._thumbRepairing}
+}
+async function uploadPageImage(pageId,image){
+ const path="pages/"+pageId+"/"+uuid()+"."+imageExtension(image.type),full=await up(path,image,image.type);
+ try{
+  const thumbnail=await makePageThumbnail(image);
+  if(thumbnail){
+   await up(path+".thumb-240-v1",thumbnail,thumbnail.type);
+   await optionalCacheImage(pageThumbnailStoragePath(full),thumbnail);
+  }
+  else thumbnailUnavailable.add(full);
+  await optionalCacheImage(full,image);
+ }catch(error){
+  try{await rmFiles([full,pageThumbnailStoragePath(full)])}
+  catch(cleanupError){console.error("Couldn’t clean an incomplete page image upload:",cleanupError)}
+  throw error;
+ }
+ return full;
+}
 async function addItems(pid,arr){
  let o=Date.now();if(!arr.length)return;
  const{result:{data,error},ids}=await trackReturning("items",sb.from("items").insert(arr.map(t=>({page_id:pid,text:t,sort_order:o++}))).select(itemColumns));
@@ -1223,8 +1468,9 @@ function renderList(){
  const L=matchingPages($("q").value);
  patchMarkup($("plist"),L.map(p=>{const s=stat(p),count=pageCommentCounts?.get(p.id)||0;
   const label="Page comments for "+(p.label||"Untitled")+(pageCommentCounts?(count?" ("+count+" comment"+(count===1?"":"s")+")":" (no comments)"):(pageCommentCountsError?" (status unavailable)":" (loading)"));
+  const thumb=p.image_path?pageThumbnailPath(p.image_path):"";
   return '<div class="pi'+(p.id===cur?" on":"")+'" data-page-row="'+esc(p.id)+'"><button class="pi-select" data-id="'+esc(p.id)+'"'+(p.id===cur?' aria-current="page"':'')+'>'+
-  (p.image_path?'<img data-p="'+esc(p.image_path)+'" loading="lazy" decoding="async" alt="">':'<img alt="">')+'<span><span class="nm" dir="auto">'+esc(p.label||"Untitled")+'</span><br><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>'+
+  (p.image_path?'<img data-p="'+esc(thumb)+'"'+(thumb!==p.image_path?' data-original="'+esc(p.image_path)+'"':'')+' loading="lazy" decoding="async" alt="">':'<img alt="">')+'<span><span class="nm" dir="auto">'+esc(p.label||"Untitled")+'</span><br><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>'+
   '<button class="page-comment-btn'+(count?" has":"")+'" data-page-comments="'+esc(p.id)+'" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+commentIcon+(count?' <span>'+count+'</span>':"")+'</button></div>'}).join("")||'<div class="empty">No pages yet</div>');
  if($("galleryM").classList.contains("show"))renderGallery();
 }
@@ -1232,8 +1478,9 @@ function renderGallery(){
  const list=matchingPages($("gallerySearch").value);
  $("galleryCount").textContent=list.length+" of "+pages.length+" pages";
  patchMarkup($("galleryGrid"),list.map(p=>{const s=stat(p),selected=p.id===cur;
+  const thumb=p.image_path?pageThumbnailPath(p.image_path):"";
   return '<button class="gallery-card'+(selected?" on":"")+'" data-gallery-page="'+esc(p.id)+'"'+(selected?' aria-current="page"':'')+'>'+
-   '<span class="gallery-preview">'+(p.image_path?'<img data-p="'+esc(p.image_path)+'" loading="lazy" decoding="async" alt="">':'No image')+'</span>'+
+   '<span class="gallery-preview">'+(p.image_path?'<img data-p="'+esc(thumb)+'"'+(thumb!==p.image_path?' data-original="'+esc(p.image_path)+'"':'')+' loading="lazy" decoding="async" alt="">':'No image')+'</span>'+
    '<span class="gallery-info"><strong dir="auto">'+esc(p.label||"Untitled")+'</strong><small>'+s.d+'/'+s.n+' done · '+s.pc+'%</small>'+
    '<span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>';
  }).join("")||'<div class="empty">No matching pages</div>');
@@ -1368,7 +1615,7 @@ $("main").onclick=async e=>{
   const{data:ns,error:notesError}=await allRows(count=>sb.from("notes").select("id,voice_path,attachments",count?{count:"exact"}:undefined).eq("page_id",p.id).order("created_at").order("id"));if(notesError)throw notesError;
   const{error}=await sb.from("pages").delete().eq("id",p.id);if(error)throw error;
   scheduleSync({table:"pages",eventType:"DELETE",old:{id:p.id}});
-  await rmFiles([p.image_path,...notePaths(ns||[])]);if(mobile.matches)backToPages();toast("Deleted")}
+  await rmFiles([p.image_path,pageThumbnailStoragePath(p.image_path),...notePaths(ns||[])]);if(mobile.matches)backToPages();toast("Deleted")}
  }catch(er){fail(er)}
 };
 $("main").onchange=async e=>{const d=e.target.dataset;try{
@@ -1771,15 +2018,15 @@ $("mOk").onclick=async()=>{
  try{
   const image=tmpBlob?await shrink(tmpBlob):null;
   if(editId){const p=pages.find(x=>x.id===editId),u={};if(label)u.label=label;let old=null;
-   if(image){u.image_path=await up("pages/"+editId+"/"+uuid()+"."+imageExtension(image.type),image,image.type);old=p.image_path}
+   if(image){u.image_path=await uploadPageImage(editId,image);old=p.image_path}
    if(Object.keys(u).length){
     const{result:{data,error},ids}=await trackReturning("pages",sb.from("pages").update(u).eq("id",editId).select(pageColumns).single());if(error)throw error;
     if(!ids.has(String(editId)))scheduleSync({table:"pages",eventType:"UPDATE",new:data});
     else if(!pages.some(row=>sameId(row.id,editId)&&pageColumns.split(",").every(key=>row[key]===data[key])))scheduleSync({table:"pages"});
    }
-   await addItems(editId,r.items);if(old)await rmFiles([old])}
+   await addItems(editId,r.items);if(old)await rmFiles([old,pageThumbnailStoragePath(old)])}
   else{if(!tmpBlob&&!r.items.length){toast("Add an image or some points first");return}
-   const id=uuid();let ip=null;if(image)ip=await up("pages/"+id+"/"+uuid()+"."+imageExtension(image.type),image,image.type);
+   const id=uuid();let ip=null;if(image)ip=await uploadPageImage(id,image);
    const{result:{data,error},ids}=await trackReturning("pages",sb.from("pages").insert({id,label:label||"Page "+(pages.length+1),image_path:ip}).select(pageColumns).single());if(error)throw error;
    if(!ids.has(String(id)))scheduleSync({table:"pages",eventType:"INSERT",new:data});
    if(!pages.some(p=>sameId(p.id,id)))await loadPages();
@@ -1818,7 +2065,7 @@ $("impF").onchange=async e=>{
   for(const p of d){const id=uuid();let ip=null;
    if(typeof p.img==="string"&&p.img.startsWith("data:")){
     const response=await fetch(p.img);if(!response.ok)throw new Error("Couldn’t read an imported image");
-    const image=await shrink(await response.blob());ip=await up("pages/"+id+"/"+uuid()+"."+imageExtension(image.type),image,image.type);
+    const image=await shrink(await response.blob());ip=await uploadPageImage(id,image);
    }
    const{error}=await sb.from("pages").insert({id,label:p.label||"Page",image_path:ip});if(error)throw error;
    const rows=(p.items||[]).map((i,n)=>({page_id:id,text:i.text||"",done:!!i.done,sort_order:Date.now()+n}));

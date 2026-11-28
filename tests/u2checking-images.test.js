@@ -67,6 +67,199 @@ test("new screenshots are resized to 1000 pixels and encoded at the requested qu
   assert.equal(result.type, "image/webp");
 });
 
+test("page thumbnails use stable sibling paths and can fall back for unsupported images", () => {
+  const context = vm.createContext({ thumbnailUnavailable: new Set() });
+  vm.runInContext(html.slice(html.indexOf("function pageThumbnailStoragePath("), html.indexOf("async function makePageThumbnail(")), context);
+  assert.equal(context.pageThumbnailPath("pages/p1/image.webp"), "pages/p1/image.webp.thumb-240-v1");
+  assert.equal(context.pageThumbnailPath("b2:pages/p1/image.jpg"), "b2:pages/p1/image.jpg.thumb-240-v1");
+  assert.equal(context.pageThumbnailPath("pages/p1/image.svg"), "pages/p1/image.svg");
+  context.thumbnailUnavailable.add("pages/p1/image.webp");
+  assert.equal(context.pageThumbnailPath("pages/p1/image.webp"), "pages/p1/image.webp");
+});
+
+test("existing page thumbnails are created only when their preview approaches the viewport", async () => {
+  let observer, repairs = 0, signed = 0;
+  class IntersectionObserver {
+    constructor(callback, options) { observer = this; this.callback = callback; this.options = options; this.targets = new Set(); }
+    observe(target) { this.targets.add(target); }
+    unobserve(target) { this.targets.delete(target); }
+  }
+  const image = {
+    tagName: "IMG", dataset: { p: "pages/p1/image.webp.thumb-240-v1", original: "pages/p1/image.webp" },
+    isConnected: true, getAttribute: () => null, setAttribute() {}, addEventListener() {},
+  };
+  const context = vm.createContext({
+    IntersectionObserver, thumbnailObserver: null, thumbnailFallbackInstalled: false, urlC: {},
+    document: { querySelectorAll: () => [image] },
+    loadedImage: () => false,
+    getCachedImage: async () => null, watchImageCache() {},
+    repairPageThumbnail: () => { repairs++; },
+    signMediaPaths: async () => { signed++; },
+  });
+  vm.runInContext(html.slice(html.indexOf("function pageThumbnailNearViewport("), html.indexOf("async function hydrate(")), context);
+  vm.runInContext(html.slice(html.indexOf("async function hydrate("), html.indexOf("async function up(")), context);
+  await context.hydrate();
+  assert.equal(observer.targets.has(image), true);
+  assert.equal(observer.options.rootMargin, "200px");
+  assert.equal(repairs, 0);
+  assert.equal(signed, 0);
+  observer.callback([{ target: image, isIntersecting: true }]);
+  assert.equal(repairs, 1);
+});
+
+test("page thumbnails are resized to 240 pixels and encoded as WebP", async () => {
+  let encoded, revoked;
+  const canvas = {
+    getContext: () => ({ drawImage() {} }),
+    toBlob: (callback, type, quality) => {
+      encoded = { type, quality };
+      callback(new Blob(["thumb"], { type: "image/webp" }));
+    },
+  };
+  class Image {
+    constructor() { this.naturalWidth = 1200; this.naturalHeight = 600; }
+    set src(_url) { this.onload(); }
+  }
+  const context = vm.createContext({
+    Image, URL: { createObjectURL: () => "blob:source", revokeObjectURL: url => { revoked = url; } },
+    document: { createElement: () => canvas },
+  });
+  vm.runInContext(html.slice(html.indexOf("async function makePageThumbnail("), html.indexOf("async function fetchImageBlob(")), context);
+  const result = await context.makePageThumbnail({ type: "image/jpeg" });
+  assert.equal(canvas.width, 240);
+  assert.equal(canvas.height, 120);
+  assert.deepEqual(encoded, { type: "image/webp", quality: 0.62 });
+  assert.equal(result.type, "image/webp");
+  assert.equal(revoked, "blob:source");
+});
+
+test("the first missing page thumbnail is generated from the source and uploaded once", async () => {
+  const uploaded = [], messages = [], source = "b2:pages/p1/image.webp", thumbPath = source + ".thumb-240-v1";
+  const urls = { [thumbPath]: "https://signed.test/thumb", [source]: "https://signed.test/source" };
+  const context = vm.createContext({
+    B2_PREFIX: "b2:", imageCacheUser: "user-1", imageBlobCache: new Map(), imageObjectUrls: new Map(),
+    thumbnailPending: new Map(), thumbnailUnavailable: new Set(), thumbnailWarningShown: false, urlC: {},
+    pageThumbnailStoragePath: path => path + ".thumb-240-v1",
+    getCachedImage: async () => null,
+    optionalCachedImage: async () => null,
+    signMediaPaths: async paths => paths.forEach(path => { context.urlC[path] = { u: urls[path], t: Date.now() + 1000 }; }),
+    fetch: async url => url === urls[thumbPath]
+      ? { ok: false, status: 404 }
+      : { ok: true, status: 200, blob: async () => new Blob(["source"], { type: "image/webp" }) },
+    fetchImageBlob: async () => new Blob(["source"], { type: "image/webp" }),
+    makePageThumbnail: async () => new Blob(["thumbnail"], { type: "image/webp" }),
+    uploadThumbnail: async (path, blob) => uploaded.push({ path, blob }),
+    cacheImage: async () => {},
+    optionalCacheImage: async () => {},
+    cachedImageUrl: path => "blob:" + path,
+    URL: { createObjectURL: () => "blob:image", revokeObjectURL() {} },
+    toast: message => messages.push(message),
+  });
+  vm.runInContext(html.slice(html.indexOf("async function pageThumbnailBlob("), html.indexOf("async function addItems(")), context);
+  const image = {
+    dataset: { original: source }, isConnected: true,
+    setAttribute(name, value) { this[name] = value; },
+  };
+  await context.repairPageThumbnail(image);
+  assert.equal(uploaded.length, 1, messages.join("; "));
+  assert.equal(uploaded[0].path, thumbPath);
+  assert.equal(image.src, "blob:" + thumbPath);
+  assert.equal(context.thumbnailUnavailable.has(source), false);
+});
+
+test("new page image uploads include the thumbnail beside the full image", async () => {
+  const uploads = [];
+  const context = vm.createContext({
+    uuid: () => "image-id", imageExtension: () => "webp", thumbnailUnavailable: new Set(),
+    pageThumbnailStoragePath: path => path + ".thumb-240-v1",
+    up: async (path, blob, type) => { uploads.push({ path, blob, type }); return "b2:" + path; },
+    makePageThumbnail: async () => new Blob(["small"], { type: "image/webp" }),
+    optionalCacheImage: async () => {},
+    rmFiles: async () => {},
+  });
+  vm.runInContext(html.slice(html.indexOf("async function uploadPageImage("), html.indexOf("async function addItems(")), context);
+  const result = await context.uploadPageImage("p1", { type: "image/webp", size: 100 });
+  assert.equal(result, "b2:pages/p1/image-id.webp");
+  assert.deepEqual(uploads.map(upload => upload.path), [
+    "pages/p1/image-id.webp", "pages/p1/image-id.webp.thumb-240-v1",
+  ]);
+});
+
+test("local image cache persists by signed-in user across reloads", async () => {
+  const records = new Map(), storeName = "images";
+  const indexedDB = {
+    open() {
+      const request = {};
+      queueMicrotask(() => {
+        request.result = {
+          objectStoreNames: { contains: name => name === storeName },
+          createObjectStore() {},
+          transaction() {
+            const transaction = {
+              objectStore() {
+                return {
+                  get: id => {
+                    const item = {};
+                    queueMicrotask(() => { item.result = records.get(id); item.onsuccess?.(); });
+                    return item;
+                  },
+                  getAll: () => {
+                    const item = {};
+                    queueMicrotask(() => {
+                      item.result = [...records.values()];
+                      item.onsuccess?.();
+                      queueMicrotask(() => transaction.oncomplete?.());
+                    });
+                    return item;
+                  },
+                  put: entry => records.set(entry.id, entry),
+                  delete: id => records.delete(id),
+                };
+              },
+            };
+            return transaction;
+          },
+        };
+        request.onupgradeneeded?.();
+        request.onsuccess?.();
+      });
+      return request;
+    },
+  };
+  let downloadRequests = 0;
+  const createContext = () => {
+    const attributes = {}, image = {
+      tagName: "IMG", dataset: { p: "pages/p1/image.webp" }, isConnected: true,
+      getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; },
+      addEventListener() {},
+    };
+    const context = vm.createContext({
+      indexedDB, Date, URL: { createObjectURL: () => "blob:cached", revokeObjectURL() {} },
+      SUPABASE_URL: "https://example.test", B: "tracker-files", B2_PREFIX: "b2:",
+      urlC: {}, urlPending: new Map(), document: { querySelectorAll: () => [image] },
+      sb: { storage: { from: () => ({ createSignedUrls: async () => {
+        downloadRequests++; return { data: [], error: null };
+      } }) } },
+      toast() {},
+      sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} }, console,
+    });
+    vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("async function up(")), context);
+    return { context, image };
+  };
+  const blob = new Blob(["image-bytes"], { type: "image/webp" });
+  const first = createContext();
+  first.context.restoreMediaUrls("user-1");
+  await first.context.cacheImage("pages/p1/image.webp", blob);
+  const reloaded = createContext();
+  reloaded.context.restoreMediaUrls("user-1");
+  assert.equal(await reloaded.context.getCachedImage("pages/p1/image.webp"), blob);
+  await reloaded.context.hydrate();
+  assert.equal(reloaded.image.getAttribute("src"), "blob:cached");
+  assert.equal(downloadRequests, 0);
+  reloaded.context.restoreMediaUrls("user-2");
+  assert.equal(await reloaded.context.getCachedImage("pages/p1/image.webp"), null);
+});
+
 test("new media uploads use short-lived authorized Backblaze upload URLs", async () => {
   let call, request;
   const ctx = vm.createContext({
@@ -130,7 +323,7 @@ test("Backblaze media uses signed URLs and reuses them on redraw", async () => {
     saveMediaUrls() {},
     toast: message => { throw new Error(message); },
   });
-  vm.runInContext(html.slice(html.indexOf("async function hydrate()"), html.indexOf("async function up(")), ctx);
+  vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("async function up(")), ctx);
   await ctx.hydrate();
   await ctx.hydrate();
   assert.equal(requests, 1);

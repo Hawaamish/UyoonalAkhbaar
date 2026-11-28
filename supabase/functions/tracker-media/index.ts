@@ -36,37 +36,37 @@ function requiredEnv(name: string) {
 }
 
 function describeError(error: unknown) {
-  if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   if (!error || typeof error !== "object") return "Media request failed";
   const value = error as Record<string, unknown>;
+  const metadata = value.$metadata && typeof value.$metadata === "object"
+    ? value.$metadata as Record<string, unknown>
+    : {};
   const fields = [
     typeof value.name === "string" ? value.name : "",
     typeof value.code === "string" ? value.code : typeof value.Code === "string" ? value.Code : "",
-    typeof value.message === "string" ? value.message : typeof value.Message === "string" ? value.Message : "",
-    value.$metadata && typeof value.$metadata === "object" &&
-        typeof (value.$metadata as Record<string, unknown>).httpStatusCode === "number"
-      ? `HTTP ${(value.$metadata as Record<string, unknown>).httpStatusCode}`
-      : "",
+    typeof value.message === "string" && value.message !== value.name
+      ? value.message
+      : typeof value.Message === "string" ? value.Message : "",
+    typeof metadata.httpStatusCode === "number" ? `HTTP ${metadata.httpStatusCode}` : "",
+    typeof metadata.requestId === "string" ? `request ${metadata.requestId}` : "",
   ].filter(Boolean);
   return fields.join(": ") || "Media request failed";
 }
 
 const supabaseUrl = requiredEnv("SUPABASE_URL");
-function defaultKey(name: string, legacyName: string) {
-  const encoded = Deno.env.get(name);
+const supabaseAnonKey = (() => {
+  const encoded = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
   if (encoded) {
     try {
       const keys = JSON.parse(encoded);
       if (typeof keys.default === "string" && keys.default) return keys.default;
     } catch {
-      throw new Error(`Invalid Supabase key configuration: ${name}`);
+      throw new Error("Invalid Supabase publishable key configuration");
     }
   }
-  return requiredEnv(legacyName);
-}
-const supabaseAnonKey = defaultKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
-const serviceRoleKey = defaultKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
+  return requiredEnv("SUPABASE_ANON_KEY");
+})();
 const b2Bucket = requiredEnv("B2_BUCKET");
 const endpoint = requiredEnv("B2_ENDPOINT");
 const region = requiredEnv("B2_REGION");
@@ -79,10 +79,6 @@ const s3 = new S3Client({
     secretAccessKey: requiredEnv("B2_APPLICATION_KEY"),
   },
 });
-const service = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
-
 function validKey(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 1024 &&
     !value.startsWith("/") && !value.includes("\\") && !value.includes("\0") &&
@@ -103,27 +99,27 @@ async function authorize(request: Request) {
   const { data: { user }, error } = await userClient.auth.getUser();
   if (error || !user?.email) throw new Error("Your session is invalid or expired");
   const email = user.email.toLowerCase();
-  const { data: members, error: memberError } = await service.from("members")
+  const { data: members, error: memberError } = await userClient.from("members")
     .select("email,role").range(0, 999);
   if (memberError) throw memberError;
   const member = (members || []).find((row: { email: string }) =>
     typeof row.email === "string" && row.email.toLowerCase() === email);
   if (!member) throw new Error("Only tracker members can access media");
-  return { email, isAdmin: member.role === "admin" };
+  return { email, isAdmin: member.role === "admin", userClient };
 }
 
-async function assertUnreferenced(keys: string[]) {
+async function assertUnreferenced(userClient: ReturnType<typeof memberClient>, keys: string[]) {
   const marked = keys.map(key => `b2:${key}`);
   const pages: Array<{ image_path: string | null }> = [];
   for (let index = 0; index < marked.length; index += 20) {
-    const { data, error } = await service.from("pages").select("image_path")
+    const { data, error } = await userClient.from("pages").select("image_path")
       .in("image_path", marked.slice(index, index + 20));
     if (error) throw error;
     pages.push(...(data || []));
   }
   const notes: Array<{ voice_path: string | null; attachments: Array<{ path?: string }> | null }> = [];
   for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await service.from("notes").select("voice_path,attachments")
+    const { data, error } = await userClient.from("notes").select("voice_path,attachments")
       .order("id").range(offset, offset + 999);
     if (error) throw error;
     notes.push(...(data || []));
@@ -210,7 +206,7 @@ Deno.serve(async request => {
           !body.paths.every(validKey)) {
         return jsonResponse({ error: "Invalid media paths" }, 400, origin);
       }
-      await assertUnreferenced(body.paths);
+      await assertUnreferenced(caller.userClient, body.paths);
       for (const path of body.paths) {
         await s3.send(new DeleteObjectCommand({ Bucket: b2Bucket, Key: path }));
       }

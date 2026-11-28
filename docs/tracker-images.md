@@ -30,17 +30,22 @@ session and call `optimizeTrackerMedia({sb, bucket:B, shrink, uuid,
 imageExtension, allRows, isAdmin})`. It requires the existing database and
 Storage write permissions and stops on an error or concurrent edit.
 
-Page-list and comment images load lazily, so the browser can defer off-screen
-downloads. Voice notes are not preloaded before playback. Browsers decide when
-to load lazy media. Already displayed images keep their URL during background
-redraws rather than being downloaded again when a URL is renewed. Temporary
-signed URLs are also reused after a reload in the same browser tab, until their
-50-minute local cache expires. Signing out clears this tab's cached URLs;
-session storage normally ends when the tab closes, though browsers may restore
-closed sessions. The URLs are scoped to the signed-in user and grant access to
-the file until they expire; they are stored in the browser's session storage.
-Printing all pages still downloads their images. These changes do not impose
-an egress limit or modify existing files.
+Page-list and gallery previews use derived 240-pixel thumbnails; the full-size
+image remains on the page detail and print views. New page images upload a
+thumbnail alongside the original. Existing thumbnails are created the first
+time a preview is loaded: that browser downloads the original to create and
+upload a small WebP copy, and other members can then use that copy. If several
+members open the same ungenerated preview at once, they may briefly create it
+concurrently. Unsupported image types fall back to their original preview.
+
+Downloaded images are also cached in IndexedDB on the device, scoped to the
+signed-in Supabase user, with a 64 MB total device cache limit. This lets images
+already viewed on that device be reused after a reload without another storage
+download. Signed URLs remain in session storage for up to 50 minutes; signing
+out clears the URLs and in-memory object URLs. Browsers decide when to load off-screen images.
+Voice notes use `preload="none"` and documents use links, so their content is
+requested only on playback or opening. Printing all pages still downloads
+their full-size images. These changes do not impose an egress limit.
 
 New uploads have a one-year cache-control lifetime and use unique file paths.
 Files already downloaded may remain in a browser cache after access is revoked
@@ -58,8 +63,10 @@ images, comment attachments and voice notes upload directly to B2.
 Before deploying this integration:
 
 1. Create a **private** B2 bucket and a standard application key restricted to
-   that bucket with read, write and delete access. Do not use the account master
-   key.
+   that bucket with list, read, write and delete access (`listFiles`,
+   `readFiles`, `writeFiles`, `deleteFiles`). When restricting the key to one
+   bucket, also enable **Allow List All Bucket Names** for S3 SDK compatibility.
+   Do not use the account master key.
 2. Configure the bucket's S3 CORS rule to allow `GET`, `HEAD` and `PUT` from
    `https://hawaamish.github.io`, `http://127.0.0.1:5500`, and
    `http://localhost:5500`. Allow the `Content-Type`, `Cache-Control` and
@@ -68,6 +75,7 @@ Before deploying this integration:
 3. Store `B2_BUCKET`, `B2_ENDPOINT`, `B2_REGION`, `B2_KEY_ID`, and
    `B2_APPLICATION_KEY` as Supabase Edge Function secrets using the Supabase
    dashboard. Never put the application key in this repository or browser.
+   `B2_BUCKET` must be the bucket **name**, not its bucket ID.
    The endpoint is the S3 endpoint shown for the bucket, typically
    `https://s3.<region>.backblazeb2.com`.
 4. Deploy `supabase/functions/tracker-media` with `supabase functions deploy
