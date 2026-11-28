@@ -235,6 +235,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  <h1>📖 Page Review Tracker</h1>
  <div class="tools">
   <span id="live">Connecting…</span>
+  <span id="refreshStatus" role="status" hidden></span>
   <button class="btn presence-btn" id="presenceBtn" aria-haspopup="dialog">Online members: connecting…</button>
   <button class="btn" id="notificationsBtn" aria-haspopup="dialog" aria-label="Notifications">🔔 Notifications <span class="notification-badge" id="notificationBadge" hidden>0</span></button>
   <button class="btn pri" id="addBtn">＋ Add page</button>
@@ -251,6 +252,7 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   <button class="btn side-action" id="exp">⬇ Backup</button>
   <button class="btn side-action" id="impB">⬆ Import old backup</button>
   <button class="btn side-action" id="memB">👥 Members</button>
+  <button class="btn side-action" id="refreshMembers">↻ Refresh members</button>
  </div>
  <div class="side-section">Account</div>
  <button class="btn side-action" id="out">Sign out</button>
@@ -366,6 +368,7 @@ let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pag
 let loadVersion=0,pagesVersion=0,membersVersion=0,itemsVersion=0,notesVersion=0,pageCommentCountsVersion=0;
 let pageCommentCounts=null,pageCommentIds=null,pageCommentCountsError=false;
 let notifications=[],notificationsVersion=0,notificationsReady=false,notificationsError="";
+let refreshRevision=null,refreshPending=false,refreshSending=false,refreshTimer=null,refreshActions=0,refreshActivity=Date.now();
 const notificationSound=new Audio("assets/notification-tone.wav");
 notificationSound.preload="auto";
 let presenceUser="",presenceConnected=false,presenceReady=false,presenceError=false,presenceEpoch=0,presenceRunning=false,presenceSent="",presenceRetry=null;
@@ -474,8 +477,14 @@ async function enter(u){
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
  presenceUser=u.id;
  restoreMediaUrls(u.id);
+ const refreshView=restoreRefreshView(u.id);
+ if(refreshView){cur=refreshView.page;filter=refreshView.filter;$("q").value=refreshView.search}
  $("adminActions").hidden=!isAdmin;$("auth").style.display="none";$("app").style.display="";
  loadNotifications();await loadAll();draw(true);
+ if(refreshView){
+  if(mobile.matches&&refreshView.mobileDetail&&cur)showMobileDetail(cur);
+  $("main").scrollTop=refreshView.mainScroll;$("plist").scrollTop=refreshView.listScroll;window.scrollTo(0,refreshView.windowScroll)
+ }
  signedOut=false;connectLive();
 }
 /* realtime connection that heals itself */
@@ -493,20 +502,22 @@ function connectLive(){
   $("live").textContent=ok?"● Live":"Reconnecting…";
   presenceEpoch++;presenceConnected=ok;presenceReady=false;presenceError=s==="CHANNEL_ERROR"||s==="TIMED_OUT";presenceRunning=false;presenceSent="";
   clearTimeout(presenceRetry);presenceRetry=null;renderPresence();
-  if(ok){reconnectTries=0;publishPresence();scheduleSync({table:"all"})}
+  if(ok){reconnectTries=0;publishPresence();scheduleSync({table:"all"});checkRefreshRevision().catch(reportRefreshError)}
   else if(!reconnectT)reconnectT=setTimeout(connectLive,Math.min(15000,1000*2**reconnectTries++));
  });
 }
 function wake(){
  if(!me||signedOut||document.hidden)return;
  if(!presenceConnected)connectLive();
- else if(Date.now()-lastSync>fallbackSyncInterval)scheduleSync({table:"all"});
+ else if(Date.now()-lastSync>fallbackSyncInterval){scheduleSync({table:"all"});checkRefreshRevision().catch(reportRefreshError)}
 }
 document.addEventListener("visibilitychange",wake);
 window.addEventListener("online",()=>{reconnectTries=0;if(me&&!signedOut)connectLive()});
 window.addEventListener("focus",wake);
 // Reconcile periodically in case the socket silently stalls.
-setInterval(()=>{if(me&&!signedOut&&!document.hidden&&Date.now()-lastSync>fallbackSyncInterval)scheduleSync({table:"all"})},30000);
+setInterval(()=>{if(me&&!signedOut&&!document.hidden&&Date.now()-lastSync>fallbackSyncInterval){
+ scheduleSync({table:"all"});checkRefreshRevision().catch(reportRefreshError)
+}},30000);
 sb.auth.getSession().then(({data})=>data.session?enter(data.session.user):showAuth());
 sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_IN"&&s&&!me)setTimeout(()=>enter(s.user),0)});
 
@@ -602,6 +613,13 @@ function scheduleNotificationRecovery(change){
  notificationRecoveries.set(id,timer);
 }
 function receiveChange(change){
+ if(change.table==="tracker_refresh"){
+  if(change.eventType==="UPDATE"){
+   if(Number.isSafeInteger(change.new?.revision)&&change.new.revision>=0)observeRefreshRevision(change.new.revision,true);
+   else checkRefreshRevision(true).catch(reportRefreshError);
+  }
+  return;
+ }
  const row=change.eventType==="DELETE"?change.old:change.new;
  if(row&&row.id!=null)for(const pending of pendingWrites)if(pending.table===change.table)pending.ids.add(String(row.id));
  scheduleNotificationRecovery(change);
@@ -916,7 +934,7 @@ $("notificationPermission").onclick=async()=>{
  catch(er){toast("Couldn’t enable browser alerts: "+er.message)}
 };
 $("notificationSoundTest").onclick=playNotificationSound;
-$("notificationList").onclick=e=>{const b=e.target.closest("[data-notification]");if(b)openNotification(b.dataset.notification)};
+$("notificationList").onclick=async e=>{const b=e.target.closest("[data-notification]");if(b)await openNotification(b.dataset.notification)};
 async function openNotification(id){
  const notification=notifications.find(n=>String(n.id)===String(id));if(!notification)return;
  if(commentItem){toast("Close the current comment before opening a notification");return}
@@ -1300,9 +1318,9 @@ $("main").onclick=async e=>{
  if(d.x&&confirm("Remove this point and its notes?")){const ns=notes.filter(n=>n.item_id===d.x);const{error}=await sb.from("items").delete().eq("id",d.x);if(error)throw error;scheduleSync({table:"items",eventType:"DELETE",old:{id:d.x}});await rmFiles(notePaths(ns));return}
  if(d.th){openComments(d.th);return}
  if(t.id==="shot"){$("lbi").src=t.src;$("lb").style.display="block";pushMobileLayer("image",hideLightbox,showLightbox)}
- if(t.id==="newBtn")addOne();
- if(t.id==="bPrint")doPrint([p]);
- if(t.id==="bShare")share(p);
+ if(t.id==="newBtn")await addOne();
+ if(t.id==="bPrint")await doPrint([p]);
+ if(t.id==="bShare")await share(p);
  if(t.id==="bEdit")openModal(p);
  if(t.id==="bDel"&&confirm("Delete this page, its checklist and notes for everyone?")){
   const{data:ns,error:notesError}=await allRows(count=>sb.from("notes").select("id,voice_path,attachments",count?{count:"exact"}:undefined).eq("page_id",p.id).order("created_at").order("id"));if(notesError)throw notesError;
@@ -1333,7 +1351,7 @@ async function saveCheck(id,checked){
  }
 }
 $("main").oninput=e=>{if(e.target.dataset.t)grow(e.target)};
-$("main").onkeydown=e=>{if(e.target.id==="newIt"&&e.key==="Enter")addOne()};
+$("main").onkeydown=async e=>{if(e.target.id==="newIt"&&e.key==="Enter")await addOne()};
 async function addOne(){const v=$("newIt").value.trim();if(!v)return;$("newIt").value="";try{await addItems(cur,[v])}catch(er){fail(er)}$("newIt").focus()}
 function hideLightbox(){$("lb").style.display="none"}
 function showLightbox(){$("lb").style.display="block"}
@@ -1777,6 +1795,86 @@ $("memL").onclick=async e=>{if(!isAdmin){toast("Only admins can manage members")
 $("memAdd").onclick=async()=>{if(!isAdmin){toast("Only admins can manage members");return}const email=$("mmE").value.trim().toLowerCase();if(!email)return;
  const{error}=await sb.from("members").insert({email,name:$("mmN").value.trim(),role:$("mmR").value});if(error)return fail(error);
  $("mmE").value="";$("mmN").value="";await loadAll();drawMem();toast("Added "+email)};
+
+/* ---------- administrator refresh ---------- */
+function restoreRefreshView(userId){
+ try{
+  const key="tracker-refresh-view:"+userId,raw=sessionStorage.getItem(key);if(!raw)return null;
+  sessionStorage.removeItem(key);const view=JSON.parse(raw);
+  if((view.page!==null&&typeof view.page!=="string")||!["all","open","done"].includes(view.filter)||
+     typeof view.search!=="string"||typeof view.mobileDetail!=="boolean"||
+     ![view.mainScroll,view.listScroll,view.windowScroll].every(Number.isFinite))throw new Error("Invalid saved workspace");
+  return view;
+ }catch(er){console.error("Couldn’t restore workspace after refresh:",er);return null}
+}
+function refreshIsBusy(){
+ const active=document.activeElement;
+ if(signedOut||!me||refreshSending||refreshActions||rec||recStarting||commentSending||pageSaving||
+    pendingWrites.size||pendingChecks.size||document.querySelector(".modal.show")||
+    $("sidePanel").classList.contains("open")||$("lb").style.display==="block"||$("printArea").hasChildNodes()||
+    (active&&active.matches("input:not([type=checkbox]),textarea,select,[contenteditable=true]"))||
+    [...document.querySelectorAll("audio")].some(audio=>!audio.paused))return true;
+ if($("newIt")?.value||$("mmE").value||$("mmN").value)return true;
+ if(Object.values(pend).some(d=>d.text||d.replyTo||d.files.length||d.voices.length))return true;
+ return [...document.querySelectorAll("textarea[data-t]")].some(field=>{
+  const item=itemsById.get(field.dataset.t);return !item||field.value!==(item.text||"");
+ });
+}
+function tryMemberRefresh(){
+ refreshTimer=null;if(!refreshPending||signedOut)return;
+ if(refreshIsBusy()||Date.now()-refreshActivity<2000){
+  $("refreshStatus").textContent="Update waiting: finish or clear drafts and close open dialogs.";
+  refreshTimer=setTimeout(tryMemberRefresh,1000);return;
+ }
+ try{
+  sessionStorage.setItem("tracker-refresh-view:"+presenceUser,JSON.stringify({
+   page:cur,filter,search:$("q").value,mobileDetail:document.body.classList.contains("mobile-detail"),
+   mainScroll:$("main").scrollTop,listScroll:$("plist").scrollTop,windowScroll:window.scrollY
+  }));
+  const url=new URL(location.href);url.searchParams.set("tracker_refresh",String(refreshRevision));
+  location.replace(url.href);
+ }catch(er){
+  refreshPending=false;console.error("Couldn’t preserve workspace for refresh:",er);
+  $("refreshStatus").textContent="Couldn’t refresh safely. Save your work and reload manually.";
+ }
+}
+function observeRefreshRevision(revision,fromEvent=false){
+ if(!Number.isSafeInteger(revision)||revision<0)throw new Error("Invalid tracker refresh revision");
+ if(refreshRevision!==null&&revision<=refreshRevision)return;
+ const previous=refreshRevision;refreshRevision=revision;
+ if(previous!==null||fromEvent){
+  refreshPending=true;$("refreshStatus").hidden=false;
+  $("refreshStatus").textContent="An admin requested an update.";
+  if(!refreshTimer)refreshTimer=setTimeout(tryMemberRefresh,0);
+ }
+}
+async function checkRefreshRevision(fromEvent=false){
+ const{data,error}=await sb.from("tracker_refresh").select("revision").eq("id",true).single();
+ if(error)throw error;
+ if(!data)throw new Error("Tracker refresh configuration is missing");
+ observeRefreshRevision(data.revision,fromEvent);
+}
+function reportRefreshError(er){
+ console.error("Couldn’t check tracker refresh:",er);
+ if(isAdmin)toast("Refresh unavailable: "+er.message+". Run tracker-refresh.sql in Supabase.");
+}
+$("refreshMembers").onclick=async()=>{
+ if(!isAdmin){toast("Only admins can request a refresh");return}
+ if(refreshSending||!confirm("Refresh all connected members when their work is safe?"))return;
+ refreshSending=true;$("refreshMembers").disabled=true;
+ try{
+  const{data,error}=await sb.rpc("request_tracker_refresh");if(error)throw error;
+  observeRefreshRevision(data,true);setSideOpen(false);
+  toast("Refresh requested. Members will reload when their work is safe.");
+ }catch(er){toast("Couldn’t request refresh: "+er.message)}
+ finally{refreshSending=false;$("refreshMembers").disabled=false}
+};
+for(const event of ["pointerdown","keydown","input","scroll"])window.addEventListener(event,()=>{refreshActivity=Date.now()},true);
+for(const [id,event] of [["main","onclick"],["main","onchange"],["main","onkeydown"],["commentThread","onclick"],["commentSend","onclick"],
+ ["mOk","onclick"],["impF","onchange"],["exp","onclick"],["memL","onclick"],["memAdd","onclick"],["notificationList","onclick"]]){
+ const element=$(id),handler=element[event];
+ element[event]=async function(e){refreshActions++;try{return await handler.call(this,e)}finally{refreshActions--}};
+}
 </script>
 </body>
 </html>

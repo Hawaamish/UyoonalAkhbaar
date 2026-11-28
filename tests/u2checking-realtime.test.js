@@ -278,10 +278,11 @@ test("reconnect schedules a full reconciliation", () => {
     sb: { channel: () => channel, removeChannel() {} },
     $: () => ({}), clearTimeout() {}, setInterval() {}, renderPresence() {}, publishPresence() {},
     scheduleSync: change => calls.push(change.table), receiveChange() {},
+    checkRefreshRevision: async () => calls.push("refresh check"), reportRefreshError() {},
   });
   vm.runInContext(connection, context);
   context.connectLive();
-  assert.deepEqual(calls, ["all"]);
+  assert.deepEqual(calls, ["all", "refresh check"]);
 });
 
 test("fallback polling and focus avoid frequent full reloads while retaining recovery", () => {
@@ -293,7 +294,8 @@ test("fallback polling and focus avoid frequent full reloads while retaining rec
     window: { addEventListener: (event, fn) => { listeners[event] = fn; } },
     me: "member@example.com", presenceConnected: true,
     setInterval: (fn, delay) => { poll = fn; assert.ok(delay <= 30000); },
-    scheduleSync: change => calls.push(change.table),
+    scheduleSync: change => calls.push(change.table), checkRefreshRevision: async () => calls.push("refresh check"),
+    reportRefreshError() {},
   });
   vm.runInContext(connection, context);
   now = 20000;
@@ -305,8 +307,157 @@ test("fallback polling and focus avoid frequent full reloads while retaining rec
   assert.deepEqual(calls, []);
   context.document.hidden = false;
   listeners.visibilitychange();
-  assert.deepEqual(calls, ["all"]);
+  assert.deepEqual(calls, ["all", "refresh check"]);
   calls.length = 0;
   poll();
-  assert.deepEqual(calls, ["all"]);
+  assert.deepEqual(calls, ["all", "refresh check"]);
+});
+
+function refreshTracker() {
+  const saved = new Map(), calls = [], timers = [];
+  const elements = {
+    refreshStatus: {}, refreshMembers: {}, q: { value: "chapter" },
+    sidePanel: { classList: { contains: () => false } }, lb: { style: {} },
+    printArea: { hasChildNodes: () => false }, newIt: { value: "" }, mmE: { value: "" }, mmN: { value: "" },
+    main: { scrollTop: 140 }, plist: { scrollTop: 90 },
+  };
+  const document = {
+    activeElement: null, body: { classList: { contains: () => true } },
+    querySelector: () => null, querySelectorAll: () => [],
+  };
+  const context = vm.createContext({
+    refreshRevision: null, refreshPending: false, refreshSending: false, refreshActions: 0,
+    refreshTimer: null, refreshActivity: 0, signedOut: false, me: "member@example.com",
+    rec: null, recStarting: false, commentSending: false, pageSaving: false,
+    pendingWrites: new Set(), pendingChecks: new Map(), pend: {}, itemsById: new Map(),
+    cur: "page-1", filter: "open", presenceUser: "user-1", document, window: { scrollY: 210 },
+    $: id => elements[id] || null, URL, Date: { now: () => 3000 }, console,
+    sessionStorage: {
+      getItem: key => saved.get(key), setItem: (key, value) => saved.set(key, value),
+      removeItem: key => saved.delete(key),
+    },
+    location: { href: "https://example.test/tracker.html", replace: url => calls.push(url) },
+    setTimeout: callback => { timers.push(callback); return timers.length; },
+  });
+  const start = html.indexOf("function restoreRefreshView("), end = html.indexOf('$("refreshMembers").onclick=');
+  vm.runInContext(html.slice(start, end), context);
+  return { context, elements, document, saved, calls, timers };
+}
+
+test("refresh revisions reload once and preserve the current workspace", () => {
+  const { context: c, calls, timers } = refreshTracker();
+  c.observeRefreshRevision(4);
+  assert.equal(timers.length, 0);
+  c.observeRefreshRevision(5, true);
+  c.observeRefreshRevision(5, true);
+  c.observeRefreshRevision(4);
+  assert.equal(timers.length, 1);
+  timers[0]();
+  assert.equal(calls.length, 1);
+  assert.equal(new URL(calls[0]).searchParams.get("tracker_refresh"), "5");
+  const view = c.restoreRefreshView("user-1");
+  assert.equal(view.page, "page-1");
+  assert.equal(view.filter, "open");
+  assert.equal(view.search, "chapter");
+  assert.equal(view.mainScroll, 140);
+  assert.equal(view.listScroll, 90);
+  assert.equal(view.windowScroll, 210);
+  assert.equal(c.restoreRefreshView("user-1"), null);
+});
+
+test("refresh waits for drafts, recordings, edits, dialogs and in-flight writes", () => {
+  const { context: c, document, elements, calls } = refreshTracker();
+  c.observeRefreshRevision(1, true);
+  const draft = { text: "unsent", files: [], voices: [] };
+  c.pend.x = draft;
+  c.tryMemberRefresh();
+  assert.equal(calls.length, 0);
+  draft.text = ""; draft.voices.push({});
+  assert.equal(c.refreshIsBusy(), true);
+  draft.voices.length = 0;
+  c.rec = {};
+  assert.equal(c.refreshIsBusy(), true);
+  c.rec = null;
+  c.pendingWrites.add({});
+  assert.equal(c.refreshIsBusy(), true);
+  c.pendingWrites.clear();
+  c.refreshActions = 1;
+  assert.equal(c.refreshIsBusy(), true);
+  c.refreshActions = 0;
+  elements.newIt.value = "unsaved";
+  assert.equal(c.refreshIsBusy(), true);
+  elements.newIt.value = "";
+  document.querySelector = () => ({});
+  assert.equal(c.refreshIsBusy(), true);
+  document.querySelector = () => null;
+  document.querySelectorAll = selector => selector === "textarea[data-t]" ?
+    [{ dataset: { t: "i1" }, value: "edited" }] : [];
+  c.itemsById.set("i1", { text: "saved" });
+  assert.equal(c.refreshIsBusy(), true);
+  c.itemsById.get("i1").text = "edited";
+  assert.equal(c.refreshIsBusy(), false);
+  c.tryMemberRefresh();
+  assert.equal(calls.length, 1);
+});
+
+test("reconnect catches missed refreshes without reloading on the initial baseline", async () => {
+  const { context: c, timers } = refreshTracker();
+  let revision = 2;
+  c.sb = { from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { revision }, error: null }) }) }) }) };
+  await c.checkRefreshRevision();
+  assert.equal(timers.length, 0);
+  revision = 3;
+  await c.checkRefreshRevision();
+  assert.equal(timers.length, 1);
+  assert.equal(c.refreshPending, true);
+});
+
+test("refresh does not reload if workspace storage fails", () => {
+  const { context: c, elements, calls } = refreshTracker();
+  c.sessionStorage.setItem = () => { throw new Error("storage unavailable"); };
+  c.console = { error() {} };
+  c.observeRefreshRevision(1, true);
+  c.tryMemberRefresh();
+  assert.equal(calls.length, 0);
+  assert.match(elements.refreshStatus.textContent, /reload manually/);
+});
+
+test("adding a point with Enter keeps refresh blocked until the save finishes", async () => {
+  const { context: c, elements } = refreshTracker();
+  let finish;
+  c.addOne = () => new Promise(resolve => { finish = resolve; });
+  c.window.addEventListener = () => {};
+  for (const id of ["commentThread", "commentSend", "mOk", "impF", "exp", "memL", "memAdd", "notificationList"]) {
+    elements[id] = {};
+  }
+  const keyStart = html.indexOf('$("main").onkeydown='), keyEnd = html.indexOf("async function addOne()", keyStart);
+  vm.runInContext(html.slice(keyStart, keyEnd), c);
+  const wrapStart = html.indexOf('for(const [id,event] of [["main","onclick"]');
+  vm.runInContext(html.slice(wrapStart, html.indexOf("</script>", wrapStart)), c);
+  const action = elements.main.onkeydown({ target: { id: "newIt" }, key: "Enter" });
+  assert.equal(c.refreshIsBusy(), true);
+  finish();
+  await action;
+  assert.equal(c.refreshIsBusy(), false);
+});
+
+test("admin refresh checks authorization and reports request failures", async () => {
+  const { context: c, elements, calls } = refreshTracker();
+  const messages = [];
+  c.isAdmin = false; c.confirm = () => true; c.toast = message => messages.push(message);
+  c.setSideOpen = () => calls.push("closed");
+  c.sb = { rpc: async () => ({ data: null, error: new Error("offline") }) };
+  const start = html.indexOf('$("refreshMembers").onclick='), end = html.indexOf('for(const event of ["pointerdown"', start);
+  vm.runInContext(html.slice(start, end), c);
+  await elements.refreshMembers.onclick();
+  assert.match(messages.pop(), /Only admins/);
+  c.isAdmin = true;
+  await elements.refreshMembers.onclick();
+  assert.match(messages.pop(), /offline/);
+  assert.equal(c.refreshPending, false);
+  c.sb.rpc = async () => ({ data: 6, error: null });
+  await elements.refreshMembers.onclick();
+  assert.equal(c.refreshPending, true);
+  assert.equal(c.refreshSending, false);
+  assert.ok(calls.includes("closed"));
 });
