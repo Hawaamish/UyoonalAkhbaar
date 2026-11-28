@@ -8,9 +8,27 @@ already within the limit are kept. Transparency is retained.
 
 Animated GIF, PNG, WebP, and AVIF files remain unchanged to preserve their
 animation. SVG, HEIC, HEIF, and JPEG XL are also kept unchanged because they
-may contain animation. Existing uploaded images are not modified. If an image
+may contain animation. If an image
 cannot be read or processed, the save or send fails with an error so the user
 can retry.
+
+The optional admin maintenance script
+[`tracker-optimize-media.js`](../scripts/tracker-optimize-media.js) can create
+smaller, full-resolution copies of existing page and comment images. It
+downloads the originals once, retains them in Storage, and updates a reference
+only if it still matches the value read before processing. Images that do not
+become smaller are left alone. The copies use lossy WebP at quality 0.68 when
+available. Page copy filenames start with `optimized-v1-` followed by the
+original filename encoded as unpadded base64url, a dot, and a unique suffix. Comment
+attachments keep their previous path in `original_path`. These records let an
+admin identify and restore originals if needed. If a database update fails after
+upload, an unused optimized copy may remain in Storage; the original is not
+deleted. Retaining originals increases storage use, and one-time processing
+uses additional egress. This script does not convert voice notes.
+To run it again, load its contents in an authenticated tracker admin browser
+session and call `optimizeTrackerMedia({sb, bucket:B, shrink, uuid,
+imageExtension, allRows, isAdmin})`. It requires the existing database and
+Storage write permissions and stops on an error or concurrent edit.
 
 Page-list and comment images load lazily, so the browser can defer off-screen
 downloads. Voice notes are not preloaded before playback. Browsers decide when

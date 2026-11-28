@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const { optimizeTrackerMedia } = require("../scripts/tracker-optimize-media.js");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "u2checking.html"), "utf8");
 const source = html.slice(html.indexOf("async function isAnimatedImage("), html.indexOf("async function shrink("));
@@ -183,4 +184,69 @@ test("print media is removed after printing so redraws cannot reload it", () => 
   vm.runInContext(html.slice(html.indexOf("window.addEventListener(\"afterprint\""), html.indexOf('$("printAll").onclick=')), ctx);
   handlers.afterprint();
   assert.equal(printArea.innerHTML, "");
+});
+
+test("existing image optimization preserves original paths and conditionally updates references", async () => {
+  const updates = [], uploads = [];
+  const tables = {
+    pages: [{ id: "p1", image_path: "pages/p1/original.jpg" }],
+    notes: [{ id: "n1", attachments: [{ path: "notes/p1/original.png", type: "image/png", name: "original.png" }] }],
+  };
+  const sb = {
+    storage: { from: () => ({
+      download: async () => ({ data: new Blob(["0123456789"], { type: "application/octet-stream" }), error: null }),
+      upload: async (name, blob, options) => { uploads.push({ name, blob, options }); return { error: null }; },
+    }) },
+    from: table => ({
+      select: () => ({ table, order() { return this; } }),
+      update: values => {
+        const conditions = [];
+        return { eq(key, value) { conditions.push([key, value]); return this; },
+          select() { return this; },
+          async maybeSingle() { updates.push({ table, values, conditions }); return { data: { id: "ok" }, error: null }; } };
+      },
+    }),
+  };
+  const result = await optimizeTrackerMedia({
+    sb, bucket: "tracker-files", isAdmin: true, uuid: () => "new",
+    shrink: async (_blob, max) => { assert.equal(max, Infinity); return new Blob(["123"], { type: "image/webp" }); },
+    imageExtension: () => "webp",
+    allRows: async query => ({ data: tables[query(true).table], error: null }),
+  });
+  assert.equal(result.pages, 1);
+  assert.equal(result.attachments, 1);
+  assert.equal(result.originalBytes, 20);
+  assert.equal(result.optimizedBytes, 6);
+  assert.equal(uploads.length, 2);
+  assert.equal(uploads[0].options.upsert, false);
+  assert.deepEqual(updates[0].conditions, [["id", "p1"], ["image_path", "pages/p1/original.jpg"]]);
+  assert.match(updates[0].values.image_path, /^pages\/p1\/optimized-v1-b3JpZ2luYWwuanBn\.new\.webp$/);
+  assert.equal(updates[1].values.attachments[0].original_path, "notes/p1/original.png");
+  assert.equal(updates[1].conditions[1][1], JSON.stringify(tables.notes[0].attachments));
+});
+
+test("existing media optimization skips larger copies and stops on concurrent edits", async () => {
+  let uploads = 0, updates = 0;
+  const sb = {
+    storage: { from: () => ({
+      download: async () => ({ data: new Blob(["small"], { type: "image/jpeg" }), error: null }),
+      upload: async () => { uploads++; return { error: null }; },
+    }) },
+    from: () => ({
+      select: () => ({ order() { return this; } }),
+      update: () => ({ eq() { return this; }, select() { return this; },
+        async maybeSingle() { updates++; return { data: null, error: null }; } }),
+    }),
+  };
+  const options = {
+    sb, bucket: "tracker-files", isAdmin: true, uuid: () => "new", imageExtension: () => "webp",
+    allRows: async query => { query(true); return { data: [{ id: "p1", image_path: "pages/p1/image.jpg" }], error: null }; },
+  };
+  await assert.rejects(optimizeTrackerMedia({ ...options, isAdmin: false }), /Only tracker admins/);
+  const skipped = await optimizeTrackerMedia({ ...options, shrink: async () => new Blob(["not smaller"], { type: "image/webp" }) });
+  assert.equal(skipped.skipped, 1);
+  assert.equal(uploads, 0);
+  await assert.rejects(optimizeTrackerMedia({ ...options, shrink: async () => new Blob(["x"], { type: "image/webp" }) }), /changed during optimization/);
+  assert.equal(uploads, 1);
+  assert.equal(updates, 1);
 });
