@@ -328,6 +328,7 @@ function refreshTracker() {
   const context = vm.createContext({
     refreshRevision: null, refreshPending: false, refreshSending: false, refreshActions: 0,
     refreshTimer: null, refreshActivity: 0, signedOut: false, me: "member@example.com",
+    mediaMigrationRunning: false,
     rec: null, recStarting: false, commentSending: false, pageSaving: false,
     pendingWrites: new Set(), pendingChecks: new Map(), pend: {}, itemsById: new Map(),
     cur: "page-1", filter: "open", presenceUser: "user-1", document, window: { scrollY: 210 },
@@ -427,9 +428,12 @@ test("adding a point with Enter keeps refresh blocked until the save finishes", 
   let finish;
   c.addOne = () => new Promise(resolve => { finish = resolve; });
   c.window.addEventListener = () => {};
-  for (const id of ["commentThread", "commentSend", "mOk", "impF", "exp", "memL", "memAdd", "notificationList"]) {
+  for (const id of ["main", "migrateMedia", "commentThread", "commentSend", "mOk", "impF", "exp", "memL", "memAdd", "notificationList"]) {
     elements[id] = {};
   }
+  elements.main.onkeydown = async () => {};
+  elements.main.onchange = async () => {};
+  elements.main.onclick = async () => {};
   const keyStart = html.indexOf('$("main").onkeydown='), keyEnd = html.indexOf("async function addOne()", keyStart);
   vm.runInContext(html.slice(keyStart, keyEnd), c);
   const wrapStart = html.indexOf('for(const [id,event] of [["main","onclick"]');

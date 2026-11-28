@@ -253,6 +253,8 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
   <button class="btn side-action" id="impB">⬆ Import old backup</button>
   <button class="btn side-action" id="memB">👥 Members</button>
   <button class="btn side-action" id="refreshMembers">↻ Refresh members</button>
+  <button class="btn side-action" id="migrateMedia">Move media to Backblaze</button>
+  <small id="backblazeStatus" role="status" hidden></small>
  </div>
  <div class="side-section">Account</div>
  <button class="btn side-action" id="out">Sign out</button>
@@ -359,8 +361,10 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 <div id="printArea"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="scripts/tracker-migrate-backblaze.js"></script>
 <script>
 const SUPABASE_URL="https://eixqwdctohiosypozrhd.supabase.co",SUPABASE_KEY="sb_publishable_L3bI6hCA99uZMkPutEk_tQ_6LxZCnWI",B="tracker-files";
+const B2_PREFIX="b2:";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let me="",isAdmin=false,members=[],pages=[],items=[],notes=[],cur=null,notesFor=null,filter="all",editId=null,tmpBlob=null,tmpUrl=null;
 let pend={},rec=null,recFor=null,recT=null,dirty=false,syncT=null,chan=null;
@@ -368,7 +372,7 @@ let commentItem=null,commentPage=null,commentSending=false,recStarting=false,pag
 let loadVersion=0,pagesVersion=0,membersVersion=0,itemsVersion=0,notesVersion=0,pageCommentCountsVersion=0;
 let pageCommentCounts=null,pageCommentIds=null,pageCommentCountsError=false;
 let notifications=[],notificationsVersion=0,notificationsReady=false,notificationsError="";
-let refreshRevision=null,refreshPending=false,refreshSending=false,refreshTimer=null,refreshActions=0,refreshActivity=Date.now();
+let refreshRevision=null,refreshPending=false,refreshSending=false,refreshTimer=null,refreshActions=0,refreshActivity=Date.now(),mediaMigrationRunning=false;
 const notificationSound=new Audio("assets/notification-tone.wav");
 notificationSound.preload="auto";
 let presenceUser="",presenceConnected=false,presenceReady=false,presenceError=false,presenceEpoch=0,presenceRunning=false,presenceSent="",presenceRetry=null;
@@ -970,8 +974,14 @@ function restoreMediaUrls(userId){
  try{
   const saved=JSON.parse(sessionStorage.getItem(mediaCacheKey)||"{}");
   for(const [path,entry] of Object.entries(saved)){
-   if(entry&&typeof entry.u==="string"&&entry.u.startsWith(SUPABASE_URL+"/storage/v1/object/sign/"+B+"/")&&
-      typeof entry.t==="number"&&entry.t>Date.now())urlC[path]=entry;
+   if(entry&&typeof entry.u==="string"&&typeof entry.t==="number"&&entry.t>Date.now()){
+    const url=new URL(entry.u);
+    const supabaseUrl=url.href.startsWith(SUPABASE_URL+"/storage/v1/object/sign/"+B+"/");
+    const b2Path=path.startsWith(B2_PREFIX)?path.slice(B2_PREFIX.length):"";
+    const b2Url=/^s3\.[a-z0-9-]+\.backblazeb2\.com$/.test(url.hostname)&&url.protocol==="https:"&&
+     decodeURIComponent(url.pathname.slice(url.pathname.indexOf("/",1)+1))===b2Path;
+    if(supabaseUrl||b2Url)urlC[path]=entry;
+   }
   }
  }catch(er){console.warn("Couldn’t restore cached media URLs:",er)}
 }
@@ -998,8 +1008,23 @@ async function hydrate(){
    fresh.forEach(p=>delete urlC[p]);
    const request=(async()=>{
     try{
-     const{data,error}=await sb.storage.from(B).createSignedUrls(fresh,3600);if(error)throw error;
-     (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});saveMediaUrls();return null;
+     const legacy=fresh.filter(path=>!path.startsWith(B2_PREFIX));
+     const backblaze=fresh.filter(path=>path.startsWith(B2_PREFIX));
+     if(legacy.length){
+      const{data,error}=await sb.storage.from(B).createSignedUrls(legacy,3600);if(error)throw error;
+      (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});
+     }
+     for(let i=0;i<backblaze.length;i+=50){
+      const batch=backblaze.slice(i,i+50),{data,error}=await sb.functions.invoke("tracker-media",{
+       body:{action:"sign-download",paths:batch.map(path=>path.slice(B2_PREFIX.length))}
+      });
+      if(error)throw error;
+      if(!Array.isArray(data?.urls))throw new Error("Backblaze returned no signed media URLs");
+      const signed=new Set(data.urls.map(x=>x.path));
+      if(batch.some(path=>!signed.has(path.slice(B2_PREFIX.length))))throw new Error("Backblaze did not sign every requested media file");
+      data.urls.forEach(x=>{if(x.url)urlC[B2_PREFIX+x.path]={u:x.url,t:Date.now()+3000000}});
+     }
+     saveMediaUrls();return null;
     }catch(er){return er}
    })();
    fresh.forEach(p=>urlPending.set(p,request));
@@ -1012,8 +1037,25 @@ async function hydrate(){
  els.forEach(e=>{const c=urlC[e.dataset.p];if(!e.isConnected||!c||loadedImage(e))return;const k=e.tagName==="A"?"href":"src";
   if(e.getAttribute(k)!==c.u){e.setAttribute(k,c.u);if(e.tagName==="AUDIO"&&e.nextElementSibling?.classList.contains("voice-error"))e.nextElementSibling.remove()}});
 }
-async function up(path,blob,type){const{error}=await sb.storage.from(B).upload(path,blob,{contentType:(type||blob.type||"application/octet-stream").split(";")[0],cacheControl:"31536000",upsert:false});if(error)throw error;return path}
-async function rmFiles(paths){paths=paths.filter(Boolean);if(paths.length){const{error}=await sb.storage.from(B).remove(paths);if(error)throw error}}
+async function up(path,blob,type){
+ const contentType=(type||blob.type||"application/octet-stream").split(";")[0];
+ const{data,error}=await sb.functions.invoke("tracker-media",{body:{action:"sign-upload",path,contentType,size:blob.size}});
+ if(error)throw error;if(data?.exists)throw new Error("A media file already exists at "+path);
+ if(typeof data?.url!=="string")throw new Error("Backblaze returned no upload URL");
+ const response=await fetch(data.url,{method:"PUT",headers:{"Content-Type":contentType,"Cache-Control":"private, max-age=31536000, immutable"},body:blob});
+ if(!response.ok)throw new Error("Couldn’t upload media to Backblaze (HTTP "+response.status+")");
+ return B2_PREFIX+path;
+}
+async function rmFiles(paths){
+ paths=paths.filter(Boolean);if(!paths.length)return;
+ const backblaze=paths.filter(path=>path.startsWith(B2_PREFIX)).map(path=>path.slice(B2_PREFIX.length));
+ const legacy=paths.filter(path=>!path.startsWith(B2_PREFIX));
+ for(let i=0;i<backblaze.length;i+=100){
+  const{error}=await sb.functions.invoke("tracker-media",{body:{action:"delete",paths:backblaze.slice(i,i+100)}});
+  if(error)throw error;
+ }
+ if(legacy.length){const{error}=await sb.storage.from(B).remove(legacy);if(error)throw error}
+}
 const notePaths=ns=>ns.flatMap(n=>[n.voice_path,...(n.attachments||[]).map(a=>a.path)]);
 
 /* ---------- parse + image ---------- */
@@ -1796,6 +1838,30 @@ $("memAdd").onclick=async()=>{if(!isAdmin){toast("Only admins can manage members
  const{error}=await sb.from("members").insert({email,name:$("mmN").value.trim(),role:$("mmR").value});if(error)return fail(error);
  $("mmE").value="";$("mmN").value="";await loadAll();drawMem();toast("Added "+email)};
 
+/* ---------- Backblaze migration ---------- */
+$("migrateMedia").onclick=async()=>{
+ if(!isAdmin){toast("Only admins can migrate media");return}
+ if(mediaMigrationRunning||!confirm("Copy every file in Supabase Storage to Backblaze and switch active tracker references? Supabase originals will be kept."))return;
+ mediaMigrationRunning=true;$("migrateMedia").disabled=true;$("backblazeStatus").hidden=false;
+ try{
+  const result=await window.migrateTrackerMediaToBackblaze({
+   sb,bucket:B,allRows,isAdmin,
+   onProgress:progress=>{
+    $("backblazeStatus").textContent=progress.stage==="copy"
+     ?"Copying "+(progress.completed+1)+" of "+progress.total+" files to Backblaze…"
+     :progress.stage==="references"?"Updating media references "+(progress.completed+1)+" of "+progress.total+"…"
+     :"Backblaze migration complete.";
+   }
+  });
+  $("backblazeStatus").textContent="Copied "+result.files+" files; updated "+result.updated+" references. Supabase originals retained.";
+  toast("Media now loads from Backblaze. Supabase originals were kept.");
+ }catch(er){
+  console.error("Backblaze migration failed:",er);
+  $("backblazeStatus").textContent="Migration stopped: "+er.message+". You can retry safely.";
+  toast("Backblaze migration stopped: "+er.message);
+ }finally{mediaMigrationRunning=false;$("migrateMedia").disabled=false}
+};
+
 /* ---------- administrator refresh ---------- */
 function restoreRefreshView(userId){
  try{
@@ -1809,7 +1875,7 @@ function restoreRefreshView(userId){
 }
 function refreshIsBusy(){
  const active=document.activeElement;
- if(signedOut||!me||refreshSending||refreshActions||rec||recStarting||commentSending||pageSaving||
+ if(signedOut||!me||refreshSending||refreshActions||mediaMigrationRunning||rec||recStarting||commentSending||pageSaving||
     pendingWrites.size||pendingChecks.size||document.querySelector(".modal.show")||
     $("sidePanel").classList.contains("open")||$("lb").style.display==="block"||$("printArea").hasChildNodes()||
     (active&&active.matches("input:not([type=checkbox]),textarea,select,[contenteditable=true]"))||
@@ -1870,7 +1936,7 @@ $("refreshMembers").onclick=async()=>{
  finally{refreshSending=false;$("refreshMembers").disabled=false}
 };
 for(const event of ["pointerdown","keydown","input","scroll"])window.addEventListener(event,()=>{refreshActivity=Date.now()},true);
-for(const [id,event] of [["main","onclick"],["main","onchange"],["main","onkeydown"],["commentThread","onclick"],["commentSend","onclick"],
+for(const [id,event] of [["main","onclick"],["main","onchange"],["main","onkeydown"],["commentThread","onclick"],["commentSend","onclick"],["migrateMedia","onclick"],
  ["mOk","onclick"],["impF","onchange"],["exp","onclick"],["memL","onclick"],["memAdd","onclick"],["notificationList","onclick"]]){
  const element=$(id),handler=element[event];
  element[event]=async function(e){refreshActions++;try{return await handler.call(this,e)}finally{refreshActions--}};

@@ -1,0 +1,4 @@
+project_id = "eixqwdctohiosypozrhd"
+
+[functions.tracker-media]
+verify_jwt = true
