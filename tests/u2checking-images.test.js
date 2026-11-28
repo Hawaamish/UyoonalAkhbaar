@@ -71,7 +71,6 @@ test("page thumbnails use stable sibling paths and can fall back for unsupported
   const context = vm.createContext({ thumbnailUnavailable: new Set() });
   vm.runInContext(html.slice(html.indexOf("function pageThumbnailStoragePath("), html.indexOf("async function makePageThumbnail(")), context);
   assert.equal(context.pageThumbnailPath("pages/p1/image.webp"), "pages/p1/image.webp.thumb-240-v1");
-  assert.equal(context.pageThumbnailPath("b2:pages/p1/image.jpg"), "b2:pages/p1/image.jpg.thumb-240-v1");
   assert.equal(context.pageThumbnailPath("pages/p1/image.svg"), "pages/p1/image.svg");
   context.thumbnailUnavailable.add("pages/p1/image.webp");
   assert.equal(context.pageThumbnailPath("pages/p1/image.webp"), "pages/p1/image.webp");
@@ -134,10 +133,10 @@ test("page thumbnails are resized to 240 pixels and encoded as WebP", async () =
 });
 
 test("the first missing page thumbnail is generated from the source and uploaded once", async () => {
-  const uploaded = [], messages = [], source = "b2:pages/p1/image.webp", thumbPath = source + ".thumb-240-v1";
+  const uploaded = [], messages = [], source = "pages/p1/image.webp", thumbPath = source + ".thumb-240-v1";
   const urls = { [thumbPath]: "https://signed.test/thumb", [source]: "https://signed.test/source" };
   const context = vm.createContext({
-    B2_PREFIX: "b2:", imageCacheUser: "user-1", imageBlobCache: new Map(), imageObjectUrls: new Map(),
+    imageCacheUser: "user-1", imageBlobCache: new Map(), imageObjectUrls: new Map(),
     thumbnailPending: new Map(), thumbnailUnavailable: new Set(), thumbnailWarningShown: false, urlC: {},
     pageThumbnailStoragePath: path => path + ".thumb-240-v1",
     getCachedImage: async () => null,
@@ -172,14 +171,14 @@ test("new page image uploads include the thumbnail beside the full image", async
   const context = vm.createContext({
     uuid: () => "image-id", imageExtension: () => "webp", thumbnailUnavailable: new Set(),
     pageThumbnailStoragePath: path => path + ".thumb-240-v1",
-    up: async (path, blob, type) => { uploads.push({ path, blob, type }); return "b2:" + path; },
+    up: async (path, blob, type) => { uploads.push({ path, blob, type }); return path; },
     makePageThumbnail: async () => new Blob(["small"], { type: "image/webp" }),
     optionalCacheImage: async () => {},
     rmFiles: async () => {},
   });
   vm.runInContext(html.slice(html.indexOf("async function uploadPageImage("), html.indexOf("async function addItems(")), context);
   const result = await context.uploadPageImage("p1", { type: "image/webp", size: 100 });
-  assert.equal(result, "b2:pages/p1/image-id.webp");
+  assert.equal(result, "pages/p1/image-id.webp");
   assert.deepEqual(uploads.map(upload => upload.path), [
     "pages/p1/image-id.webp", "pages/p1/image-id.webp.thumb-240-v1",
   ]);
@@ -235,7 +234,7 @@ test("local image cache persists by signed-in user across reloads", async () => 
     };
     const context = vm.createContext({
       indexedDB, Date, URL: { createObjectURL: () => "blob:cached", revokeObjectURL() {} },
-      SUPABASE_URL: "https://example.test", B: "tracker-files", B2_PREFIX: "b2:",
+      SUPABASE_URL: "https://example.test", B: "tracker-files",
       urlC: {}, urlPending: new Map(), document: { querySelectorAll: () => [image] },
       sb: { storage: { from: () => ({ createSignedUrls: async () => {
         downloadRequests++; return { data: [], error: null };
@@ -260,25 +259,22 @@ test("local image cache persists by signed-in user across reloads", async () => 
   assert.equal(await reloaded.context.getCachedImage("pages/p1/image.webp"), null);
 });
 
-test("new media uploads use short-lived authorized Backblaze upload URLs", async () => {
-  let call, request;
+test("new media uploads use Supabase Storage with one-year caching and unique paths", async () => {
+  let call;
   const ctx = vm.createContext({
-    B2_PREFIX: "b2:",
-    sb: { functions: { invoke: async (name, options) => {
-      call = { name, options }; return { data: { url: "https://s3.us-west-004.backblazeb2.com/upload" }, error: null };
-    } } },
-    fetch: async (url, options) => { request = { url, options }; return { ok: true }; },
+    B: "tracker-files",
+    sb: { storage: { from: bucket => ({ upload: async (path, blob, options) => {
+      call = { bucket, path, blob, options }; return { error: null };
+    } }) } },
   });
   vm.runInContext(html.slice(html.indexOf("async function up("), html.indexOf("async function rmFiles(")), ctx);
   const result = await ctx.up("pages/new.webp", { type: "image/webp", size: 20 }, "image/webp");
-  assert.equal(call.name, "tracker-media");
-  assert.deepEqual(JSON.parse(JSON.stringify(call.options.body)), {
-    action: "sign-upload", path: "pages/new.webp", contentType: "image/webp", size: 20,
-  });
-  assert.equal(request.url, "https://s3.us-west-004.backblazeb2.com/upload");
-  assert.equal(request.options.method, "PUT");
-  assert.equal(request.options.headers["Cache-Control"], "private, max-age=31536000, immutable");
-  assert.equal(result, "b2:pages/new.webp");
+  assert.equal(call.bucket, "tracker-files");
+  assert.equal(call.path, "pages/new.webp");
+  assert.equal(call.options.contentType, "image/webp");
+  assert.equal(call.options.cacheControl, "31536000");
+  assert.equal(call.options.upsert, false);
+  assert.equal(result, "pages/new.webp");
 });
 
 test("re-rendering media reuses the unexpired signed URL", async () => {
@@ -289,7 +285,7 @@ test("re-rendering media reuses the unexpired signed URL", async () => {
     getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; },
   };
   const ctx = vm.createContext({
-    B: "tracker-files", B2_PREFIX: "b2:", urlC: {}, urlPending: new Map(),
+    B: "tracker-files", urlC: {}, urlPending: new Map(),
     document: { querySelectorAll: () => [image] },
     sb: { storage: { from: () => ({ createSignedUrls: async paths => {
       requests++; return { data: paths.map(path => ({ path, signedUrl: "https://example.test/signed" })), error: null };
@@ -303,66 +299,36 @@ test("re-rendering media reuses the unexpired signed URL", async () => {
   assert.equal(attributes.src, "https://example.test/signed");
 });
 
-test("Backblaze media uses signed URLs and reuses them on redraw", async () => {
-  let requests = 0;
-  const attributes = {};
-  const image = {
-    dataset: { p: "b2:pages/image.webp" }, isConnected: true, tagName: "IMG",
-    getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; },
-  };
-  const ctx = vm.createContext({
-    B2_PREFIX: "b2:", urlC: {}, urlPending: new Map(), Date,
-    loadedImage: element => element.tagName === "IMG" && element.complete && element.naturalWidth > 0 && element.getAttribute("src"),
-    document: { querySelectorAll: () => [image] },
-    sb: { functions: { invoke: async (name, options) => {
-      requests++;
-      assert.equal(name, "tracker-media");
-      assert.deepEqual(JSON.parse(JSON.stringify(options.body)), { action: "sign-download", paths: ["pages/image.webp"] });
-      return { data: { urls: [{ path: "pages/image.webp", url: "https://s3.us-west-004.backblazeb2.com/bucket/pages/image.webp?signature=x" }] }, error: null };
-    } } },
-    saveMediaUrls() {},
-    toast: message => { throw new Error(message); },
-  });
-  vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("async function up(")), ctx);
-  await ctx.hydrate();
-  await ctx.hydrate();
-  assert.equal(requests, 1);
-  assert.equal(attributes.src, "https://s3.us-west-004.backblazeb2.com/bucket/pages/image.webp?signature=x");
-});
-
-test("cached Backblaze URLs must match the Backblaze host and object key", () => {
+test("only Supabase signed media URLs are restored from session storage", () => {
+  const base = "https://example.test";
   const saved = new Map([["tracker-media-urls:user-1", JSON.stringify({
-    "b2:pages/ok.webp": { u: "https://s3.us-west-004.backblazeb2.com/bucket/pages/ok.webp?sig=x", t: Date.now() + 10000 },
-    "b2:pages/wrong.webp": { u: "https://s3.us-west-004.backblazeb2.com/bucket/pages/other.webp?sig=x", t: Date.now() + 10000 },
-    "b2:pages/evil.webp": { u: "https://evil.example/bucket/pages/evil.webp?sig=x", t: Date.now() + 10000 },
+    "pages/ok.webp": { u: base + "/storage/v1/object/sign/tracker-files/pages/ok.webp?sig=x", t: Date.now() + 10000 },
+    "pages/old.webp": { u: "https://legacy-storage.invalid/pages/old.webp?sig=x", t: Date.now() + 10000 },
+    "pages/evil.webp": { u: "https://evil.example/image?sig=x", t: Date.now() + 10000 },
   })]]);
   const ctx = vm.createContext({
-    SUPABASE_URL: "https://example.test", B: "tracker-files", B2_PREFIX: "b2:",
+    SUPABASE_URL: base, B: "tracker-files",
     urlC: {}, urlPending: new Map(), sessionStorage: {
       getItem: key => saved.get(key), setItem() {}, removeItem() {},
     }, console, URL,
   });
   vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("function saveMediaUrls()")), ctx);
   ctx.restoreMediaUrls("user-1");
-  assert.deepEqual(Object.keys(ctx.urlC), ["b2:pages/ok.webp"]);
+  assert.deepEqual(Object.keys(ctx.urlC), ["pages/ok.webp"]);
 });
 
-test("cleanup deletes Backblaze paths through the function and legacy paths through Supabase", async () => {
+test("cleanup deletes all media through Supabase Storage", async () => {
   const calls = [];
   const ctx = vm.createContext({
-    B: "tracker-files", B2_PREFIX: "b2:",
-    sb: {
-      functions: { invoke: async (name, options) => { calls.push([name, options.body]); return { error: null }; } },
-      storage: { from: bucket => ({ remove: async paths => {
-        calls.push([bucket, paths]); return { error: null };
-      } }) },
-    },
+    B: "tracker-files",
+    sb: { storage: { from: bucket => ({ remove: async paths => {
+      calls.push([bucket, paths]); return { error: null };
+    } }) } },
   });
   vm.runInContext(html.slice(html.indexOf("async function rmFiles("), html.indexOf("const notePaths=")), ctx);
-  await ctx.rmFiles(["b2:pages/one.webp", "pages/old.webp", "b2:notes/two.wav"]);
+  await ctx.rmFiles(["pages/one.webp", "notes/two.wav"]);
   assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["tracker-media", { action: "delete", paths: ["pages/one.webp", "notes/two.wav"] }],
-    ["tracker-files", ["pages/old.webp"]],
+    ["tracker-files", ["pages/one.webp", "notes/two.wav"]],
   ]);
 });
 
@@ -376,7 +342,7 @@ test("media URLs survive a reload in the same tab but stay scoped to the signed-
   let requests = 0;
   const createContext = image => {
     const ctx = vm.createContext({
-      SUPABASE_URL: base, B: "tracker-files", B2_PREFIX: "b2:", urlC: {}, urlPending: new Map(), sessionStorage: storage, console, URL,
+      SUPABASE_URL: base, B: "tracker-files", urlC: {}, urlPending: new Map(), sessionStorage: storage, console, URL,
       document: { querySelectorAll: () => [image] },
       sb: { storage: { from: () => ({ createSignedUrls: async paths => {
         requests++; return { data: paths.map(path => ({ path, signedUrl: signed })), error: null };
@@ -423,7 +389,7 @@ test("expired cached URLs are not reused, but loaded images are not replaced dur
     getAttribute: name => newAttrs[name], setAttribute: (name, value) => { newAttrs[name] = value; } };
   let requests = 0, elements = [loaded];
   const ctx = vm.createContext({
-    B: "tracker-files", B2_PREFIX: "b2:", urlC: { "page.webp": { u: old, t: 0 } }, urlPending: new Map(),
+    B: "tracker-files", urlC: { "page.webp": { u: old, t: 0 } }, urlPending: new Map(),
     document: { querySelectorAll: () => elements },
     sb: { storage: { from: () => ({ createSignedUrls: async paths => {
       requests++; return { data: paths.map(path => ({ path, signedUrl: fresh })), error: null };

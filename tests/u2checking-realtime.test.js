@@ -328,7 +328,6 @@ function refreshTracker() {
   const context = vm.createContext({
     refreshRevision: null, refreshPending: false, refreshSending: false, refreshActions: 0,
     refreshTimer: null, refreshActivity: 0, signedOut: false, me: "member@example.com",
-    mediaMigrationRunning: false,
     rec: null, recStarting: false, commentSending: false, pageSaving: false,
     pendingWrites: new Set(), pendingChecks: new Map(), pend: {}, itemsById: new Map(),
     cur: "page-1", filter: "open", presenceUser: "user-1", document, window: { scrollY: 210 },
