@@ -86,7 +86,6 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .pi.on{background:var(--acc2);border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
 .pi-select{display:flex;gap:10px;align-items:center;flex:1;min-width:0;text-align:left;border:0;padding:0;background:transparent}
 .pi-select:focus-visible,.page-comment-btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.pi img{width:44px;height:56px;object-fit:cover;border-radius:6px;background:var(--line);flex:none}
 .pi .nm{font-weight:700}.pi small{color:var(--mute)}.pi-select>span{flex:1;min-width:0}
 .pi .bar{display:block}
 .page-comment-btn{flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--mute);font:700 12px/1 sans-serif}
@@ -1429,9 +1428,8 @@ function renderList(){
  const L=matchingPages($("q").value);
  patchMarkup($("plist"),L.map(p=>{const s=stat(p),count=pageCommentCounts?.get(p.id)||0;
   const label="Page comments for "+(p.label||"Untitled")+(pageCommentCounts?(count?" ("+count+" comment"+(count===1?"":"s")+")":" (no comments)"):(pageCommentCountsError?" (status unavailable)":" (loading)"));
-  const thumb=p.image_path?pageThumbnailPath(p.image_path):"";
   return '<div class="pi'+(p.id===cur?" on":"")+'" data-page-row="'+esc(p.id)+'"><button class="pi-select" data-id="'+esc(p.id)+'"'+(p.id===cur?' aria-current="page"':'')+'>'+
-  (p.image_path?'<img data-p="'+esc(thumb)+'"'+(thumb!==p.image_path?' data-original="'+esc(p.image_path)+'"':'')+' loading="lazy" decoding="async" alt="">':'<img alt="">')+'<span><span class="nm" dir="auto">'+esc(p.label||"Untitled")+'</span><br><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>'+
+  '<span><span class="nm" dir="auto">'+esc(p.label||"Untitled")+'</span><br><small>'+s.d+'/'+s.n+' done'+(s.n&&s.d===s.n?" ✓":"")+'</small><span class="bar"><i style="width:'+s.pc+'%"></i></span></span></button>'+
   '<button class="page-comment-btn'+(count?" has":"")+'" data-page-comments="'+esc(p.id)+'" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+commentIcon+(count?' <span>'+count+'</span>':"")+'</button></div>'}).join("")||'<div class="empty">No pages yet</div>');
  if($("galleryM").classList.contains("show"))renderGallery();
 }

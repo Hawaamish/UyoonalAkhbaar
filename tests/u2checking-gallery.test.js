@@ -25,8 +25,9 @@ test("gallery identifies the selected page and escapes page labels", () => {
   const elements = { gallerySearch: { value: "" }, galleryCount: {}, galleryGrid: {} };
   const context = vm.createContext({
     $: id => elements[id], patchMarkup,
-    pages: [{ id: "1", label: "<Page>", image_path: null }], cur: "1",
-    matchingPages: () => [{ id: "1", label: "<Page>", image_path: null }],
+    pages: [{ id: "1", label: "<Page>", image_path: "page.webp" }], cur: "1",
+    matchingPages: () => [{ id: "1", label: "<Page>", image_path: "page.webp" }],
+    pageThumbnailPath: path => path + ".thumb-240-v1",
     stat: () => ({ d: 1, n: 2, pc: 50 }),
     esc: value => String(value).replace(/[&<>"']/g, c => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -36,6 +37,7 @@ test("gallery identifies the selected page and escapes page labels", () => {
   context.renderGallery();
   assert.match(elements.galleryGrid.innerHTML, /aria-current="page"/);
   assert.match(elements.galleryGrid.innerHTML, /&lt;Page&gt;/);
+  assert.match(elements.galleryGrid.innerHTML, /<img data-p="page\.webp\.thumb-240-v1" data-original="page\.webp"/);
   assert.equal(elements.galleryCount.textContent, "1 of 1 pages");
 });
 
@@ -68,7 +70,6 @@ test("page list highlights general comments for each page independently", () => 
   const context = vm.createContext({
     $: id => elements[id], patchMarkup, pages, cur: "1", pageCommentCounts: new Map([["2", 2]]),
     pageCommentCountsError: false, matchingPages: () => pages, stat: () => ({ d: 0, n: 0, pc: 0 }),
-    pageThumbnailPath: path => path ? path + ".thumb-240-v1" : path,
     esc: value => String(value), commentIcon: "<svg></svg>",
   });
   vm.runInContext(section("function renderList(", "function renderGallery("), context);
@@ -76,7 +77,8 @@ test("page list highlights general comments for each page independently", () => 
   assert.match(elements.plist.innerHTML, /class="page-comment-btn" data-page-comments="1"[^>]*no comments/);
   assert.match(elements.plist.innerHTML, /class="page-comment-btn has" data-page-comments="2"[^>]*2 comments/);
   assert.match(elements.plist.innerHTML, /<\/button><button class="page-comment-btn/);
-  assert.match(elements.plist.innerHTML, /<img data-p="page\.webp\.thumb-240-v1" data-original="page\.webp" loading="lazy"/);
+  assert.doesNotMatch(elements.plist.innerHTML, /<img\b/);
+  assert.match(elements.plist.innerHTML, /Page 1/);
 });
 
 test("page comment counts discard stale results and report loading failures", async () => {
