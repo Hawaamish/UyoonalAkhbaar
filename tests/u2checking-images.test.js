@@ -42,3 +42,60 @@ test("corrupt supported image formats fail instead of silently bypassing optimiz
   await assert.rejects(context.isAnimatedImage(new Blob(["bad"], { type: "image/gif" })), /invalid or incomplete/);
   await assert.rejects(context.isAnimatedImage(new Blob(["bad"], { type: "image/png" })), /invalid or incomplete/);
 });
+
+test("new screenshots are resized to 1000 pixels and encoded at the requested quality", async () => {
+  let encoded;
+  const canvas = {
+    getContext: () => ({ drawImage() {} }),
+    toBlob: (callback, type, quality) => { encoded = { type, quality }; callback({ type, size: 20 }); },
+  };
+  class Image {
+    constructor() { this.naturalWidth = 2400; this.naturalHeight = 1200; }
+    set src(_url) { this.onload(); }
+  }
+  const ctx = vm.createContext({
+    isAnimatedImage: async () => false, Image,
+    URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
+    document: { createElement: () => canvas },
+  });
+  vm.runInContext(html.slice(html.indexOf("async function shrink("), html.indexOf("function imageExtension(")), ctx);
+  const result = await ctx.shrink({ type: "image/jpeg", size: 1000 });
+  assert.equal(canvas.width, 1000);
+  assert.equal(canvas.height, 500);
+  assert.deepEqual(encoded, { type: "image/webp", quality: 0.68 });
+  assert.equal(result.type, "image/webp");
+});
+
+test("new uploads use long-lived cache control and unique paths are not overwritten", async () => {
+  let options;
+  const ctx = vm.createContext({
+    B: "tracker-files",
+    sb: { storage: { from: () => ({ upload: async (_path, _blob, settings) => { options = settings; return { error: null }; } }) } },
+  });
+  vm.runInContext(html.slice(html.indexOf("async function up("), html.indexOf("async function rmFiles(")), ctx);
+  await ctx.up("pages/new.webp", { type: "image/webp" });
+  assert.equal(options.cacheControl, "31536000");
+  assert.equal(options.upsert, false);
+});
+
+test("re-rendering media reuses the unexpired signed URL", async () => {
+  let requests = 0;
+  const attributes = {};
+  const image = {
+    dataset: { p: "pages/image.webp" }, isConnected: true, tagName: "IMG",
+    getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; },
+  };
+  const ctx = vm.createContext({
+    B: "tracker-files", urlC: {}, urlPending: new Map(),
+    document: { querySelectorAll: () => [image] },
+    sb: { storage: { from: () => ({ createSignedUrls: async paths => {
+      requests++; return { data: paths.map(path => ({ path, signedUrl: "https://example.test/signed" })), error: null };
+    } }) } },
+    toast: message => { throw new Error(message); },
+  });
+  vm.runInContext(html.slice(html.indexOf("async function hydrate("), html.indexOf("async function up(")), ctx);
+  await ctx.hydrate();
+  await ctx.hydrate();
+  assert.equal(requests, 1);
+  assert.equal(attributes.src, "https://example.test/signed");
+});

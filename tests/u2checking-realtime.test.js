@@ -5,79 +5,308 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "u2checking.html"), "utf8");
-const updateItem = html.slice(html.indexOf("function updateItem("), html.indexOf("const nm="));
-const scheduleSync = html.slice(html.indexOf("function scheduleSync("), html.indexOf("async function allRows("));
+const sync = html.slice(html.indexOf("async function trackedLoad("), html.indexOf("async function allRows("));
+const connection = html.slice(html.indexOf("const fallbackSyncInterval="), html.indexOf("sb.auth.getSession()"));
+const item = (id, fields = {}) => ({ id, page_id: "page", text: "Point", sort_order: 1, done: false, done_by: null, done_at: null, ...fields });
+const note = (id, fields = {}) => ({ id, page_id: "page", item_id: null, body: "Hi", author: "a@example.com",
+  created_at: "2026-01-01", reply_to: null, voice_path: null, attachments: [], ...fields });
+const page = id => ({ id, label: id, image_path: null, sort_order: 1 });
+const notification = id => ({ id, note_id: "n", page_id: "page", item_id: null, recipient: "me@example.com",
+  sender: "other@example.com", created_at: "2026-01-01", read_at: null, kind: "mention" });
 
 function tracker() {
-  const item = { id: "item", page_id: "page", done: false, done_by: null, done_at: null };
   const calls = [];
   const context = vm.createContext({
-    itemsById: new Map([[item.id, item]]),
-    pageStats: new Map([[item.page_id, { d: 0, n: 1 }]]),
-    pendingChecks: new Map(),
-    syncTables: new Set(),
-    itemsVersion: 0,
-    syncT: null,
-    lastSync: 0,
-    filter: "all",
-    clearTimeout() {},
-    setTimeout(callback) { context.scheduled = callback; return 1; },
-    refreshChecks() { calls.push("refresh"); },
-    draw() { calls.push("draw"); },
-    loadItems: async () => { calls.push("items"); },
-    loadNotes: async () => { calls.push("notes"); },
-    loadPageCommentCounts: async () => { calls.push("page counts"); },
-    loadAll: async () => { calls.push("all"); },
+    items: [item("i1")], itemsById: new Map(), pendingChecks: new Map(),
+    pages: [page("page")], cur: "page", notes: [], notesFor: "page",
+    members: [{ email: "me@example.com", name: "Me", role: "admin" }], me: "me@example.com", isAdmin: true,
+    notifications: [], notificationsReady: true,
+    pageCommentCounts: new Map(), pageCommentIds: new Map(),
+    pageColumns: "id,label,image_path,sort_order",
+    itemColumns: "id,page_id,text,sort_order,done,done_by,done_at",
+    noteColumns: "id,page_id,item_id,body,author,created_at,reply_to,voice_path,attachments",
+    memberColumns: "email,name,role",
+    pagesVersion: 0, itemsVersion: 0, notesVersion: 0, pageCommentCountsVersion: 0,
+    membersVersion: 0, notificationsVersion: 0,
+    activeLoads: new Map(), pendingWrites: new Set(), notificationRecoveries: new Map(), signedOut: false,
+    syncTables: new Set(), syncT: null, lastSync: 0,
+    $: () => ({}), comparePages: (a, b) => a.label.localeCompare(b.label),
+    indexItems() { context.itemsById = new Map(context.items.map(row => [row.id, row])); },
+    draw() { calls.push("draw"); }, renderNotifications() { calls.push("notifications-render"); },
+    announceNotification(row) { calls.push("announce:" + row.id); },
+    loadNotificationPreview() { calls.push("preview"); },
+    clearTimeout() {}, setTimeout(callback) { context.scheduled = callback; return 1; },
+    loadPages: async () => calls.push("pages"), loadMembers: async () => calls.push("members"),
+    loadItems: async () => calls.push("items"), loadNotes: async () => calls.push("notes"),
+    loadPageCommentCounts: async () => calls.push("page counts"),
+    loadNotifications: async () => calls.push("notifications"), loadAll: async () => calls.push("all"),
     toast(message) { calls.push(message); },
   });
-
-  vm.runInContext(updateItem + scheduleSync, context);
-  return { context, item, calls };
+  context.indexItems();
+  vm.runInContext(sync, context);
+  vm.runInContext(html.slice(html.indexOf("function receiveNotification("), html.indexOf("async function loadNotificationPreview(")), context);
+  return { context, calls };
 }
 
-test("realtime comment changes refresh page indicators as well as the current thread", async () => {
-  const { context, calls } = tracker();
-  context.scheduleSync({ table: "notes", eventType: "DELETE", old: { id: "note" } });
-  await context.scheduled();
+test("item insert, update, delete and own echo patch state without reads", () => {
+  const { context: c, calls } = tracker();
+  const added = item("i2", { sort_order: 2 });
+  c.scheduleSync({ table: "items", eventType: "INSERT", new: added });
+  c.scheduleSync({ table: "items", eventType: "INSERT", new: added });
+  assert.equal(c.items.length, 2);
+  c.scheduleSync({ table: "items", eventType: "UPDATE", new: { ...added, done: true } });
+  assert.equal(c.itemsById.get("i2").done, true);
+  c.scheduleSync({ table: "items", eventType: "DELETE", old: { id: "i2" } });
+  c.scheduleSync({ table: "items", eventType: "DELETE", old: { id: "i2" } });
+  assert.deepEqual(Array.from(c.items, row => row.id), ["i1"]);
+  assert.equal(c.syncTables.size, 0);
+  assert.ok(calls.every(call => call === "draw"));
+});
+
+test("local checkbox intent survives competing events and requests reconciliation", () => {
+  const { context: c } = tracker();
+  c.pendingChecks.set("i1", { update: { done: true, done_by: "me", done_at: "time" } });
+  c.scheduleSync({ table: "items", eventType: "UPDATE", new: item("i1", { done: false, text: "Remote edit" }) });
+  assert.equal(c.itemsById.get("i1").done, true);
+  assert.equal(c.itemsById.get("i1").text, "Remote edit");
+  assert.equal(c.pendingChecks.get("i1").needsRefresh, true);
+});
+
+test("a differently formatted timestamp in the checkbox echo is not a conflict", () => {
+  const { context: c } = tracker();
+  c.pendingChecks.set("i1", { update: { done: true, done_by: "me", done_at: "2026-01-01T00:00:00.000Z" } });
+  c.scheduleSync({ table: "items", eventType: "UPDATE", new: item("i1", {
+    done: true, done_by: "me", done_at: "2026-01-01T00:00:00+00:00",
+  }) });
+  assert.equal(c.pendingChecks.get("i1").needsRefresh, undefined);
+  assert.equal(c.syncTables.size, 0);
+});
+
+test("note changes update current thread and global page counts exactly once", () => {
+  const { context: c } = tracker();
+  const n = note("n1");
+  c.scheduleSync({ table: "notes", eventType: "INSERT", new: n });
+  c.scheduleSync({ table: "notes", eventType: "INSERT", new: n });
+  assert.equal(c.notes.length, 1);
+  assert.equal(c.pageCommentCounts.get("page"), 1);
+  c.scheduleSync({ table: "notes", eventType: "UPDATE", new: { ...n, item_id: "i1" } });
+  assert.equal(c.pageCommentCounts.has("page"), false);
+  assert.equal(c.notes[0].item_id, "i1");
+  c.scheduleSync({ table: "notes", eventType: "DELETE", old: { id: "n1" } });
+  assert.equal(c.notes.length, 0);
+  assert.equal(c.syncTables.size, 0);
+});
+
+test("pages and members apply row changes and delete without fetching unrelated tables", () => {
+  const { context: c } = tracker();
+  c.scheduleSync({ table: "pages", eventType: "INSERT", new: page("other") });
+  c.scheduleSync({ table: "pages", eventType: "UPDATE", new: { ...page("other"), label: "Changed" } });
+  assert.equal(c.pages.find(p => p.id === "other").label, "Changed");
+  c.scheduleSync({ table: "pages", eventType: "DELETE", old: { id: "other" } });
+  c.scheduleSync({ table: "members", eventType: "INSERT", new: { email: "new@example.com", name: "New", role: "member" } });
+  c.scheduleSync({ table: "members", eventType: "UPDATE", new: { email: "new@example.com", name: "Updated", role: "member" } });
+  assert.equal(c.members[1].name, "Updated");
+  c.scheduleSync({ table: "members", eventType: "DELETE", old: { email: "new@example.com" } });
+  assert.equal(c.members.length, 1);
+  assert.equal(c.syncTables.size, 0);
+});
+
+test("notification insert, update and delete are idempotent and preview loads once", () => {
+  const { context: c, calls } = tracker(), n = notification(1);
+  c.scheduleSync({ table: "tracker_notifications", eventType: "INSERT", new: n });
+  c.scheduleSync({ table: "tracker_notifications", eventType: "INSERT", new: n });
+  assert.equal(c.notifications.length, 1);
+  assert.equal(calls.filter(call => call === "preview").length, 1);
+  c.scheduleSync({ table: "tracker_notifications", eventType: "UPDATE", new: { ...n, read_at: "now" } });
+  assert.equal(c.notifications[0].read_at, "now");
+  c.scheduleSync({ table: "tracker_notifications", eventType: "DELETE", old: { id: 1 } });
+  assert.equal(c.notifications.length, 0);
+});
+
+test("a tagged comment recovers its notification when the notification event is missing", async () => {
+  const { context: c, calls } = tracker();
+  const n = { ...notification(1), note_id: "n1" };
+  let queries = 0;
+  c.sb = { from: () => ({ select: () => ({
+    eq() { return this; }, async maybeSingle() { queries++; return { data: n, error: null }; },
+  }) }) };
+  c.receiveChange({ table: "notes", eventType: "INSERT", new: note("n1", { body: "Hi @[me@example.com]" }) });
+  await c.scheduled();
+  assert.equal(queries, 1);
+  assert.equal(c.notifications.length, 1);
+  assert.ok(calls.includes("announce:1"));
+  assert.ok(!calls.includes("all"));
+});
+
+test("a native notification arriving during recovery is announced only once", async () => {
+  const { context: c, calls } = tracker();
+  const n = { ...notification(1), note_id: "n1" };
+  let finish;
+  c.sb = { from: () => ({ select: () => ({
+    eq() { return this; }, maybeSingle() { return new Promise(resolve => { finish = resolve; }); },
+  }) }) };
+  c.receiveChange({ table: "notes", eventType: "INSERT", new: note("n1", { body: "Hi @[me@example.com]" }) });
+  const recovery = c.scheduled();
+  c.receiveChange({ table: "tracker_notifications", eventType: "INSERT", new: n });
+  finish({ data: n, error: null });
+  await recovery;
+  assert.equal(c.notifications.length, 1);
+  assert.equal(calls.filter(call => call === "announce:1").length, 1);
+  assert.equal(calls.filter(call => call === "preview").length, 1);
+});
+
+test("a reply recovers its recipient notification, and failed checks report an error", async () => {
+  const { context: c, calls } = tracker();
+  c.sb = { from: () => ({ select: () => ({
+    eq() { return this; }, async maybeSingle() { return { data: null, error: new Error("offline") }; },
+  }) }) };
+  c.receiveChange({ table: "notes", eventType: "INSERT", new: note("n1", { reply_to: "original" }) });
+  await c.scheduled();
+  assert.ok(calls.some(call => call.includes("Couldn’t check the mention notification: offline")));
+});
+
+test("a notification received before recovery needs no extra query", async () => {
+  const { context: c } = tracker();
+  const n = { ...notification(1), note_id: "n1" };
+  c.sb = { from: () => { throw new Error("Unexpected notification query"); } };
+  c.receiveChange({ table: "notes", eventType: "INSERT", new: note("n1", { body: "@[me@example.com]" }) });
+  const recovery = c.scheduled;
+  c.receiveChange({ table: "tracker_notifications", eventType: "INSERT", new: n });
+  await recovery();
+  assert.equal(c.notifications.length, 1);
+});
+
+test("ordinary comments do not trigger notification recovery and missing tagged notifications are reported", async () => {
+  const { context: c, calls } = tracker();
+  c.receiveChange({ table: "notes", eventType: "INSERT", new: note("n1") });
+  assert.equal(c.notificationRecoveries.size, 0);
+  c.sb = { from: () => ({ select: () => ({
+    eq() { return this; }, async maybeSingle() { return { data: null, error: null }; },
+  }) }) };
+  c.receiveChange({ table: "notes", eventType: "INSERT", new: note("n2", { body: "@[me@example.com]" }) });
+  await c.scheduled();
+  assert.ok(calls.some(call => call.includes("Mention notification not found")));
+});
+
+test("incomplete events fall back only to the affected table", async () => {
+  const { context: c, calls } = tracker();
+  c.scheduleSync({ table: "items", eventType: "UPDATE", new: { id: "i1" } });
+  await c.scheduled();
+  assert.deepEqual(calls, ["items", "draw"]);
+  calls.length = 0;
+  c.scheduleSync({ table: "members", eventType: "DELETE", old: {} });
+  await c.scheduled();
+  assert.deepEqual(calls, ["members", "draw"]);
+  calls.length = 0;
+  c.scheduleSync({ table: "notes", eventType: "DELETE", old: {} });
+  await c.scheduled();
   assert.deepEqual(calls, ["notes", "page counts", "draw"]);
 });
 
-test("realtime checkbox updates immediately and still reconciles from the server", async () => {
-  const { context, item, calls } = tracker();
-  context.scheduleSync({ table: "items", eventType: "UPDATE", new: {
-    id: "item", done: true, done_by: "editor@example.com", done_at: "2026-01-01",
-  } });
-  assert.equal(item.done, true);
-  assert.equal(item.done_by, "editor@example.com");
-  assert.equal(context.pageStats.get("page").d, 1);
-  assert.equal(context.itemsVersion, 1);
-  assert.deepEqual(calls, ["refresh"]);
-  await context.scheduled();
-  assert.deepEqual(calls, ["refresh", "items", "draw"]);
-});
-
-test("pending local checkbox changes are not overwritten by realtime events", () => {
-  const { context, item, calls } = tracker();
-  context.pendingChecks.set("item", { update: { done: false } });
-  context.scheduleSync({ table: "items", eventType: "UPDATE", new: {
-    id: "item", done: true, done_by: "other@example.com", done_at: "2026-01-01",
-  } });
-  assert.equal(item.done, false);
-  assert.equal(context.itemsVersion, 1);
-  assert.deepEqual(calls, []);
-  assert.equal(context.syncTables.has("items"), true);
-});
-
-test("filtered views redraw immediately; incomplete events use normal reconciliation", async () => {
-  const { context, item, calls } = tracker();
-  context.filter = "open";
-  context.scheduleSync({ table: "items", eventType: "UPDATE", new: {
-    id: "item", done: true, done_by: null, done_at: null,
-  } });
-  assert.deepEqual(calls, ["draw"]);
-  context.scheduleSync({ table: "items", eventType: "UPDATE", new: { id: "item", done: false } });
-  assert.equal(item.done, true);
-  assert.equal(context.itemsVersion, 1);
-  await context.scheduled();
+test("events during reads queue table-specific reconciliation", async () => {
+  const { context: c, calls } = tracker();
+  c.activeLoads.set("items", 1);
+  c.scheduleSync({ table: "items", eventType: "INSERT", new: item("i2") });
+  assert.equal(c.items.length, 2);
+  await c.scheduled();
   assert.deepEqual(calls, ["draw", "items", "draw"]);
+});
+
+test("an insert response cannot resurrect a row deleted after its realtime echo", async () => {
+  const { context: c } = tracker();
+  let finish;
+  c.sb = { from: () => ({ insert: () => ({ select: () => new Promise(resolve => { finish = resolve; }) }) }) };
+  vm.runInContext(html.slice(html.indexOf("async function addItems("), html.indexOf("/* ---------- render ---------- */")), c);
+  const save = c.addItems("page", ["New"]);
+  const added = item("i2");
+  c.receiveChange({ table: "items", eventType: "INSERT", new: added });
+  c.receiveChange({ table: "items", eventType: "DELETE", old: { id: "i2" } });
+  finish({ data: [added], error: null });
+  await save;
+  assert.equal(c.items.some(row => row.id === "i2"), false);
+  assert.equal(c.pendingWrites.size, 0);
+});
+
+test("a successful checkbox save uses its returned row without reloading items", async () => {
+  const { context: c, calls } = tracker();
+  c.refreshChecks = () => {};
+  c.updateItem = (row, fields) => Object.assign(row, fields);
+  c.sb = { from: () => ({ update: fields => ({ eq: () => ({ select: () => ({
+    maybeSingle: async () => ({ data: { id: "i1", ...fields }, error: null }),
+  }) }) }) }) };
+  c.fail = error => { throw error; };
+  vm.runInContext(html.slice(html.indexOf("async function saveCheck("), html.indexOf('$("main").oninput=')), c);
+  await c.saveCheck("i1", true);
+  assert.equal(c.itemsById.get("i1").done, true);
+  assert.equal(c.pendingChecks.size, 0);
+  assert.ok(!calls.includes("items"));
+});
+
+test("a conflicting checkbox event triggers a table-only reconciliation after save", async () => {
+  const { context: c, calls } = tracker();
+  let finish;
+  c.refreshChecks = () => {};
+  c.updateItem = (row, fields) => Object.assign(row, fields);
+  c.sb = { from: () => ({ update: fields => ({ eq: () => ({ select: () => ({
+    maybeSingle: () => new Promise(resolve => { finish = () => resolve({ data: { id: "i1", ...fields }, error: null }); }),
+  }) }) }) }) };
+  c.fail = error => { throw error; };
+  vm.runInContext(html.slice(html.indexOf("async function saveCheck("), html.indexOf('$("main").oninput=')), c);
+  const save = c.saveCheck("i1", true);
+  c.scheduleSync({ table: "items", eventType: "UPDATE", new: item("i1") });
+  finish();
+  await save;
+  assert.ok(calls.includes("items"));
+  assert.ok(!calls.includes("all"));
+});
+
+test("the complete inline tracker script parses", () => {
+  const script = html.slice(html.indexOf("const SUPABASE_URL="), html.lastIndexOf("</script>"));
+  assert.doesNotThrow(() => new vm.Script(script));
+});
+
+test("reconnect schedules a full reconciliation", () => {
+  const calls = [], listeners = {}, channel = {
+    on() { return this; },
+    subscribe(callback) { callback("SUBSCRIBED"); },
+  };
+  const context = vm.createContext({
+    document: { hidden: false, addEventListener: (event, fn) => { listeners[event] = fn; } },
+    window: { addEventListener: (event, fn) => { listeners[event] = fn; } },
+    me: "me@example.com", chan: null, presenceConnected: false, presenceEpoch: 0,
+    presenceReady: false, presenceError: false, presenceRunning: false, presenceSent: "", presenceRetry: null,
+    sb: { channel: () => channel, removeChannel() {} },
+    $: () => ({}), clearTimeout() {}, setInterval() {}, renderPresence() {}, publishPresence() {},
+    scheduleSync: change => calls.push(change.table), receiveChange() {},
+  });
+  vm.runInContext(connection, context);
+  context.connectLive();
+  assert.deepEqual(calls, ["all"]);
+});
+
+test("fallback polling and focus avoid frequent full reloads while retaining recovery", () => {
+  let now = 0, poll;
+  const calls = [], listeners = {};
+  const context = vm.createContext({
+    Date: { now: () => now },
+    document: { hidden: false, addEventListener: (event, fn) => { listeners[event] = fn; } },
+    window: { addEventListener: (event, fn) => { listeners[event] = fn; } },
+    me: "member@example.com", presenceConnected: true,
+    setInterval: (fn, delay) => { poll = fn; assert.ok(delay <= 30000); },
+    scheduleSync: change => calls.push(change.table),
+  });
+  vm.runInContext(connection, context);
+  now = 20000;
+  poll(); listeners.focus(); listeners.visibilitychange();
+  assert.deepEqual(calls, []);
+  now = 301000;
+  context.document.hidden = true;
+  poll(); listeners.visibilitychange();
+  assert.deepEqual(calls, []);
+  context.document.hidden = false;
+  listeners.visibilitychange();
+  assert.deepEqual(calls, ["all"]);
+  calls.length = 0;
+  poll();
+  assert.deepEqual(calls, ["all"]);
 });

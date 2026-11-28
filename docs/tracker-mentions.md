@@ -51,7 +51,17 @@ The recipient sees an unread badge and can open the notification to jump to
 the comment. Notifications are saved in Supabase, so notifications received while
 away appear on the next sign-in and read status follows the account across
 devices. If Realtime is interrupted, the tracker also refreshes notifications
-when it reconnects and through its existing fallback polling.
+when it reconnects and through fallback polling. Visible tabs reconcile after
+five minutes without a successful sync, checked every 30 seconds; returning to
+an older tab also triggers a refresh. This reduces repeated full-data downloads,
+but a silently stalled connection can delay updates until the fallback runs.
+If a tagged comment arrives but its notification event does not, the recipient
+checks for that comment's notification directly. A missing notification for an
+explicit mention is reported so an admin can check the database setup.
+
+Live changes preserve the reader's position and unsaved checklist text where
+possible. If two members edit the same point, the latest saved text wins;
+coordinate those edits to avoid overwriting one another.
 
 The recipient can choose **Enable browser alerts** in Notifications and grant
 permission. These alerts work only while the tracker is open, on a supported

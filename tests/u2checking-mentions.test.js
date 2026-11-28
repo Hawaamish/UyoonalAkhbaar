@@ -8,6 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, "..", "u2checking.html"), "utf
 function section(start, end) {
   return html.slice(html.indexOf(start), html.indexOf(end));
 }
+const patchMarkup = (element, markup) => { element.innerHTML = markup; };
 
 test("typing a mention detects its query at the caret without matching email addresses", () => {
   const context = vm.createContext({});
@@ -50,6 +51,7 @@ test("realtime notification accepts only new mentions for the signed-in member",
   const calls = [];
   const context = vm.createContext({
     me: "me@example.com", notificationsReady: true, notifications: [], notificationsVersion: 0,
+    sameId: (a, b) => String(a) === String(b),
     renderNotifications: () => calls.push("render"),
     announceNotification: row => calls.push(row.id),
   });
@@ -72,7 +74,7 @@ test("notification refresh announces only newly discovered unread mentions", asy
   const context = vm.createContext({
     me: "me@example.com", notificationsReady: true, notifications: [{ id: 1 }], notificationsVersion: 0,
     notificationsError: "",
-    allRows: async () => ({ data: incoming, error: null }),
+    trackedLoad: (_table, request) => request, allRows: async () => ({ data: incoming, error: null }),
     sb: { from: () => ({ select: () => ({ in: async (_column, ids) => ({
       data: ids.map(id => ({ id, body: "Please review this point" })), error: null,
     }) }) }) },
@@ -92,7 +94,7 @@ test("notification loading failure disables mentions and reports the error", asy
   const context = vm.createContext({
     me: "me@example.com", notificationsReady: true, notifications: [], notificationsVersion: 0,
     notificationsError: "",
-    allRows: async () => ({ data: null, error: new Error("database unavailable") }),
+    trackedLoad: (_table, request) => request, allRows: async () => ({ data: null, error: new Error("database unavailable") }),
     renderNotifications() {},
     toast: message => messages.push(message),
   });
@@ -107,7 +109,7 @@ test("a rejected notification request reports the error without breaking the tra
   const context = vm.createContext({
     me: "me@example.com", notificationsReady: false, notifications: [], notificationsVersion: 0,
     notificationsError: "",
-    allRows: async () => { throw new Error("network unavailable"); },
+    trackedLoad: (_table, request) => request, allRows: async () => { throw new Error("network unavailable"); },
     renderNotifications() {},
     toast: message => messages.push(message),
   });
@@ -122,7 +124,7 @@ test("an outdated notification schema prompts the database upgrade", async () =>
   const context = vm.createContext({
     me: "me@example.com", notificationsReady: true, notifications: [], notificationsVersion: 0,
     notificationsError: "",
-    allRows: async () => ({ data: null, error: { code: "42703", message: "column kind does not exist" } }),
+    trackedLoad: (_table, request) => request, allRows: async () => ({ data: null, error: { code: "42703", message: "column kind does not exist" } }),
     renderNotifications() {}, toast: message => messages.push(message),
   });
   vm.runInContext(section("async function loadNotifications(", "function receiveNotification("), context);
@@ -142,7 +144,7 @@ test("reply controls appear only for comments that tag the signed-in member", ()
       { id: "2", item_id: "item", author: "alice@example.com", body: "No tag", created_at: "2026-01-01", reply_to: "missing" },
       { id: "3", item_id: "item", author: "bob@example.com", body: "@[bob@example.com]", created_at: "2026-01-01" },
     ],
-    $: () => thread, nm: email => email, esc: value => String(value),
+    $: () => thread, patchMarkup, nm: email => email, esc: value => String(value),
     renderMentionText: value => value,
   });
   vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
@@ -165,7 +167,8 @@ test("sending a tagged reply links it to the original and refuses unavailable ta
     pend: { item: draft }, pd: () => draft, $: id => elements[id],
     canReplyToTaggedComment: () => true,
     renderCommentDraft() {}, toast: message => messages.push(message),
-    sb: { from: () => ({ insert: async note => { sent.push(note); return { error: null }; } }) },
+    noteColumns: "id", scheduleSync() {}, trackReturning: async (_table, request) => ({ result: await request, ids: new Set() }),
+    sb: { from: () => ({ insert: note => ({ select: () => ({ single: async () => { sent.push(note); return { data: { id: "new" }, error: null }; } }) }) }) },
     loadNotes: async () => {}, loadPageCommentCounts: async () => {}, draw() {}, fail: error => { throw error; },
   });
   vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
@@ -199,7 +202,7 @@ test("chat bubbles use consistent member colors and preserve reading position", 
       { id: "2", item_id: "item", author: "BOB@example.com", body: "Mine", created_at: "2026-01-01" },
       { id: "3", item_id: "item", author: "alice@example.com", body: "Again", created_at: "2026-01-01" },
     ],
-    $: () => thread, nm: email => email, esc: value => String(value),
+    $: () => thread, patchMarkup, nm: email => email, esc: value => String(value),
     renderMentionText: value => value,
   });
   vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
@@ -282,7 +285,7 @@ test("notification cards highlight the page number and show an escaped comment p
     esc: value => String(value).replace(/[&<>"']/g, c => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     })[c]),
-    $: id => elements[id],
+    $: id => elements[id], patchMarkup,
   });
   vm.runInContext(section("function renderNotifications(", "function hideNotifications("), context);
   context.renderNotifications();
@@ -307,10 +310,11 @@ test("page comments stay separate from points and send replies with a null item"
       { id: "general", page_id: "p1", item_id: null, author: "alice@example.com", body: "Hi @[bob@example.com]", created_at: "2026-01-01" },
       { id: "point", page_id: "p1", item_id: "i1", author: "alice@example.com", body: "Point comment", created_at: "2026-01-01" },
     ],
-    pend: { "page:p1": draft }, pd: () => draft, $: id => elements[id],
+    pend: { "page:p1": draft }, pd: () => draft, $: id => elements[id], patchMarkup,
     nm: email => email, esc: value => String(value), renderMentionText: value => value,
     renderCommentDraft() {}, toast() {}, loadNotes: async () => {}, loadPageCommentCounts: async () => {}, draw() {}, fail: error => { throw error; },
-    sb: { from: () => ({ insert: async note => { sent.push(note); return { error: null }; } }) },
+    noteColumns: "id", scheduleSync() {}, trackReturning: async (_table, request) => ({ result: await request, ids: new Set() }),
+    sb: { from: () => ({ insert: note => ({ select: () => ({ single: async () => { sent.push(note); return { data: { id: "new" }, error: null }; } }) }) }) },
   });
   vm.runInContext(section("const pageThreadKey=", "function commentLabel("), context);
   vm.runInContext(section("function renderCommentThread(", "function renderMain("), context);
