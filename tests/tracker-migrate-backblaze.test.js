@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { migrateTrackerMediaToBackblaze } = require("../scripts/tracker-migrate-backblaze.js");
 
-function migrationFixture({ missing = false } = {}) {
+function migrationFixture({ missing = false, functionError = null } = {}) {
   const uploaded = [], updates = [], deleted = [];
   const tree = {
     "": [{ id: null, name: "pages" }, { id: null, name: "notes" }, { id: null, name: "voice" },
@@ -21,7 +21,9 @@ function migrationFixture({ missing = false } = {}) {
     storage: { from: () => storage },
     functions: { invoke: async (_name, { body }) => {
       uploaded.push(body);
-      return { data: { url: "https://signed.test/" + body.path, exists: false }, error: null };
+      return functionError
+        ? { data: null, error: functionError }
+        : { data: { url: "https://signed.test/" + body.path, exists: false }, error: null };
     } },
     from: table => ({
       select: () => ({ table, order() { return this; } }),
@@ -75,4 +77,16 @@ test("migration refuses to switch references if a referenced source file is miss
 
 test("migration requires an admin", async () => {
   await assert.rejects(migrateTrackerMediaToBackblaze({ isAdmin: false }), /Only tracker admins/);
+});
+
+test("migration displays the safe error returned by the Edge Function", async () => {
+  const fixture = migrationFixture({
+    functionError: {
+      message: "Edge Function returned a non-2xx status code",
+      context: { clone: () => ({ json: async () => ({ error: "B2 access denied" }) }) },
+    },
+  });
+  await assert.rejects(migrateTrackerMediaToBackblaze({
+    ...fixture, bucket: "tracker-files", isAdmin: true,
+  }), /B2 access denied/);
 });

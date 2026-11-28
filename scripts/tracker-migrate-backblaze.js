@@ -35,6 +35,16 @@ async function migrateTrackerMediaToBackblaze({
     }
     return btoa(binary);
   }
+  async function functionErrorMessage(error) {
+    try {
+      const response = error?.context;
+      if (response && typeof response.clone === "function") {
+        const body = await response.clone().json();
+        if (typeof body?.error === "string") return body.error;
+      }
+    } catch {}
+    return error?.message || "request failed";
+  }
   for (let index = 0; index < paths.length; index++) {
     const path = paths[index];
     onProgress({ stage: "copy", completed: index, total: paths.length, path });
@@ -46,7 +56,7 @@ async function migrateTrackerMediaToBackblaze({
     const { data, error: signError } = await sb.functions.invoke("tracker-media", {
       body: { action: "sign-migration-upload", path, contentType, size: blob.size, sha256: checksum },
     });
-    if (signError) throw new Error(`Couldn’t prepare ${path} for Backblaze: ${signError.message}`);
+    if (signError) throw new Error(`Couldn’t prepare ${path} for Backblaze: ${await functionErrorMessage(signError)}`);
     if (data?.exists) {
       if (data.size !== blob.size) throw new Error(`An existing Backblaze copy of ${path} has a different size`);
       alreadyPresent++;

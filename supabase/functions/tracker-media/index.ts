@@ -35,6 +35,23 @@ function requiredEnv(name: string) {
   return value;
 }
 
+function describeError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (!error || typeof error !== "object") return "Media request failed";
+  const value = error as Record<string, unknown>;
+  const fields = [
+    typeof value.name === "string" ? value.name : "",
+    typeof value.code === "string" ? value.code : typeof value.Code === "string" ? value.Code : "",
+    typeof value.message === "string" ? value.message : typeof value.Message === "string" ? value.Message : "",
+    value.$metadata && typeof value.$metadata === "object" &&
+        typeof (value.$metadata as Record<string, unknown>).httpStatusCode === "number"
+      ? `HTTP ${(value.$metadata as Record<string, unknown>).httpStatusCode}`
+      : "",
+  ].filter(Boolean);
+  return fields.join(": ") || "Media request failed";
+}
+
 const supabaseUrl = requiredEnv("SUPABASE_URL");
 function defaultKey(name: string, legacyName: string) {
   const encoded = Deno.env.get(name);
@@ -202,7 +219,7 @@ Deno.serve(async request => {
 
     return jsonResponse({ error: "Unknown media operation" }, 400, origin);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Media request failed";
+    const message = describeError(error);
     console.error("tracker-media request failed:", message);
     return jsonResponse({ error: message }, 400, origin);
   }
