@@ -14,8 +14,15 @@ can retry.
 
 Page-list and comment images load lazily, so the browser can defer off-screen
 downloads. Voice notes are not preloaded before playback. Browsers decide when
-to load lazy media, and signed URLs still expire and need renewing; these
-changes do not impose an egress limit or modify existing files.
+to load lazy media. Already displayed images keep their URL during background
+redraws rather than being downloaded again when a URL is renewed. Temporary
+signed URLs are also reused after a reload in the same browser tab, until their
+50-minute local cache expires. Signing out clears this tab's cached URLs;
+session storage normally ends when the tab closes, though browsers may restore
+closed sessions. The URLs are scoped to the signed-in user and grant access to
+the file until they expire; they are stored in the browser's session storage.
+Printing all pages still downloads their images. These changes do not impose
+an egress limit or modify existing files.
 
 New uploads have a one-year cache-control lifetime and use unique file paths.
 Files already downloaded may remain in a browser cache after access is revoked

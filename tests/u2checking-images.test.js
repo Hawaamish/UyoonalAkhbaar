@@ -93,9 +93,94 @@ test("re-rendering media reuses the unexpired signed URL", async () => {
     } }) } },
     toast: message => { throw new Error(message); },
   });
-  vm.runInContext(html.slice(html.indexOf("async function hydrate("), html.indexOf("async function up(")), ctx);
+  vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("async function up(")), ctx);
   await ctx.hydrate();
   await ctx.hydrate();
   assert.equal(requests, 1);
   assert.equal(attributes.src, "https://example.test/signed");
+});
+
+test("media URLs survive a reload in the same tab but stay scoped to the signed-in user", async () => {
+  const saved = new Map(), storage = {
+    getItem: key => saved.get(key) || null,
+    setItem: (key, value) => saved.set(key, value),
+    removeItem: key => saved.delete(key),
+  };
+  const base = "https://example.test", signed = base + "/storage/v1/object/sign/tracker-files/pages/image.webp?token=test";
+  let requests = 0;
+  const createContext = image => {
+    const ctx = vm.createContext({
+      SUPABASE_URL: base, B: "tracker-files", urlC: {}, urlPending: new Map(), sessionStorage: storage, console,
+      document: { querySelectorAll: () => [image] },
+      sb: { storage: { from: () => ({ createSignedUrls: async paths => {
+        requests++; return { data: paths.map(path => ({ path, signedUrl: signed })), error: null };
+      } }) } },
+      toast: message => { throw new Error(message); },
+    });
+    vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("async function up(")), ctx);
+    return ctx;
+  };
+  const image = () => {
+    const attrs = {};
+    return { dataset: { p: "pages/image.webp" }, isConnected: true, tagName: "IMG",
+      getAttribute: name => attrs[name], setAttribute: (name, value) => { attrs[name] = value; } };
+  };
+  const first = createContext(image());
+  first.restoreMediaUrls("user-1");
+  await first.hydrate();
+  const reloaded = createContext(image());
+  reloaded.restoreMediaUrls("user-1");
+  await reloaded.hydrate();
+  assert.equal(requests, 1);
+  const other = createContext(image());
+  other.restoreMediaUrls("user-2");
+  await other.hydrate();
+  assert.equal(requests, 2);
+  reloaded.clearMediaUrls();
+  assert.equal(saved.has("tracker-media-urls:user-1"), false);
+  saved.set("tracker-media-urls:user-1", JSON.stringify({
+    expired: { u: signed, t: 0 },
+    untrusted: { u: "https://other.example/image", t: Date.now() + 3000000 },
+  }));
+  const invalid = createContext(image());
+  invalid.restoreMediaUrls("user-1");
+  assert.equal(Object.keys(invalid.urlC).length, 0);
+});
+
+test("expired cached URLs are not reused, but loaded images are not replaced during redraw", async () => {
+  const old = "https://example.test/old", fresh = "https://example.test/new";
+  const attrs = { src: old };
+  const loaded = { dataset: { p: "page.webp" }, isConnected: true, tagName: "IMG", complete: true, naturalWidth: 100,
+    getAttribute: name => attrs[name], setAttribute: (name, value) => { attrs[name] = value; } };
+  const newAttrs = {};
+  const unloaded = { dataset: { p: "page.webp" }, isConnected: true, tagName: "IMG",
+    getAttribute: name => newAttrs[name], setAttribute: (name, value) => { newAttrs[name] = value; } };
+  let requests = 0, elements = [loaded];
+  const ctx = vm.createContext({
+    B: "tracker-files", urlC: { "page.webp": { u: old, t: 0 } }, urlPending: new Map(),
+    document: { querySelectorAll: () => elements },
+    sb: { storage: { from: () => ({ createSignedUrls: async paths => {
+      requests++; return { data: paths.map(path => ({ path, signedUrl: fresh })), error: null };
+    } }) } },
+    toast: message => { throw new Error(message); },
+  });
+  vm.runInContext(html.slice(html.indexOf("let mediaCacheKey="), html.indexOf("async function up(")), ctx);
+  await ctx.hydrate();
+  assert.equal(requests, 0);
+  elements = [loaded, unloaded];
+  await ctx.hydrate();
+  assert.equal(requests, 1);
+  assert.equal(attrs.src, old);
+  assert.equal(newAttrs.src, fresh);
+});
+
+test("print media is removed after printing so redraws cannot reload it", () => {
+  const handlers = {}, printArea = { innerHTML: "printed images" };
+  const ctx = vm.createContext({
+    window: { addEventListener: (event, handler) => { handlers[event] = handler; } },
+    $: () => printArea,
+  });
+  vm.runInContext(html.slice(html.indexOf("window.addEventListener(\"afterprint\""), html.indexOf('$("printAll").onclick=')), ctx);
+  handlers.afterprint();
+  assert.equal(printArea.innerHTML, "");
 });

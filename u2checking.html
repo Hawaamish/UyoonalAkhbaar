@@ -466,13 +466,14 @@ $("aIn").onclick=async()=>{$("aMsg").textContent="Signing in…";const{error}=aw
 $("aUp").onclick=async()=>{const{data,error}=await sb.auth.signUp({email:$("aE").value.trim(),password:$("aP").value});
  if(error)$("aMsg").textContent=error.message;else if(!data.session)$("aMsg").textContent="Account created. Check your email to confirm, then sign in."};
 $("aP").onkeydown=e=>{if(e.key==="Enter")$("aIn").click()};
-$("out").onclick=async()=>{signedOut=true;clearTimeout(reconnectT);chan&&sb.removeChannel(chan);chan=null;await sb.auth.signOut();location.reload()};
+$("out").onclick=async()=>{signedOut=true;clearTimeout(reconnectT);chan&&sb.removeChannel(chan);chan=null;clearMediaUrls();await sb.auth.signOut();location.reload()};
 async function enter(u){
  me=(u.email||"").toLowerCase();
  const{data,error}=await sb.from("members").select(memberColumns);
  if(error||!data||!data.some(m=>m.email.toLowerCase()===me)){showAuth("This email ("+me+") isn’t on the access list yet. Ask an admin to add it, then sign in again.");me="";await sb.auth.signOut();return}
  members=data;isAdmin=data.find(m=>m.email.toLowerCase()===me).role==="admin";
  presenceUser=u.id;
+ restoreMediaUrls(u.id);
  $("adminActions").hidden=!isAdmin;$("auth").style.display="none";$("app").style.display="";
  loadNotifications();await loadAll();draw(true);
  signedOut=false;connectLive();
@@ -945,9 +946,34 @@ async function openNotification(id){
  }
  try{await open()}catch(er){toast("Couldn’t open notification: "+er.message)}
 }
+let mediaCacheKey="";
+function restoreMediaUrls(userId){
+ mediaCacheKey="tracker-media-urls:"+userId;
+ try{
+  const saved=JSON.parse(sessionStorage.getItem(mediaCacheKey)||"{}");
+  for(const [path,entry] of Object.entries(saved)){
+   if(entry&&typeof entry.u==="string"&&entry.u.startsWith(SUPABASE_URL+"/storage/v1/object/sign/"+B+"/")&&
+      typeof entry.t==="number"&&entry.t>Date.now())urlC[path]=entry;
+  }
+ }catch(er){console.warn("Couldn’t restore cached media URLs:",er)}
+}
+function saveMediaUrls(){
+ if(!mediaCacheKey)return;
+ try{
+  const valid=Object.fromEntries(Object.entries(urlC).filter(([,entry])=>entry.t>Date.now()));
+  sessionStorage.setItem(mediaCacheKey,JSON.stringify(valid));
+ }catch(er){console.warn("Couldn’t cache media URLs:",er)}
+}
+function clearMediaUrls(){
+ if(!mediaCacheKey)return;
+ try{sessionStorage.removeItem(mediaCacheKey)}catch(er){console.warn("Couldn’t clear cached media URLs:",er)}
+}
+function loadedImage(element){
+ return element.tagName==="IMG"&&element.complete&&element.naturalWidth>0&&element.getAttribute("src");
+}
 async function hydrate(){
  const els=[...document.querySelectorAll("[data-p]")];
- const need=[...new Set(els.map(e=>e.dataset.p).filter(p=>!urlC[p]||urlC[p].t<Date.now()))];
+ const need=[...new Set(els.filter(e=>!loadedImage(e)).map(e=>e.dataset.p).filter(p=>!urlC[p]||urlC[p].t<Date.now()))];
  if(need.length){
   const fresh=need.filter(p=>!urlPending.has(p));
   if(fresh.length){
@@ -955,7 +981,7 @@ async function hydrate(){
    const request=(async()=>{
     try{
      const{data,error}=await sb.storage.from(B).createSignedUrls(fresh,3600);if(error)throw error;
-     (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});return null;
+     (data||[]).forEach(x=>{if(x.signedUrl)urlC[x.path]={u:x.signedUrl,t:Date.now()+3000000}});saveMediaUrls();return null;
     }catch(er){return er}
    })();
    fresh.forEach(p=>urlPending.set(p,request));
@@ -965,7 +991,7 @@ async function hydrate(){
   if(error&&els.some(e=>e.isConnected&&e.tagName!=="AUDIO"))toast("Couldn’t load files: "+error.message);
   els.filter(e=>e.isConnected&&e.tagName==="AUDIO"&&!urlC[e.dataset.p]).forEach(e=>showVoiceError(e,error?"Couldn’t load this voice note: "+error.message:"Couldn’t load this voice note. Check your access and connection."));
  }
- els.forEach(e=>{const c=urlC[e.dataset.p];if(!e.isConnected||!c)return;const k=e.tagName==="A"?"href":"src";
+ els.forEach(e=>{const c=urlC[e.dataset.p];if(!e.isConnected||!c||loadedImage(e))return;const k=e.tagName==="A"?"href":"src";
   if(e.getAttribute(k)!==c.u){e.setAttribute(k,c.u);if(e.tagName==="AUDIO"&&e.nextElementSibling?.classList.contains("voice-error"))e.nextElementSibling.remove()}});
 }
 async function up(path,blob,type){const{error}=await sb.storage.from(B).upload(path,blob,{contentType:(type||blob.type||"application/octet-stream").split(";")[0],cacheControl:"31536000",upsert:false});if(error)throw error;return path}
@@ -1715,6 +1741,7 @@ async function doPrint(list){
   (p.id===cur?notes.filter(x=>x.item_id===i.id&&x.body).map(x=>'<div class="q">↳ '+esc(nm(x.author))+': '+esc(x.body)+'</div>').join(""):"")+'</li>').join("")+'</ul></div>').join("");
  await hydrate();setTimeout(()=>window.print(),500);
 }
+window.addEventListener("afterprint",()=>{$("printArea").innerHTML=""});
 $("printAll").onclick=()=>pages.length?doPrint(pages):toast("Nothing to print");
 $("exp").onclick=async()=>{
  if(!isAdmin){toast("Only admins can export backups");return}
