@@ -97,7 +97,24 @@ input[type=search],input[type=text],input[type=email],input[type=password],texta
 .ph h2{margin:0;font-size:22px}
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
 @media (max-width:900px){.split{grid-template-columns:1fr}}
-.shot{width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;position:sticky;top:70px}
+.image-toggle{display:block;width:100%;padding:0;border:0;background:transparent;text-align:left;cursor:zoom-in}
+.image-toggle[aria-expanded=true]{cursor:zoom-out}
+.shot{width:100%;border-radius:10px;border:1px solid var(--line);position:sticky;top:70px}
+.split.image-expanded{position:fixed;inset:0;z-index:15;width:auto;height:100vh;height:100dvh;max-width:none;margin:0;padding:calc(20px + env(safe-area-inset-top,0px)) 24px calc(20px + env(safe-area-inset-bottom,0px));background:var(--bg);grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(16px,3vw,40px);overflow:hidden}
+.split.image-expanded>div:first-child{min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;animation:image-slide-in-left .32s ease-out both}
+.split.image-expanded .image-toggle{height:100%;display:flex;align-items:center;justify-content:center}
+.split.image-expanded .shot{position:static;width:100%;height:100%;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);object-fit:contain}
+.split.image-expanded>div:nth-child(2){min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;animation:image-slide-in-right .32s ease-out both}
+.image-view-close{display:none}
+.split.image-expanded .image-view-close{display:inline-flex;position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:1}
+@keyframes image-slide-in-left{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:translateX(0)}}
+@keyframes image-slide-in-right{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:translateX(0)}}
+@media (max-width:700px){
+ .split.image-expanded{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(30dvh,38dvh) minmax(0,1fr);gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
+ .split.image-expanded>div:first-child{min-height:0}
+ .split.image-expanded .shot{max-height:100%;height:100%}
+ .split.image-expanded>div:nth-child(2){padding:12px}
+}
 .chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .chip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:2px 12px;font-size:14px}
 .chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
@@ -203,8 +220,6 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
 .mrow{display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:5px 0}.mrow span{flex:1;min-width:0;overflow-wrap:anywhere}
 #auth{max-width:380px;margin:12vh auto;padding:0 16px;text-align:center}
 #auth .panel{text-align:left}#auth .btn{justify-content:center;width:100%;margin-top:8px}
-#lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;overflow:auto;z-index:30;padding:20px;text-align:center}
-#lb img{max-width:100%;cursor:zoom-out}
 #toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:99px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
 #toast.show{opacity:1}
 #printArea{display:none}
@@ -353,7 +368,6 @@ label{display:block;font-size:14px;color:var(--mute);margin:10px 0 4px}
  </div>
 </div></div>
 
-<div id="lb"><button class="btn mobile-back">← Back</button><img id="lbi" alt=""></div>
 <div id="toast"></div>
 <div id="printArea"></div>
 
@@ -1508,13 +1522,13 @@ function renderMain(){
  const list=A.map((it,i)=>({it,i})).filter(({it})=>filter==="all"||(filter==="open"?!it.done:it.done));
  patchMarkup(m,'<button class="btn mobile-back" id="mobileBack">← Pages</button> <button class="btn mobile-back" id="bGallery">▦ Gallery</button><div class="panel"><div class="ph"><div><h2 dir="auto">'+esc(p.label||"Untitled")+'</h2><small id="pageProgress" style="color:var(--mute)">'+s.d+' of '+s.n+' done · '+s.pc+'%</small></div>'+
  '<div class="tools"><button class="btn" id="bShare">↗ Share</button><button class="btn" id="bPrint">🖨 Print</button><button class="btn" id="bEdit">✎ Edit</button><button class="btn danger" id="bDel">🗑</button></div></div>'+
- '<div class="split">'+(p.image_path?'<div><img class="shot" id="shot" data-p="'+esc(p.image_path)+'" alt="Page image"></div>':'<div class="empty">No image</div>')+
+ '<div class="split">'+(p.image_path?'<div><button class="image-toggle" id="shotToggle" type="button" aria-expanded="false" aria-label="Enlarge page image"><img class="shot" data-p="'+esc(p.image_path)+'" alt=""></button></div>':'<div class="empty">No image</div>')+
  '<div><div class="chips">'+["all","open","done"].map(f=>'<button class="chip'+(filter===f?" on":"")+'" data-f="'+f+'">'+f[0].toUpperCase()+f.slice(1)+'</button>').join("")+'</div><div>'+
  (list.map(({it,i})=>{const c=counts.get(it.id)||0;
   return '<div class="it'+(it.done?" done":"")+'" data-item-row="'+esc(it.id)+'"><div class="ir"><span class="n">'+(i+1)+'</span><input type="checkbox" data-c="'+it.id+'" aria-label="Mark point '+(i+1)+' as checked"'+(it.done?" checked":"")+(pendingChecks.has(it.id)?" disabled":"")+'><textarea rows="1" dir="auto" data-t="'+it.id+'">'+esc(it.text)+'</textarea>'+
   '<button class="ib'+(c?" has":"")+'" data-th="'+it.id+'" data-count="'+c+'" title="Open comments" aria-label="'+commentLabel(i+1,c)+'">'+commentIcon+(c?" "+c:"")+'</button><button class="ib" data-x="'+it.id+'" title="Remove">×</button></div>'+
   '<div class="by">'+esc(checkStatus(it))+'</div></div>'}).join("")||'<div class="empty">Nothing here</div>')+
- '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="New point"><button class="btn" id="newBtn">Add</button></div></div></div></div>');
+ '</div><div class="add"><input type="text" id="newIt" dir="auto" placeholder="New point"><button class="btn" id="newBtn">Add</button></div></div><button class="btn image-view-close" id="imageViewClose" type="button" aria-label="Close enlarged image and checklist">✕</button></div></div>');
  const fields=[...m.querySelectorAll("textarea[data-t]")];
  fields.filter(t=>!t.style.height).forEach(grow);
 }
@@ -1565,7 +1579,15 @@ $("main").onclick=async e=>{
  if(d.f){filter=d.f;draw(true);return}
  if(d.x&&confirm("Remove this point and its notes?")){const ns=notes.filter(n=>n.item_id===d.x);const{error}=await sb.from("items").delete().eq("id",d.x);if(error)throw error;scheduleSync({table:"items",eventType:"DELETE",old:{id:d.x}});await rmFiles(notePaths(ns));return}
  if(d.th){openComments(d.th);return}
- if(t.id==="shot"){$("lbi").src=t.src;$("lb").style.display="block";pushMobileLayer("image",hideLightbox,showLightbox)}
+ if(t.id==="shotToggle"||t.id==="imageViewClose"){
+  const toggle=t.id==="shotToggle"?t:t.closest(".split").querySelector("#shotToggle");
+  const expanded=t.id==="shotToggle"&&toggle.getAttribute("aria-expanded")!=="true";
+  toggle.setAttribute("aria-expanded",String(expanded));
+  toggle.setAttribute("aria-label",expanded?"Close enlarged image view":"Enlarge page image");
+  toggle.closest(".split").classList.toggle("image-expanded",expanded);
+  if(t.id==="imageViewClose")toggle.focus();
+  return;
+ }
  if(t.id==="newBtn")await addOne();
  if(t.id==="bPrint")await doPrint([p]);
  if(t.id==="bShare")await share(p);
@@ -1601,10 +1623,6 @@ async function saveCheck(id,checked){
 $("main").oninput=e=>{if(e.target.dataset.t)grow(e.target)};
 $("main").onkeydown=async e=>{if(e.target.id==="newIt"&&e.key==="Enter")await addOne()};
 async function addOne(){const v=$("newIt").value.trim();if(!v)return;$("newIt").value="";try{await addItems(cur,[v])}catch(er){fail(er)}$("newIt").focus()}
-function hideLightbox(){$("lb").style.display="none"}
-function showLightbox(){$("lb").style.display="block"}
-$("lb").onclick=()=>closeMobileLayer("image",hideLightbox);
-
 /* ---------- shared comments ---------- */
 function renderCommentDraft(){
  if(!commentItem)return;
@@ -2059,7 +2077,7 @@ function refreshIsBusy(){
  const active=document.activeElement;
  if(signedOut||!me||refreshSending||refreshActions||rec||recStarting||commentSending||pageSaving||
     pendingWrites.size||pendingChecks.size||document.querySelector(".modal.show")||
-    $("sidePanel").classList.contains("open")||$("lb").style.display==="block"||$("printArea").hasChildNodes()||
+    $("sidePanel").classList.contains("open")||$("printArea").hasChildNodes()||
     (active&&active.matches("input:not([type=checkbox]),textarea,select,[contenteditable=true]"))||
     [...document.querySelectorAll("audio")].some(audio=>!audio.paused))return true;
  if($("newIt")?.value||$("mmE").value||$("mmN").value)return true;

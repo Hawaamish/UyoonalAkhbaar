@@ -41,6 +41,66 @@ test("gallery identifies the selected page and escapes page labels", () => {
   assert.equal(elements.galleryCount.textContent, "1 of 1 pages");
 });
 
+test("page image fills the viewport without hiding checklist controls", async () => {
+  const splitClasses = new Set(), attributes = { "aria-expanded": "false" };
+  let restoredFocus = false;
+  const split = {
+    classList: { toggle: (name, enabled) => enabled ? splitClasses.add(name) : splitClasses.delete(name) },
+    querySelector: () => button,
+  };
+  const button = {
+    id: "shotToggle", dataset: {},
+    getAttribute: name => attributes[name],
+    setAttribute: (name, value) => { attributes[name] = value; },
+    focus: () => { restoredFocus = true; },
+    closest: selector => selector === ".split" ? split : null,
+  };
+  const main = {};
+  const context = vm.createContext({
+    $: id => id === "main" ? main : {},
+    P: () => ({}), closeMobileLayer() {}, backToPages() {},
+    openComments() {}, addOne() {}, doPrint() {}, share() {}, openModal() {},
+    confirm: () => false, toast() {}, fail() {}, scheduleSync() {}, rmFiles() {},
+    sb: {},
+  });
+  vm.runInContext(section('$("main").onclick=async e=>{', '$("main").onchange='), context);
+  await main.onclick({ target: { closest: () => button } });
+  assert.equal(attributes["aria-expanded"], "true");
+  assert.equal(attributes["aria-label"], "Close enlarged image view");
+  assert.equal(splitClasses.has("image-expanded"), true);
+  const closeButton = { id: "imageViewClose", dataset: {}, closest: () => split };
+  await main.onclick({ target: { closest: () => closeButton } });
+  assert.equal(attributes["aria-expanded"], "false");
+  assert.equal(splitClasses.has("image-expanded"), false);
+  assert.equal(restoredFocus, true);
+  await main.onclick({ target: { closest: () => button } });
+  assert.equal(attributes["aria-expanded"], "true");
+  assert.equal(splitClasses.has("image-expanded"), true);
+  await main.onclick({ target: { closest: () => button } });
+  assert.equal(attributes["aria-expanded"], "false");
+  assert.equal(attributes["aria-label"], "Enlarge page image");
+  assert.equal(splitClasses.has("image-expanded"), false);
+
+  const rendered = { innerHTML: "", querySelectorAll: () => [] };
+  const renderContext = vm.createContext({
+    $: () => rendered, patchMarkup, P: () => ({ id: "page", label: "Page", image_path: "page.webp" }),
+    its: () => [{ id: "item", text: "Point", done: false }], stat: () => ({ d: 0, n: 1, pc: 0 }),
+    commentCounts: () => new Map(), filter: "all", pendingChecks: new Map(),
+    commentIcon: "<svg></svg>", commentLabel: () => "Open comments", checkStatus: () => "",
+    esc: String, grow() {},
+  });
+  vm.runInContext(section("function renderMain()", "function grow("), renderContext);
+  renderContext.renderMain();
+  assert.match(rendered.innerHTML, /class="image-toggle" id="shotToggle"[^>]*aria-expanded="false"/);
+  assert.match(rendered.innerHTML, /<input type="checkbox" data-c=/);
+  assert.match(rendered.innerHTML, /class="ib[^"]*" data-th=/);
+  assert.match(rendered.innerHTML, /<div class="split">[\s\S]*class="image-toggle"[\s\S]*type="checkbox"[\s\S]*data-th=/);
+  assert.match(rendered.innerHTML, /class="btn image-view-close" id="imageViewClose"/);
+  assert.match(html, /\.split\.image-expanded\{position:fixed;inset:0;/);
+  assert.match(html, /@keyframes image-slide-in-left/);
+  assert.match(html, /@keyframes image-slide-in-right/);
+});
+
 test("selecting a gallery page keeps mobile detail history when already open", async () => {
   const calls = [], main = { scrollTop: 200 };
   const context = vm.createContext({
